@@ -1,87 +1,73 @@
-"use client";
+"use client"
 
-import { createContext, useState, useEffect, type ReactNode } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createContext, useState, useEffect, type ReactNode } from "react"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 type User = {
-  id: string;
-  email: string;
-  full_name: string;
-};
+  id: string
+  email: string
+  full_name: string
+}
 
 type AuthContextType = {
-  user: User | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (
-    email: string,
-    password: string,
-    full_name: string
-  ) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
-};
+  user: User | null
+  loading: boolean
+  signIn: (email: string, password: string) => Promise<{ error: any }>
+  signUp: (email: string, password: string, full_name: string) => Promise<{ error: any }>
+  signOut: () => Promise<void>
+}
 
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const supabase = createClientComponentClient();
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
     const getUser = async () => {
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } = await supabase.auth.getSession()
 
       if (session?.user) {
-        const { data } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", session.user.id)
-          .single();
+        const { data } = await supabase.from("users").select("*").eq("id", session.user.id).single()
 
-        setUser(data as User);
+        setUser(data as User)
       }
 
-      setLoading(false);
-    };
+      setLoading(false)
+    }
 
-    getUser();
+    getUser()
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        const { data } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", session.user.id)
-          .single();
+        const { data } = await supabase.from("users").select("*").eq("id", session.user.id).single()
 
-        setUser(data as User);
+        setUser(data as User)
       } else {
-        setUser(null);
+        setUser(null)
       }
 
-      setLoading(false);
-    });
+      setLoading(false)
+    })
 
     return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
+      subscription.unsubscribe()
+    }
+  }, [supabase])
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    });
+    })
 
-    return { error };
-  };
+    return { error }
+  }
 
   const signUp = async (email: string, password: string, full_name: string) => {
     const { error } = await supabase.auth.signUp({
@@ -92,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           full_name,
         },
       },
-    });
+    })
 
     if (!error) {
       // Create user profile in users table
@@ -101,16 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email,
           full_name,
         },
-      ]);
+      ])
     }
 
-    return { error };
-  };
+    return { error }
+  }
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
+    await supabase.auth.signOut()
+    setUser(null)
+  }
 
   return (
     <AuthContext.Provider
@@ -124,5 +110,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     >
       {children}
     </AuthContext.Provider>
-  );
+  )
 }

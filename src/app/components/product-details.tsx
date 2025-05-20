@@ -1,26 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import Link from "next/link";
 import { Heart, Share2, Truck, RotateCcw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { useCart } from "@/hooks/use-cart";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCart } from "@/components/cart-provider";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
-type ProductDetailsProps = {
+interface ProductDetailsProps {
   product: any; // In a real app, we would define a proper type
-};
+}
 
-export default function ProductDetails({ product }: ProductDetailsProps) {
+export function ProductDetails({ product }: ProductDetailsProps) {
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
 
-  const { addToCart } = useCart();
+  const { addItem } = useCart();
   const { toast } = useToast();
 
   const handleAddToCart = () => {
@@ -33,14 +34,12 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
       return;
     }
 
-    addToCart({
+    addItem({
       id: `${product.id}-${selectedSize}-${selectedColor}`,
       name: product.name,
-      price: product.salePrice || product.price,
-      image: product.image,
+      price: product.sale_price || product.price,
+      image: product.product_images[0]?.image_url || "/placeholder.svg",
       quantity,
-      size: selectedSize,
-      color: selectedColor,
     });
 
     toast({
@@ -57,33 +56,52 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
     setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
   };
 
+  // Mock data for sizes and colors
+  const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
+  const colors = [
+    { name: "Black", value: "black" },
+    { name: "White", value: "white" },
+    { name: "Navy", value: "navy" },
+    { name: "Red", value: "red" },
+  ];
+
+  const productImages = product.product_images.map(
+    (img: any) => img.image_url
+  ) || ["/placeholder.svg"];
+
+  const discountPercentage = product.sale_price
+    ? Math.round(((product.price - product.sale_price) / product.price) * 100)
+    : 0;
+
   return (
     <div className="grid gap-8 md:grid-cols-2">
       {/* Product Images */}
       <div className="space-y-4">
         <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-          <Image
-            src={product.images[activeImage] || "/placeholder.svg"}
+          <img
+            src={productImages[activeImage] || "/placeholder.svg"}
             alt={product.name}
-            fill
-            className="object-cover"
+            className="h-full w-full object-cover"
           />
+          {discountPercentage > 0 && (
+            <div className="absolute left-4 top-4 rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white">
+              {discountPercentage}% OFF
+            </div>
+          )}
         </div>
-        <div className="flex space-x-2">
-          {product.images.map((image: string, index: number) => (
+        <div className="flex space-x-2 overflow-x-auto">
+          {productImages.map((image: string, index: number) => (
             <button
               key={index}
               onClick={() => setActiveImage(index)}
-              className={cn(
-                "relative aspect-square w-20 overflow-hidden rounded-md border-2",
-                activeImage === index ? "border-black" : "border-transparent"
-              )}
+              className={`relative aspect-square w-20 overflow-hidden rounded-md border-2 ${
+                activeImage === index ? "border-primary" : "border-transparent"
+              }`}
             >
-              <Image
+              <img
                 src={image || "/placeholder.svg"}
                 alt={`${product.name} ${index + 1}`}
-                fill
-                className="object-cover"
+                className="h-full w-full object-cover"
               />
             </button>
           ))}
@@ -93,43 +111,38 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
       {/* Product Info */}
       <div>
         <h1 className="mb-2 text-3xl font-bold">{product.name}</h1>
-        <p className="mb-4 text-gray-500">{product.category}</p>
+        <p className="mb-4 text-muted-foreground">
+          Category:{" "}
+          <Link
+            href={`/categories/${product.categories?.slug}`}
+            className="hover:underline"
+          >
+            {product.categories?.name}
+          </Link>
+        </p>
 
         <div className="mb-6 flex items-center">
-          {product.salePrice ? (
+          {product.sale_price ? (
             <>
               <span className="text-2xl font-bold">
-                Rs. {product.salePrice.toLocaleString()}
+                {formatCurrency(product.sale_price)}
               </span>
-              <span className="ml-2 text-gray-500 line-through">
-                Rs. {product.price.toLocaleString()}
+              <span className="ml-2 text-muted-foreground line-through">
+                {formatCurrency(product.price)}
               </span>
               <span className="ml-2 rounded bg-red-600 px-2 py-1 text-xs font-medium text-white">
-                {Math.round(
-                  ((product.price - product.salePrice) / product.price) * 100
-                )}
-                % OFF
+                {discountPercentage}% OFF
               </span>
             </>
           ) : (
             <span className="text-2xl font-bold">
-              Rs. {product.price.toLocaleString()}
+              {formatCurrency(product.price)}
             </span>
           )}
         </div>
 
         <div className="mb-6">
-          <h3 className="mb-2 font-medium">Description</h3>
-          <p className="text-gray-600">{product.description}</p>
-        </div>
-
-        <div className="mb-6">
-          <h3 className="mb-2 font-medium">Features</h3>
-          <ul className="list-inside list-disc space-y-1 text-gray-600">
-            {product.features.map((feature: string, index: number) => (
-              <li key={index}>{feature}</li>
-            ))}
-          </ul>
+          <p className="text-muted-foreground">{product.description}</p>
         </div>
 
         <div className="mb-6">
@@ -139,7 +152,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
             onValueChange={setSelectedSize}
             className="flex flex-wrap gap-2"
           >
-            {product.sizes.map((size: string) => (
+            {sizes.map((size) => (
               <div key={size} className="flex items-center space-x-2">
                 <RadioGroupItem
                   value={size}
@@ -148,7 +161,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
                 />
                 <Label
                   htmlFor={`size-${size}`}
-                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-gray-200 peer-data-[state=checked]:border-black peer-data-[state=checked]:bg-black peer-data-[state=checked]:text-white"
+                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-input peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground"
                 >
                   {size}
                 </Label>
@@ -164,18 +177,22 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
             onValueChange={setSelectedColor}
             className="flex flex-wrap gap-2"
           >
-            {product.colors.map((color: string) => (
-              <div key={color} className="flex items-center space-x-2">
+            {colors.map((color) => (
+              <div key={color.value} className="flex items-center space-x-2">
                 <RadioGroupItem
-                  value={color}
-                  id={`color-${color}`}
+                  value={color.value}
+                  id={`color-${color.value}`}
                   className="peer sr-only"
                 />
                 <Label
-                  htmlFor={`color-${color}`}
-                  className="flex h-10 cursor-pointer items-center justify-center rounded-md border border-gray-200 px-3 peer-data-[state=checked]:border-black peer-data-[state=checked]:bg-black peer-data-[state=checked]:text-white"
+                  htmlFor={`color-${color.value}`}
+                  className="flex h-10 cursor-pointer items-center space-x-2 rounded-md border border-input px-3 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground"
                 >
-                  {color}
+                  <span
+                    className="inline-block h-4 w-4 rounded-full border"
+                    style={{ backgroundColor: color.value }}
+                  ></span>
+                  <span>{color.name}</span>
                 </Label>
               </div>
             ))}
@@ -187,16 +204,16 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
           <div className="flex h-10 w-32 items-center">
             <button
               onClick={decrementQuantity}
-              className="flex h-full w-10 items-center justify-center border border-r-0 border-gray-300 hover:bg-gray-100"
+              className="flex h-full w-10 items-center justify-center border border-r-0 border-input hover:bg-muted"
             >
               -
             </button>
-            <div className="flex h-full w-12 items-center justify-center border border-gray-300">
+            <div className="flex h-full w-12 items-center justify-center border border-input">
               {quantity}
             </div>
             <button
               onClick={incrementQuantity}
-              className="flex h-full w-10 items-center justify-center border border-l-0 border-gray-300 hover:bg-gray-100"
+              className="flex h-full w-10 items-center justify-center border border-l-0 border-input hover:bg-muted"
             >
               +
             </button>
@@ -215,22 +232,59 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
           </Button>
         </div>
 
-        <div className="space-y-4 rounded-lg border border-gray-200 p-4">
+        <div className="space-y-4 rounded-lg border p-4">
           <div className="flex items-center space-x-2">
-            <Truck className="h-5 w-5 text-gray-600" />
+            <Truck className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm">
-              Free shipping on orders over Rs. 2,000
+              Free shipping on orders over Rs. 5,000
             </span>
           </div>
           <div className="flex items-center space-x-2">
-            <RotateCcw className="h-5 w-5 text-gray-600" />
+            <RotateCcw className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm">Easy 30-day returns</span>
           </div>
           <div className="flex items-center space-x-2">
-            <ShieldCheck className="h-5 w-5 text-gray-600" />
+            <ShieldCheck className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm">100% authentic products</span>
           </div>
         </div>
+
+        <Tabs defaultValue="description" className="mt-8">
+          <TabsList className="w-full">
+            <TabsTrigger value="description" className="flex-1">
+              Description
+            </TabsTrigger>
+            <TabsTrigger value="details" className="flex-1">
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="shipping" className="flex-1">
+              Shipping
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent
+            value="description"
+            className="mt-4 text-muted-foreground"
+          >
+            <p>{product.description || "No description available."}</p>
+          </TabsContent>
+          <TabsContent value="details" className="mt-4">
+            <ul className="list-inside list-disc space-y-1 text-muted-foreground">
+              <li>Material: 100% Cotton</li>
+              <li>Fit: Regular fit</li>
+              <li>Care: Machine wash cold</li>
+              <li>Imported</li>
+            </ul>
+          </TabsContent>
+          <TabsContent value="shipping" className="mt-4 text-muted-foreground">
+            <p>
+              Standard delivery: 3-5 business days
+              <br />
+              Express delivery: 1-2 business days
+              <br />
+              Free shipping on orders over Rs. 5,000
+            </p>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

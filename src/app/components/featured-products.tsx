@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
+import { generateDummyProducts } from "@/lib/dummy-data";
 
 export function FeaturedProducts() {
   const [products, setProducts] = useState([]);
@@ -13,28 +14,46 @@ export function FeaturedProducts() {
   useEffect(() => {
     async function fetchProducts() {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("products")
-        .select(
+
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select(
+            `
+            id, 
+            name, 
+            slug, 
+            price, 
+            sale_price,
+            product_images(image_url, is_primary)
           `
-          id, 
-          name, 
-          slug, 
-          price, 
-          sale_price,
-          product_images(image_url, is_primary)
-        `
-        )
-        .eq("featured", true)
-        .limit(8);
+          )
+          .eq("featured", true)
+          .limit(8);
 
-      if (error) {
-        console.error("Error fetching featured products:", error);
-        return;
+        if (error) {
+          console.error("Error fetching featured products:", error);
+          // Use dummy data on error
+          const dummyData = generateDummyProducts("featured", 8);
+          setProducts(dummyData);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setProducts(data);
+        } else {
+          // No data found, use dummy data
+          const dummyData = generateDummyProducts("featured", 8);
+          setProducts(dummyData);
+        }
+      } catch (error) {
+        console.error("Error in fetchProducts:", error);
+        // Use dummy data on error
+        const dummyData = generateDummyProducts("featured", 8);
+        setProducts(dummyData);
+      } finally {
+        setLoading(false);
       }
-
-      setProducts(data || []);
-      setLoading(false);
     }
 
     fetchProducts();

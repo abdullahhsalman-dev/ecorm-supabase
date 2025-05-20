@@ -21,7 +21,11 @@ const categories = [
       { name: "T-Shirts", href: "/men/t-shirts" },
       { name: "Shirts", href: "/men/shirts" },
       { name: "Pants", href: "/men/pants" },
+      { name: "Jeans", href: "/men/jeans" },
       { name: "Suits", href: "/men/suits" },
+      { name: "Formal", href: "/men/formal" },
+      { name: "Casual", href: "/men/casual" },
+      { name: "Activewear", href: "/men/activewear" },
     ],
   },
   {
@@ -31,6 +35,9 @@ const categories = [
       { name: "Tops", href: "/women/tops" },
       { name: "Dresses", href: "/women/dresses" },
       { name: "Pants", href: "/women/pants" },
+      { name: "Skirts", href: "/women/skirts" },
+      { name: "Ethnic Wear", href: "/women/ethnic" },
+      { name: "Western Wear", href: "/women/western" },
       { name: "Accessories", href: "/women/accessories" },
     ],
   },
@@ -40,11 +47,19 @@ const categories = [
     subcategories: [
       { name: "Boys", href: "/kids/boys" },
       { name: "Girls", href: "/kids/girls" },
+      { name: "Infants", href: "/kids/infants" },
+      { name: "Teens", href: "/kids/teens" },
     ],
   },
   {
     name: "FRAGRANCE",
     href: "/fragrance",
+    subcategories: [
+      { name: "Men", href: "/fragrance/men" },
+      { name: "Women", href: "/fragrance/women" },
+      { name: "Unisex", href: "/fragrance/unisex" },
+      { name: "Gift Sets", href: "/fragrance/gift-sets" },
+    ],
   },
   {
     name: "FOOTWEAR",
@@ -53,11 +68,22 @@ const categories = [
       { name: "Men", href: "/footwear/men" },
       { name: "Women", href: "/footwear/women" },
       { name: "Kids", href: "/footwear/kids" },
+      { name: "Sports", href: "/footwear/sports" },
+      { name: "Formal", href: "/footwear/formal" },
+      { name: "Casual", href: "/footwear/casual" },
     ],
   },
   {
     name: "WINTER WEAR",
     href: "/winter-wear",
+    subcategories: [
+      { name: "Men", href: "/winter-wear/men" },
+      { name: "Women", href: "/winter-wear/women" },
+      { name: "Kids", href: "/winter-wear/kids" },
+      { name: "Jackets", href: "/winter-wear/jackets" },
+      { name: "Sweaters", href: "/winter-wear/sweaters" },
+      { name: "Coats", href: "/winter-wear/coats" },
+    ],
   },
 ];
 

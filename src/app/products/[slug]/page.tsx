@@ -1,75 +1,100 @@
-import { notFound } from "next/navigation";
-import ProductDetails from "@/components/product-details";
-import RelatedProducts from "@/components/related-products";
+import { notFound } from "next/navigation"
+import { Suspense } from "react"
+import { ProductDetails } from "@/components/product-details"
+import { RelatedProducts } from "@/components/related-products"
+import { Skeleton } from "@/components/ui/skeleton"
+import { createClient } from "@/lib/supabase/server"
+import { getDummyProduct } from "@/lib/dummy-data"
 
-// Mock data - in a real app, this would come from an API
-const products = [
-  {
-    id: "1",
-    name: "Classic Fit Shirt",
-    price: 2999,
-    salePrice: 2499,
-    image: "/placeholder.svg?height=600&width=600&query=classic%20fit%20shirt",
-    images: [
-      "/placeholder.svg?height=600&width=600&query=classic%20fit%20shirt%20front",
-      "/placeholder.svg?height=600&width=600&query=classic%20fit%20shirt%20back",
-      "/placeholder.svg?height=600&width=600&query=classic%20fit%20shirt%20detail",
-    ],
-    category: "Men",
-    slug: "classic-fit-shirt",
-    description:
-      "A comfortable classic fit shirt made from premium cotton fabric. Perfect for formal occasions or everyday office wear.",
-    features: [
-      "100% Premium Cotton",
-      "Classic Fit",
-      "Button-Down Collar",
-      "Machine Washable",
-    ],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-    colors: ["White", "Blue", "Black"],
-    inStock: true,
-  },
-  {
-    id: "2",
-    name: "Slim Fit Jeans",
-    price: 3499,
-    salePrice: null,
-    image: "/placeholder.svg?height=600&width=600&query=slim%20fit%20jeans",
-    images: [
-      "/placeholder.svg?height=600&width=600&query=slim%20fit%20jeans%20front",
-      "/placeholder.svg?height=600&width=600&query=slim%20fit%20jeans%20back",
-      "/placeholder.svg?height=600&width=600&query=slim%20fit%20jeans%20detail",
-    ],
-    category: "Men",
-    slug: "slim-fit-jeans",
-    description:
-      "Modern slim fit jeans with a comfortable stretch fabric. These jeans offer both style and comfort for everyday wear.",
-    features: [
-      "98% Cotton, 2% Elastane",
-      "Slim Fit",
-      "Five Pocket Design",
-      "Machine Washable",
-    ],
-    sizes: ["30", "32", "34", "36", "38"],
-    colors: ["Blue", "Black", "Grey"],
-    inStock: true,
-  },
-];
-
-export default function ProductPage({ params }: { params: { slug: string } }) {
-  const product = products.find((p) => p.slug === params.slug);
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const product = await getProduct(params.slug)
 
   if (!product) {
-    notFound();
+    return {
+      title: "Product Not Found | Diners",
+      description: "The requested product could not be found.",
+    }
+  }
+
+  return {
+    title: `${product.name} | Diners`,
+    description: product.description || "View product details and purchase options.",
+  }
+}
+
+async function getProduct(slug: string) {
+  try {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from("products")
+      .select(`
+        *,
+        product_images(*),
+        categories:category_id(id, name, slug)
+      `)
+      .eq("slug", slug)
+      .single()
+
+    if (error || !data) {
+      console.error("Error fetching product:", error)
+      // Return dummy product data
+      return getDummyProduct(slug)
+    }
+
+    return data
+  } catch (error) {
+    console.error("Error in getProduct:", error)
+    // Return dummy product data on error
+    return getDummyProduct(slug)
+  }
+}
+
+export default async function ProductPage({ params }: { params: { slug: string } }) {
+  const product = await getProduct(params.slug)
+
+  if (!product) {
+    notFound()
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <ProductDetails product={product} />
-      <RelatedProducts
-        currentProductId={product.id}
-        category={product.category}
-      />
+    <div className="container px-4 py-8 md:py-12">
+      <Suspense
+        fallback={
+          <div className="grid gap-8 md:grid-cols-2">
+            <Skeleton className="aspect-square w-full rounded-lg" />
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-2/3" />
+              <Skeleton className="h-6 w-1/3" />
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
+        }
+      >
+        <ProductDetails product={product} />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <div className="mt-16 space-y-4">
+            <Skeleton className="h-8 w-1/4" />
+            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+              {Array(4)
+                .fill(null)
+                .map((_, i) => (
+                  <div key={i} className="space-y-4">
+                    <Skeleton className="aspect-square w-full rounded-lg" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+            </div>
+          </div>
+        }
+      >
+        <RelatedProducts currentProductId={product.id} categoryId={product.category_id} />
+      </Suspense>
     </div>
-  );
+  )
 }
