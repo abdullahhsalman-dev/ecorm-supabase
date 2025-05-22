@@ -4,37 +4,37 @@ const footwearCategories = [
   {
     id: 1,
     name: "Men",
-    image: "/placeholder.svg?height=400&width=400&query=men%20shoes",
+    image: "",
     href: "/footwear/men",
   },
   {
     id: 2,
     name: "Women",
-    image: "/placeholder.svg?height=400&width=400&query=women%20shoes",
+    image: "",
     href: "/footwear/women",
   },
   {
     id: 3,
     name: "Kids",
-    image: "/placeholder.svg?height=400&width=400&query=kids%20shoes",
+    image: "",
     href: "/footwear/kids",
   },
   {
     id: 4,
     name: "Sports",
-    image: "/placeholder.svg?height=400&width=400&query=sports%20shoes",
+    image: "",
     href: "/footwear/sports",
   },
   {
     id: 5,
     name: "Formal",
-    image: "/placeholder.svg?height=400&width=400&query=formal%20shoes",
+    image: "",
     href: "/footwear/formal",
   },
   {
     id: 6,
     name: "Casual",
-    image: "/placeholder.svg?height=400&width=400&query=casual%20shoes",
+    image: "",
     href: "/footwear/casual",
   },
 ];
@@ -50,7 +50,7 @@ export function FootwearCategories() {
         >
           <div className="relative aspect-square overflow-hidden">
             <img
-              src={category.image || "/placeholder.svg"}
+              src={category.image || ""}
               alt={category.name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />

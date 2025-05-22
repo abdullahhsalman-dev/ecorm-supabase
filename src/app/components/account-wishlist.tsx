@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ShoppingCart, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/components/auth-provider";
-import { useCart } from "@/components/cart-provider";
+import { Button } from "@/src/app/components/ui/button";
+import { createClient } from "@/src/app/lib/supabase/client";
+import { useAuth } from "@/src/app/components/auth-provider";
+import { useCart } from "@/src/app/components/cart-provider";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
-import { getDummyWishlistItems } from "@/lib/dummy-data";
+import { formatCurrency } from "@/src/app/lib/utils";
+import { getDummyWishlistItems } from "@/src/app/lib/dummy-data";
 
 export function AccountWishlist() {
   const { user } = useAuth();
@@ -189,7 +189,7 @@ export function AccountWishlist() {
               <div className="relative aspect-square overflow-hidden">
                 <Link href={`/products/${product.slug}`}>
                   <img
-                    src={primaryImage || "/placeholder.svg"}
+                    src={primaryImage || ""}
                     alt={product.name}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />

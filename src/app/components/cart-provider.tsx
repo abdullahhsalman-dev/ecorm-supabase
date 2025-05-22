@@ -29,14 +29,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Load cart from localStorage on client side
   useEffect(() => {
-    const storedCart = localStorage.getItem("cart");
-    if (storedCart) {
-      try {
+    try {
+      const storedCart = localStorage.getItem("cart");
+      if (storedCart) {
         setItems(JSON.parse(storedCart));
-      } catch (error) {
-        console.error("Failed to parse cart from localStorage:", error);
-        localStorage.removeItem("cart");
       }
+    } catch (error) {
+      console.error("Failed to access localStorage:", error);
+      localStorage.removeItem("cart");
     }
   }, []);
 
@@ -114,3 +114,5 @@ export function useCart() {
   }
   return context;
 }
+
+export { CartContext };

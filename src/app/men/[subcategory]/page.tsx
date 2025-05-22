@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { ProductGrid } from "@/components/product-grid";
-import { ProductFilters } from "@/components/product-filters";
-import { ProductSorting } from "@/components/product-sorting";
-import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/server";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { ProductFilters } from "@/src/app/components/product-filters";
+import { ProductSorting } from "@/src/app/components/product-sorting";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { createClient } from "@/src/app/lib/supabase/server";
 
 export async function generateMetadata({
   params,
@@ -95,7 +95,7 @@ export default async function MenSubcategoryPage({
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
         <div className="lg:col-span-1">
-          <ProductFilters categorySlug={params.subcategory} />
+          <ProductFilters categoryId={params.subcategory} />
         </div>
         <div className="lg:col-span-3">
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

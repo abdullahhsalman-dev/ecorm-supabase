@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/src/app/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 type AuthContextType = {
@@ -115,3 +115,4 @@ export function useAuth() {
   }
   return context;
 }
+// export { AuthProvider };

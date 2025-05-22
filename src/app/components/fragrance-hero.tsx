@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/app/components/ui/button";
 
 export function FragranceHero() {
   return (
     <div className="relative h-[500px] overflow-hidden">
       <img
-        src="/placeholder.svg?height=1000&width=2000&query=luxury%20fragrance%20collection"
+        src=""
         alt="Fragrance Collection"
         className="h-full w-full object-cover"
       />

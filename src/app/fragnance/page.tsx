@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { FragranceHero } from "@/components/fragrance-hero";
-import { FragranceCategories } from "@/components/fragrance-categories";
-import { ProductGrid } from "@/components/product-grid";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { FragranceHero } from "@/src/app/components/fragrance-hero";
+import { FragranceCategories } from "@/src/app/components/fragrance-categories";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { Button } from "@/src/app/components/ui/button";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
 
 export const metadata = {
   title: "Fragrance Collection | Diners",
@@ -59,7 +59,7 @@ export default function FragrancePage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/fragrance-men.png"
+                src=""
                 alt="Men's Fragrances"
                 className="h-full w-full object-cover"
               />
@@ -78,7 +78,7 @@ export default function FragrancePage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/fragrance-women.png"
+                src=""
                 alt="Women's Fragrances"
                 className="h-full w-full object-cover"
               />

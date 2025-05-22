@@ -3,12 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Search, ShoppingBag, Heart, Menu, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useCart } from "@/components/cart-provider";
-import { useAuth } from "@/components/auth-provider";
-import { cn } from "@/lib/utils";
+import { Button } from "@/src/app/components/ui/button";
+import { Input } from "@/src/app/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/src/app/components/ui/sheet";
+import { useCart } from "@/src/app/components/cart-provider";
+import { useAuth } from "@/src/app/components/auth-provider";
+import { cn } from "@/src/app/lib/utils";
 
 const mainCategories = [
   { name: "GRAND FESTIVE SALE", href: "/sale" },
@@ -59,7 +63,7 @@ export function Header() {
           <Sheet>
             <SheetTrigger asChild className="lg:hidden">
               <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
+                <Menu className="h-6 w-6 suppressHydrationWarning" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>

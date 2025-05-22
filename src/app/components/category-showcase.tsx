@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/src/app/lib/supabase/client";
+import { Database } from "@/src/app/lib/supabase/database.types";
 
-async function getMainCategories() {
+type Category = Database["public"]["Tables"]["categories"]["Row"];
+
+async function getMainCategories(): Promise<Category[]> {
   const supabase = createClient();
-
-  const { data, error } = await supabase
+  const { data, error } = (await supabase
     .from("categories")
     .select("id, name, slug, image_url")
     .is("parent_id", null)
-    .limit(6);
+    .limit(6)) as { data: Category[] | null; error: any };
 
   if (error) {
     console.error("Error fetching categories:", error);
@@ -19,14 +21,14 @@ async function getMainCategories() {
 }
 
 export async function CategoryShowcase() {
-  const categories = await getMainCategories();
+  const categories: Category[] = await getMainCategories();
 
   return (
     <section className="py-12">
       <h2 className="mb-8 text-center text-3xl font-bold tracking-tight">
         Shop by Category
       </h2>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg-grid-cols-6">
         {categories.map((category) => (
           <Link
             key={category.id}
@@ -35,10 +37,7 @@ export async function CategoryShowcase() {
           >
             <div className="aspect-square overflow-hidden">
               <img
-                src={
-                  category.image_url ||
-                  `/placeholder.svg?height=300&width=300&query=${category.name} fashion category`
-                }
+                src={category.image_url ?? ""}
                 alt={category.name}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
               />

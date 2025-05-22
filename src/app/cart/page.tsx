@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Trash2, Plus, Minus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { useCart } from "@/components/cart-provider";
+import { Button } from "@/src/app/components/ui/button";
+import { Input } from "@/src/app/components/ui/input";
+import { Separator } from "@/src/app/components/ui/separator";
+import { useCart } from "@/src/app/components/cart-provider";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/src/app/lib/utils";
 
 export default function CartPage() {
   const { items, cartTotal, updateItemQuantity, removeItem } = useCart();

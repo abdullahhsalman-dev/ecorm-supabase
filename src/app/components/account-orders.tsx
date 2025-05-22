@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/components/auth-provider";
-import { formatCurrency } from "@/lib/utils";
-import { getDummyOrders } from "@/lib/dummy-data";
+import { Button } from "@/src/app/components/ui/button";
+import { Badge } from "@/src/app/components/ui/badge";
+import { createClient } from "@/src/app/lib/supabase/client";
+import { useAuth } from "@/src/app/components/auth-provider";
+import { formatCurrency } from "@/src/app/lib/utils";
+import { getDummyOrders } from "@/src/app/lib/dummy-data";
 
 export function AccountOrders() {
   const { user } = useAuth();

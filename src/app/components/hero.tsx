@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/app/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/src/app/lib/utils";
 
 const slides = [
   {
@@ -14,7 +14,7 @@ const slides = [
     subtitle: "FLAT 25% OFF | 50% OFF",
     description: "Shop the latest collection for the festive season",
     cta: "Shop Now",
-    image: "/fashion-sale-banner-red.png",
+    image: "",
     link: "/sale",
     bgColor: "bg-red-600",
   },
@@ -24,7 +24,7 @@ const slides = [
     subtitle: "Summer Collection 2025",
     description: "Discover the latest trends for the season",
     cta: "Explore",
-    image: "/summer-fashion-banner.png",
+    image: "",
     link: "/new-arrivals",
     bgColor: "bg-blue-600",
   },
@@ -34,7 +34,7 @@ const slides = [
     subtitle: "Stay Warm in Style",
     description: "Premium winter collection for all ages",
     cta: "Shop Collection",
-    image: "/winter-fashion-banner.png",
+    image: "",
     link: "/winter-wear",
     bgColor: "bg-gray-800",
   },

@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { WomenHero } from "@/components/women-hero";
-import { WomenCategories } from "@/components/women-categories";
-import { ProductGrid } from "@/components/product-grid";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { WomenHero } from "@/src/app/components/women-hero";
+import { WomenCategories } from "@/src/app/components/women-categories";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { Button } from "@/src/app/components/ui/button";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
 
 export const metadata = {
   title: "Women's Collection | Diners",
@@ -59,7 +59,7 @@ export default function WomenPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/women-ethnic-wear.png"
+                src=""
                 alt="Women's Ethnic Collection"
                 className="h-full w-full object-cover"
               />
@@ -78,7 +78,7 @@ export default function WomenPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/women-western-wear.png"
+                src=""
                 alt="Women's Western Collection"
                 className="h-full w-full object-cover"
               />

@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { PlusCircle, Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/app/components/ui/button";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/components/auth-provider";
-import { getDummyAddresses } from "@/lib/dummy-data";
+} from "@/src/app/components/ui/card";
+import { createClient } from "@/src/app/lib/supabase/client";
+import { useAuth } from "@/src/app/components/auth-provider";
+import { getDummyAddresses } from "@/src/app/lib/dummy-data";
+import { log } from "node:console";
 
 export function AccountAddresses() {
   const { user } = useAuth();
@@ -21,6 +22,8 @@ export function AccountAddresses() {
 
   useEffect(() => {
     async function fetchAddresses() {
+      console.log("Fetching addresses for user:", getDummyAddresses);
+
       if (!user) {
         // Use dummy data if no user
         setAddresses(getDummyAddresses());

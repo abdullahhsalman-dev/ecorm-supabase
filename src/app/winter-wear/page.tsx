@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { WinterWearHero } from "@/components/winter-wear-hero";
-import { WinterWearCategories } from "@/components/winter-wear-categories";
-import { ProductGrid } from "@/components/product-grid";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { WinterWearHero } from "@/src/app/components/winter-wear-hero";
+import { WinterWearCategories } from "@/src/app/components/winter-wear-categories";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { Button } from "@/src/app/components/ui/button";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
 
 export const metadata = {
   title: "Winter Wear Collection | Diners",
@@ -58,7 +58,7 @@ export default function WinterWearPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/winter-wear-men.png"
+                src=""
                 alt="Men's Winter Wear"
                 className="h-full w-full object-cover"
               />
@@ -79,7 +79,7 @@ export default function WinterWearPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/winter-wear-women.png"
+                src=""
                 alt="Women's Winter Wear"
                 className="h-full w-full object-cover"
               />

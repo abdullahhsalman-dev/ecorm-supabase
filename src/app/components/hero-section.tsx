@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/app/components/ui/button";
 
 export function HeroSection() {
   return (
@@ -36,7 +36,7 @@ export function HeroSection() {
           </div>
           <div className="flex items-center justify-center p-8">
             <img
-              src="/placeholder-nucat.png"
+              src=""
               alt="Grand Festive Sale"
               className="max-h-[400px] w-auto"
             />

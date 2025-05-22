@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { KidsHero } from "@/components/kids-hero";
-import { KidsCategories } from "@/components/kids-categories";
-import { ProductGrid } from "@/components/product-grid";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { KidsHero } from "@/src/app/components/kids-hero";
+import { KidsCategories } from "@/src/app/components/kids-categories";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { Button } from "@/src/app/components/ui/button";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
 
 export const metadata = {
   title: "Kids Collection | Diners",
@@ -58,7 +58,7 @@ export default function KidsPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/kids-boys-collection.png"
+                src=""
                 alt="Boys Collection"
                 className="h-full w-full object-cover"
               />
@@ -77,7 +77,7 @@ export default function KidsPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/kids-girls-collection.png"
+                src=""
                 alt="Girls Collection"
                 className="h-full w-full object-cover"
               />

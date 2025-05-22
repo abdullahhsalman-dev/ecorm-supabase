@@ -1,60 +1,71 @@
-import { notFound } from "next/navigation"
-import { Suspense } from "react"
-import { ProductDetails } from "@/components/product-details"
-import { RelatedProducts } from "@/components/related-products"
-import { Skeleton } from "@/components/ui/skeleton"
-import { createClient } from "@/lib/supabase/server"
-import { getDummyProduct } from "@/lib/dummy-data"
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { ProductDetails } from "@/src/app/components/product-details";
+import { RelatedProducts } from "@/src/app/components/related-products";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { createClient } from "@/src/app/lib/supabase/server";
+import { getDummyProduct } from "@/src/app/lib/dummy-data";
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const product = await getProduct(params.slug)
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const product = await getProduct(params.slug);
 
   if (!product) {
     return {
       title: "Product Not Found | Diners",
       description: "The requested product could not be found.",
-    }
+    };
   }
 
   return {
     title: `${product.name} | Diners`,
-    description: product.description || "View product details and purchase options.",
-  }
+    description:
+      product.description || "View product details and purchase options.",
+  };
 }
 
 async function getProduct(slug: string) {
   try {
-    const supabase = createClient()
+    const supabase = createClient();
 
     const { data, error } = await supabase
       .from("products")
-      .select(`
+      .select(
+        `
         *,
         product_images(*),
         categories:category_id(id, name, slug)
-      `)
+      `
+      )
       .eq("slug", slug)
-      .single()
+      .single();
 
     if (error || !data) {
-      console.error("Error fetching product:", error)
+      console.error("Error fetching product:", error);
       // Return dummy product data
-      return getDummyProduct(slug)
+      return getDummyProduct(slug);
     }
 
-    return data
+    return data;
   } catch (error) {
-    console.error("Error in getProduct:", error)
+    console.error("Error in getProduct:", error);
     // Return dummy product data on error
-    return getDummyProduct(slug)
+    return getDummyProduct(slug);
   }
 }
 
-export default async function ProductPage({ params }: { params: { slug: string } }) {
-  const product = await getProduct(params.slug)
+export default async function ProductPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const product = await getProduct(params.slug);
 
   if (!product) {
-    notFound()
+    notFound();
   }
 
   return (
@@ -93,8 +104,11 @@ export default async function ProductPage({ params }: { params: { slug: string }
           </div>
         }
       >
-        <RelatedProducts currentProductId={product.id} categoryId={product.category_id} />
+        <RelatedProducts
+          currentProductId={product.id}
+          categoryId={product.category_id}
+        />
       </Suspense>
     </div>
-  )
+  );
 }

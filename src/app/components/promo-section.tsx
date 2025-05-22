@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/app/components/ui/button";
 
 export function PromoSection() {
   return (
@@ -7,7 +7,7 @@ export function PromoSection() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="relative overflow-hidden rounded-lg bg-gray-900">
           <img
-            src="/men-fashion-collection.png"
+            src=""
             alt="Men's Collection"
             className="h-full w-full object-cover opacity-70"
           />
@@ -26,7 +26,7 @@ export function PromoSection() {
         </div>
         <div className="relative overflow-hidden rounded-lg bg-gray-900">
           <img
-            src="/women-fashion-collection.png"
+            src=""
             alt="Women's Collection"
             className="h-full w-full object-cover opacity-70"
           />

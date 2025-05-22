@@ -3,8 +3,8 @@
 import type React from "react";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/src/app/components/ui/button";
+import { Input } from "@/src/app/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
 export function Newsletter() {

@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/app/components/ui/button";
 
 export function FootwearHero() {
   return (
     <div className="relative h-[500px] overflow-hidden">
       <img
-        src="/placeholder.svg?height=1000&width=2000&query=footwear%20collection%20hero"
+        src=""
         alt="Footwear Collection"
         className="h-full w-full object-cover"
       />

@@ -8,7 +8,7 @@ import {
   Phone,
   MapPin,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/app/components/ui/button";
 
 export default function Footer() {
   return (
@@ -207,13 +207,9 @@ export default function Footer() {
               &copy; {new Date().getFullYear()} Diners. All rights reserved.
             </p>
             <div className="flex items-center space-x-4">
-              <img src="/visa-logo-generic.png" alt="Visa" className="h-8" />
-              <img
-                src="/mastercard-logo.png"
-                alt="Mastercard"
-                className="h-8"
-              />
-              <img src="/paypal-logo.png" alt="PayPal" className="h-8" />
+              {/* <img src="" alt="Visa" className="h-8" />
+              <img src="" alt="Mastercard" className="h-8" />
+              <img src="" alt="PayPal" className="h-8" /> */}
             </div>
           </div>
         </div>

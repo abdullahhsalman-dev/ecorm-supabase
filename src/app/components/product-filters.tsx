@@ -1,32 +1,39 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { Slider } from "@/components/ui/slider"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Slider } from "@/src/app/components/ui/slider";
+import { Checkbox } from "@/src/app/components/ui/checkbox";
+import { Button } from "@/src/app/components/ui/button";
+import { Input } from "@/src/app/components/ui/input";
+import { Label } from "@/src/app/components/ui/label";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/src/app/components/ui/accordion";
 
 interface ProductFiltersProps {
-  categoryId?: string
+  categoryId?: string;
 }
 
 export function ProductFilters({ categoryId }: ProductFiltersProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Price range
   const [priceRange, setPriceRange] = useState([
     Number.parseInt(searchParams.get("minPrice") || "0"),
     Number.parseInt(searchParams.get("maxPrice") || "10000"),
-  ])
+  ]);
 
   // Size filters
-  const sizes = ["XS", "S", "M", "L", "XL", "XXL"]
-  const [selectedSizes, setSelectedSizes] = useState<string[]>(searchParams.get("sizes")?.split(",") || [])
+  const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
+  const [selectedSizes, setSelectedSizes] = useState<string[]>(
+    searchParams.get("sizes")?.split(",") || []
+  );
 
   // Color filters
   const colors = [
@@ -36,47 +43,53 @@ export function ProductFilters({ categoryId }: ProductFiltersProps) {
     { name: "Blue", value: "blue" },
     { name: "Green", value: "green" },
     { name: "Yellow", value: "yellow" },
-  ]
-  const [selectedColors, setSelectedColors] = useState<string[]>(searchParams.get("colors")?.split(",") || [])
+  ];
+  const [selectedColors, setSelectedColors] = useState<string[]>(
+    searchParams.get("colors")?.split(",") || []
+  );
 
   const handleSizeChange = (size: string) => {
-    setSelectedSizes((prev) => (prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]))
-  }
+    setSelectedSizes((prev) =>
+      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
+    );
+  };
 
   const handleColorChange = (color: string) => {
-    setSelectedColors((prev) => (prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]))
-  }
+    setSelectedColors((prev) =>
+      prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]
+    );
+  };
 
   const applyFilters = () => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams.toString());
 
     // Update price range
-    params.set("minPrice", priceRange[0].toString())
-    params.set("maxPrice", priceRange[1].toString())
+    params.set("minPrice", priceRange[0].toString());
+    params.set("maxPrice", priceRange[1].toString());
 
     // Update sizes
     if (selectedSizes.length > 0) {
-      params.set("sizes", selectedSizes.join(","))
+      params.set("sizes", selectedSizes.join(","));
     } else {
-      params.delete("sizes")
+      params.delete("sizes");
     }
 
     // Update colors
     if (selectedColors.length > 0) {
-      params.set("colors", selectedColors.join(","))
+      params.set("colors", selectedColors.join(","));
     } else {
-      params.delete("colors")
+      params.delete("colors");
     }
 
-    router.push(`${pathname}?${params.toString()}`)
-  }
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const resetFilters = () => {
-    setPriceRange([0, 10000])
-    setSelectedSizes([])
-    setSelectedColors([])
-    router.push(pathname)
-  }
+    setPriceRange([0, 10000]);
+    setSelectedSizes([]);
+    setSelectedColors([]);
+    router.push(pathname);
+  };
 
   return (
     <div className="space-y-6">
@@ -87,18 +100,33 @@ export function ProductFilters({ categoryId }: ProductFiltersProps) {
         </Button>
       </div>
 
-      <Accordion type="multiple" defaultValue={["price", "size", "color"]} className="w-full">
+      <Accordion
+        type="multiple"
+        defaultValue={["price", "size", "color"]}
+        className="w-full"
+      >
         <AccordionItem value="price">
           <AccordionTrigger>Price Range</AccordionTrigger>
           <AccordionContent>
             <div className="space-y-4">
-              <Slider value={priceRange} min={0} max={10000} step={100} onValueChange={setPriceRange} />
+              <Slider
+                value={priceRange}
+                min={0}
+                max={10000}
+                step={100}
+                onValueChange={setPriceRange}
+              />
               <div className="flex items-center justify-between">
                 <div className="w-20">
                   <Input
                     type="number"
                     value={priceRange[0]}
-                    onChange={(e) => setPriceRange([Number.parseInt(e.target.value), priceRange[1]])}
+                    onChange={(e) =>
+                      setPriceRange([
+                        Number.parseInt(e.target.value),
+                        priceRange[1],
+                      ])
+                    }
                     min={0}
                     max={priceRange[1]}
                   />
@@ -108,7 +136,12 @@ export function ProductFilters({ categoryId }: ProductFiltersProps) {
                   <Input
                     type="number"
                     value={priceRange[1]}
-                    onChange={(e) => setPriceRange([priceRange[0], Number.parseInt(e.target.value)])}
+                    onChange={(e) =>
+                      setPriceRange([
+                        priceRange[0],
+                        Number.parseInt(e.target.value),
+                      ])
+                    }
                     min={priceRange[0]}
                     max={10000}
                   />
@@ -149,7 +182,10 @@ export function ProductFilters({ categoryId }: ProductFiltersProps) {
                     checked={selectedColors.includes(color.value)}
                     onCheckedChange={() => handleColorChange(color.value)}
                   />
-                  <Label htmlFor={`color-${color.value}`} className="flex cursor-pointer items-center">
+                  <Label
+                    htmlFor={`color-${color.value}`}
+                    className="flex cursor-pointer items-center"
+                  >
                     <span
                       className="mr-2 inline-block h-4 w-4 rounded-full border"
                       style={{ backgroundColor: color.value }}
@@ -167,5 +203,5 @@ export function ProductFilters({ categoryId }: ProductFiltersProps) {
         Apply Filters
       </Button>
     </div>
-  )
+  );
 }

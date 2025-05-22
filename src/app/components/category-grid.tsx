@@ -48,7 +48,7 @@ export default function CategoryGrid() {
             >
               <div className="relative aspect-square overflow-hidden">
                 <Image
-                  src={category.image || "/placeholder.svg"}
+                  src={category.image || ""}
                   alt={category.name}
                   fill
                   className="object-cover transition-transform duration-300 group-hover:scale-105"

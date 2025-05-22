@@ -3,13 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Heart, Share2, Truck, RotateCcw, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCart } from "@/components/cart-provider";
+import { Button } from "@/src/app/components/ui/button";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/src/app/components/ui/radio-group";
+import { Label } from "@/src/app/components/ui/label";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/src/app/components/ui/tabs";
+import { useCart } from "@/src/app/components/cart-provider";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/src/app/lib/utils";
 
 interface ProductDetailsProps {
   product: any; // In a real app, we would define a proper type
@@ -38,7 +46,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       id: `${product.id}-${selectedSize}-${selectedColor}`,
       name: product.name,
       price: product.sale_price || product.price,
-      image: product.product_images[0]?.image_url || "/placeholder.svg",
+      image: product.product_images[0]?.image_url || "",
       quantity,
     });
 
@@ -79,7 +87,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       <div className="space-y-4">
         <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
           <img
-            src={productImages[activeImage] || "/placeholder.svg"}
+            src={productImages[activeImage] || ""}
             alt={product.name}
             className="h-full w-full object-cover"
           />
@@ -99,7 +107,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               }`}
             >
               <img
-                src={image || "/placeholder.svg"}
+                src={image || ""}
                 alt={`${product.name} ${index + 1}`}
                 className="h-full w-full object-cover"
               />

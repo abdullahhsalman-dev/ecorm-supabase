@@ -4,38 +4,37 @@ const fragranceCategories = [
   {
     id: 1,
     name: "Men",
-    image: "/placeholder.svg?height=400&width=400&query=men%20fragrance",
+    image: "",
     href: "/fragrance/men",
   },
   {
     id: 2,
     name: "Women",
-    image: "/placeholder.svg?height=400&width=400&query=women%20fragrance",
+    image: "",
     href: "/fragrance/women",
   },
   {
     id: 3,
     name: "Unisex",
-    image: "/placeholder.svg?height=400&width=400&query=unisex%20fragrance",
+    image: "",
     href: "/fragrance/unisex",
   },
   {
     id: 4,
     name: "Gift Sets",
-    image:
-      "/placeholder.svg?height=400&width=400&query=fragrance%20gift%20sets",
+    image: "",
     href: "/fragrance/gift-sets",
   },
   {
     id: 5,
     name: "Body Sprays",
-    image: "/placeholder.svg?height=400&width=400&query=body%20spray",
+    image: "",
     href: "/fragrance/body-sprays",
   },
   {
     id: 6,
     name: "Luxury",
-    image: "/placeholder.svg?height=400&width=400&query=luxury%20perfume",
+    image: "",
     href: "/fragrance/luxury",
   },
 ];
@@ -51,7 +50,7 @@ export function FragranceCategories() {
         >
           <div className="relative aspect-square overflow-hidden">
             <img
-              src={category.image || "/placeholder.svg"}
+              src={category.image || ""}
               alt={category.name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />

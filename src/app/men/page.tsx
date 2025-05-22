@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { MenHero } from "@/components/men-hero";
-import { MenCategories } from "@/components/men-categories";
-import { ProductGrid } from "@/components/product-grid";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { MenHero } from "@/src/app/components/men-hero";
+import { MenCategories } from "@/src/app/components/men-categories";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { Button } from "@/src/app/components/ui/button";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
 
 export const metadata = {
   title: "Men's Collection | Diners",
@@ -59,7 +59,7 @@ export default function MenPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/men-formal-wear.png"
+                src=""
                 alt="Men's Formal Collection"
                 className="h-full w-full object-cover"
               />
@@ -78,7 +78,7 @@ export default function MenPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/men-casual-wear.png"
+                src=""
                 alt="Men's Casual Collection"
                 className="h-full w-full object-cover"
               />

@@ -4,28 +4,28 @@ const saleCategories = [
   {
     id: 1,
     name: "Men's Sale",
-    image: "/placeholder.svg?height=400&width=400&query=men%20fashion%20sale",
+    image: "",
     href: "/sale/men",
     discount: "Up to 25% Off",
   },
   {
     id: 2,
     name: "Women's Sale",
-    image: "/placeholder.svg?height=400&width=400&query=women%20fashion%20sale",
+    image: "",
     href: "/sale/women",
     discount: "Up to 50% Off",
   },
   {
     id: 3,
     name: "Kids' Sale",
-    image: "/placeholder.svg?height=400&width=400&query=kids%20fashion%20sale",
+    image: "",
     href: "/sale/kids",
     discount: "Up to 30% Off",
   },
   {
     id: 4,
     name: "Footwear Sale",
-    image: "/placeholder.svg?height=400&width=400&query=footwear%20sale",
+    image: "",
     href: "/sale/footwear",
     discount: "Up to 40% Off",
   },
@@ -42,7 +42,7 @@ export function SaleCategories() {
         >
           <div className="relative aspect-square overflow-hidden">
             <img
-              src={category.image || "/placeholder.svg"}
+              src={category.image || ""}
               alt={category.name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />

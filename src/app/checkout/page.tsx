@@ -4,15 +4,18 @@ import type React from "react";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { useCart } from "@/components/cart-provider";
+import { Button } from "@/src/app/components/ui/button";
+import { Input } from "@/src/app/components/ui/input";
+import { Label } from "@/src/app/components/ui/label";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/src/app/components/ui/radio-group";
+import { Separator } from "@/src/app/components/ui/separator";
+import { Textarea } from "@/src/app/components/ui/textarea";
+import { useCart } from "@/src/app/components/cart-provider";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/src/app/lib/utils";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -208,16 +211,8 @@ export default function CheckoutPage() {
                       Credit Card
                     </Label>
                     <div className="flex space-x-1">
-                      <img
-                        src="/visa-logo-generic.png"
-                        alt="Visa"
-                        className="h-6"
-                      />
-                      <img
-                        src="/mastercard-logo.png"
-                        alt="Mastercard"
-                        className="h-6"
-                      />
+                      <img src="" alt="Visa" className="h-6" />
+                      <img src="" alt="Mastercard" className="h-6" />
                     </div>
                   </div>
                   <div className="flex items-center space-x-2 rounded-md border p-3">
@@ -225,7 +220,7 @@ export default function CheckoutPage() {
                     <Label htmlFor="paypal" className="flex-1 cursor-pointer">
                       PayPal
                     </Label>
-                    <img src="/paypal-logo.png" alt="PayPal" className="h-6" />
+                    <img src="" alt="PayPal" className="h-6" />
                   </div>
                   <div className="flex items-center space-x-2 rounded-md border p-3">
                     <RadioGroupItem
@@ -273,7 +268,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center">
                       <div className="h-16 w-16 overflow-hidden rounded-md bg-muted">
                         <img
-                          src={item.image || "/placeholder.svg"}
+                          src={item.image || ""}
                           alt={item.name}
                           className="h-full w-full object-cover"
                         />

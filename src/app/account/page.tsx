@@ -4,15 +4,20 @@ import type React from "react";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/src/app/components/ui/tabs";
+import { Button } from "@/src/app/components/ui/button";
+import { Input } from "@/src/app/components/ui/input";
+import { Label } from "@/src/app/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
-import { AccountOrders } from "@/components/account-orders";
-import { AccountAddresses } from "@/components/account-addresses";
-import { AccountWishlist } from "@/components/account-wishlist";
+import { useAuth } from "@/src/app/components/auth-provider";
+import { AccountOrders } from "@/src/app/components/account-orders";
+import { AccountAddresses } from "@/src/app/components/account-addresses";
+import { AccountWishlist } from "@/src/app/components/account-wishlist";
 
 export default function AccountPage() {
   const router = useRouter();

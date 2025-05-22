@@ -1,40 +1,40 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Heart } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useCart } from "@/components/cart-provider"
-import { useToast } from "@/hooks/use-toast"
-import { formatCurrency } from "@/lib/utils"
+import { useState } from "react";
+import Link from "next/link";
+import { Heart } from "lucide-react";
+import { Button } from "@/src/app/components/ui/button";
+import { useCart } from "@/src/app/components/cart-provider";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/src/app/lib/utils";
 
 interface ProductCardProps {
   product: {
-    id: string
-    name: string
-    slug: string
-    price: number
-    sale_price: number | null
+    id: string;
+    name: string;
+    slug: string;
+    price: number;
+    sale_price: number | null;
     product_images: Array<{
-      image_url: string
-      is_primary: boolean
-    }>
-  }
+      image_url: string;
+      is_primary: boolean;
+    }>;
+  };
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const [isHovered, setIsHovered] = useState(false)
-  const { addItem } = useCart()
-  const { toast } = useToast()
+  const [isHovered, setIsHovered] = useState(false);
+  const { addItem } = useCart();
+  const { toast } = useToast();
 
   const primaryImage =
     product.product_images.find((img) => img.is_primary)?.image_url ||
     product.product_images[0]?.image_url ||
-    "/diverse-fashion-display.png"
+    "";
 
-  const secondaryImage = product.product_images[1]?.image_url || primaryImage
+  const secondaryImage = product.product_images[1]?.image_url || primaryImage;
 
-  const displayImage = isHovered ? secondaryImage : primaryImage
+  const displayImage = isHovered ? secondaryImage : primaryImage;
 
   const handleAddToCart = () => {
     addItem({
@@ -43,17 +43,17 @@ export function ProductCard({ product }: ProductCardProps) {
       price: product.sale_price || product.price,
       image: primaryImage,
       quantity: 1,
-    })
+    });
 
     toast({
       title: "Added to cart",
       description: `${product.name} has been added to your cart.`,
-    })
-  }
+    });
+  };
 
   const discountPercentage = product.sale_price
     ? Math.round(((product.price - product.sale_price) / product.price) * 100)
-    : 0
+    : 0;
 
   return (
     <div className="group relative overflow-hidden rounded-lg border bg-background p-2">
@@ -64,7 +64,7 @@ export function ProductCard({ product }: ProductCardProps) {
       >
         <Link href={`/products/${product.slug}`}>
           <img
-            src={displayImage || "/placeholder.svg"}
+            src={displayImage || ""}
             alt={product.name}
             className="h-full w-full object-cover transition-all group-hover:scale-105"
           />
@@ -90,11 +90,17 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="flex items-center gap-2">
           {product.sale_price ? (
             <>
-              <span className="font-semibold">{formatCurrency(product.sale_price)}</span>
-              <span className="text-sm text-muted-foreground line-through">{formatCurrency(product.price)}</span>
+              <span className="font-semibold">
+                {formatCurrency(product.sale_price)}
+              </span>
+              <span className="text-sm text-muted-foreground line-through">
+                {formatCurrency(product.price)}
+              </span>
             </>
           ) : (
-            <span className="font-semibold">{formatCurrency(product.price)}</span>
+            <span className="font-semibold">
+              {formatCurrency(product.price)}
+            </span>
           )}
         </div>
         <Button size="sm" className="w-full" onClick={handleAddToCart}>
@@ -102,5 +108,5 @@ export function ProductCard({ product }: ProductCardProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 }
