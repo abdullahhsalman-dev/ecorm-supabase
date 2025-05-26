@@ -58,7 +58,7 @@ export default function KidsPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Boys Collection"
                 className="h-full w-full object-cover"
               />
@@ -77,7 +77,7 @@ export default function KidsPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Girls Collection"
                 className="h-full w-full object-cover"
               />

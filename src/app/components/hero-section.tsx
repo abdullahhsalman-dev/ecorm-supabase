@@ -36,7 +36,7 @@ export function HeroSection() {
           </div>
           <div className="flex items-center justify-center p-8">
             <img
-              src=""
+              src="/public/assets/kids.webp"
               alt="Grand Festive Sale"
               className="max-h-[400px] w-auto"
             />

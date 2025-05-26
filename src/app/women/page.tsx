@@ -59,7 +59,7 @@ export default function WomenPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Women's Ethnic Collection"
                 className="h-full w-full object-cover"
               />
@@ -78,7 +78,7 @@ export default function WomenPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Women's Western Collection"
                 className="h-full w-full object-cover"
               />

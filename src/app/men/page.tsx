@@ -59,7 +59,7 @@ export default function MenPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Men's Formal Collection"
                 className="h-full w-full object-cover"
               />
@@ -78,7 +78,7 @@ export default function MenPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Men's Casual Collection"
                 className="h-full w-full object-cover"
               />

@@ -58,16 +58,16 @@ export default function WinterWearPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Men's Winter Wear"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
                 <h3 className="mb-2 text-3xl font-bold">
-                  Men's Winter Collection
+                  Men&apos;s Winter Collection
                 </h3>
                 <p className="mb-4 max-w-md">
-                  Stay warm and stylish with our men's winter collection.
+                  Stay warm and stylish with our men&apos;s winter collection.
                 </p>
                 <Button
                   asChild
@@ -79,13 +79,13 @@ export default function WinterWearPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Women's Winter Wear"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
                 <h3 className="mb-2 text-3xl font-bold">
-                  Women's Winter Collection
+                  Women&apos;s Winter Collection
                 </h3>
                 <p className="mb-4 max-w-md">
                   Elegant and warm winter wear for women.

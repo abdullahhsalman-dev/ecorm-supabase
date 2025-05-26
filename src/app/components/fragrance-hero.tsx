@@ -5,7 +5,7 @@ export function FragranceHero() {
   return (
     <div className="relative h-[500px] overflow-hidden">
       <img
-        src=""
+        src="/public/assets/kids.webp"
         alt="Fragrance Collection"
         className="h-full w-full object-cover"
       />

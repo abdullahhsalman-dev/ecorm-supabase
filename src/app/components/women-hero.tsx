@@ -5,7 +5,7 @@ export function WomenHero() {
   return (
     <div className="relative h-[500px] overflow-hidden">
       <img
-        src=""
+        src="/public/assets/kids.webp"
         alt="Women's Collection"
         className="h-full w-full object-cover"
       />
@@ -13,10 +13,10 @@ export function WomenHero() {
         <div className="container flex h-full items-center px-4">
           <div className="max-w-lg text-white">
             <h1 className="mb-4 text-4xl font-bold md:text-5xl lg:text-6xl">
-              Women's Collection
+              Women&apos;s Collection
             </h1>
             <p className="mb-6 text-lg">
-              Explore our stunning women's fashion collection featuring elegant
+              Explore our stunning women&apos;s fashion collection featuring elegant
               designs for every style and occasion.
             </p>
             <div className="flex flex-wrap gap-4">

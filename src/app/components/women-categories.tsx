@@ -50,7 +50,7 @@ export function WomenCategories() {
         >
           <div className="relative aspect-square overflow-hidden">
             <img
-              src={category.image || ""}
+              src={category.image || "/public/assets/kids.webp"}
               alt={category.name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />

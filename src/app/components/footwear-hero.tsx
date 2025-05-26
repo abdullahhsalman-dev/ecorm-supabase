@@ -5,7 +5,7 @@ export function FootwearHero() {
   return (
     <div className="relative h-[500px] overflow-hidden">
       <img
-        src=""
+        src="/public/assets/kids.webp"
         alt="Footwear Collection"
         className="h-full w-full object-cover"
       />

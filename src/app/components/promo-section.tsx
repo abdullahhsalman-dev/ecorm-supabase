@@ -7,14 +7,14 @@ export function PromoSection() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="relative overflow-hidden rounded-lg bg-gray-900">
           <img
-            src=""
+            src="/public/assets/kids.webp"
             alt="Men's Collection"
             className="h-full w-full object-cover opacity-70"
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white">
-            <h3 className="mb-2 text-3xl font-bold">Men's Collection</h3>
+            <h3 className="mb-2 text-3xl font-bold">Men&apos;s Collection</h3>
             <p className="mb-4 max-w-md">
-              Discover our latest men's fashion collection for every occasion.
+              Discover our latest men&apos;s fashion collection for every occasion.
             </p>
             <Button
               asChild
@@ -26,14 +26,14 @@ export function PromoSection() {
         </div>
         <div className="relative overflow-hidden rounded-lg bg-gray-900">
           <img
-            src=""
+            src="/public/assets/kids.webp"
             alt="Women's Collection"
             className="h-full w-full object-cover opacity-70"
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white">
-            <h3 className="mb-2 text-3xl font-bold">Women's Collection</h3>
+            <h3 className="mb-2 text-3xl font-bold">Women&apos;s Collection</h3>
             <p className="mb-4 max-w-md">
-              Explore our stunning women's fashion collection for every style.
+              Explore our stunning women&apos;s fashion collection for every style.
             </p>
             <Button
               asChild

@@ -5,7 +5,7 @@ export function KidsHero() {
   return (
     <div className="relative h-[500px] overflow-hidden">
       <img
-        src=""
+        src="/public/assets/kids.webp"
         alt="Kids Collection"
         className="h-full w-full object-cover"
       />

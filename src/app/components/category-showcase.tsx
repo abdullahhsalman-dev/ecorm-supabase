@@ -10,7 +10,7 @@ async function getMainCategories(): Promise<Category[]> {
     .from("categories")
     .select("id, name, slug, image_url")
     .is("parent_id", null)
-    .limit(6)) as { data: Category[] | null; error: any };
+    .limit(6)) as { data: Category[] | null; error };
 
   if (error) {
     console.error("Error fetching categories:", error);
@@ -37,7 +37,7 @@ export async function CategoryShowcase() {
           >
             <div className="aspect-square overflow-hidden">
               <img
-                src={category.image_url ?? ""}
+                src={category.image_url ?? undefined}
                 alt={category.name}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
               />

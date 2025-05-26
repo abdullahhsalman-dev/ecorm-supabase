@@ -59,12 +59,12 @@ export default function FragrancePage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Men's Fragrances"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                <h3 className="mb-2 text-3xl font-bold">Men's Fragrances</h3>
+                <h3 className="mb-2 text-3xl font-bold">Men&apos;s Fragrances</h3>
                 <p className="mb-4 max-w-md">
                   Discover our collection of masculine scents.
                 </p>
@@ -78,12 +78,12 @@ export default function FragrancePage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Women's Fragrances"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                <h3 className="mb-2 text-3xl font-bold">Women's Fragrances</h3>
+                <h3 className="mb-2 text-3xl font-bold">Women&apos;s Fragrances</h3>
                 <p className="mb-4 max-w-md">
                   Explore our collection of feminine scents.
                 </p>

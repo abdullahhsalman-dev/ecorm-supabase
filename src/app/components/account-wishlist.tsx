@@ -11,17 +11,36 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/src/app/lib/utils";
 import { getDummyWishlistItems } from "@/src/app/lib/dummy-data";
 
+interface ProductImage {
+  image_url: string;
+  is_primary: boolean;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  sale_price?: number | null;
+  product_images: ProductImage[];
+}
+
+interface WishlistItem {
+  id: string;
+  product_id: string;
+  products: Product;
+}
+
 export function AccountWishlist() {
   const { user } = useAuth();
   const { addItem } = useCart();
   const { toast } = useToast();
-  const [wishlistItems, setWishlistItems] = useState([]);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchWishlist() {
       if (!user) {
-        // Use dummy data if no user
         setWishlistItems(getDummyWishlistItems());
         setLoading(false);
         return;
@@ -37,20 +56,17 @@ export function AccountWishlist() {
 
         if (wishlistError && wishlistError.code !== "PGRST116") {
           console.error("Error fetching wishlist:", wishlistError);
-          // Use dummy data on error
           setWishlistItems(getDummyWishlistItems());
           setLoading(false);
           return;
         }
 
         if (!wishlist) {
-          // No wishlist found, use dummy data
           setWishlistItems(getDummyWishlistItems());
           setLoading(false);
           return;
         }
 
-        // Fetch wishlist items with product details
         const { data: items, error: itemsError } = await supabase
           .from("wishlist_items")
           .select(
@@ -74,21 +90,18 @@ export function AccountWishlist() {
 
         if (itemsError) {
           console.error("Error fetching wishlist items:", itemsError);
-          // Use dummy data on error
           setWishlistItems(getDummyWishlistItems());
           setLoading(false);
           return;
         }
 
         if (items && items.length > 0) {
-          setWishlistItems(items);
+          setWishlistItems(items as WishlistItem[]);
         } else {
-          // No items found, use dummy data
           setWishlistItems(getDummyWishlistItems());
         }
       } catch (error) {
         console.error("Error in fetchWishlist:", error);
-        // Use dummy data on error
         setWishlistItems(getDummyWishlistItems());
       } finally {
         setLoading(false);
@@ -102,15 +115,13 @@ export function AccountWishlist() {
     itemId: string,
     productName: string
   ) => {
-    // Remove the item from the local state
-    setWishlistItems((prev) => prev.filter((item: any) => item.id !== itemId));
+    setWishlistItems((prev) => prev.filter((item) => item.id !== itemId));
 
     toast({
       title: "Item removed",
       description: `${productName} has been removed from your wishlist.`,
     });
 
-    // If user is logged in, also remove from database
     if (user) {
       const supabase = createClient();
       const { error } = await supabase
@@ -129,9 +140,9 @@ export function AccountWishlist() {
     }
   };
 
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = (product: Product) => {
     const primaryImage =
-      product.product_images.find((img: any) => img.is_primary)?.image_url ||
+      product.product_images.find((img) => img.is_primary)?.image_url ||
       product.product_images[0]?.image_url ||
       "/placeholder.svg";
 
@@ -173,11 +184,10 @@ export function AccountWishlist() {
       <h3 className="text-lg font-semibold">Your Wishlist</h3>
 
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-        {wishlistItems.map((item: any) => {
+        {wishlistItems.map((item) => {
           const product = item.products;
           const primaryImage =
-            product.product_images.find((img: any) => img.is_primary)
-              ?.image_url ||
+            product.product_images.find((img) => img.is_primary)?.image_url ||
             product.product_images[0]?.image_url ||
             "/placeholder.svg";
 
@@ -189,7 +199,7 @@ export function AccountWishlist() {
               <div className="relative aspect-square overflow-hidden">
                 <Link href={`/products/${product.slug}`}>
                   <img
-                    src={primaryImage || ""}
+                    src={primaryImage}
                     alt={product.name}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />

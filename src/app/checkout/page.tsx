@@ -211,8 +211,16 @@ export default function CheckoutPage() {
                       Credit Card
                     </Label>
                     <div className="flex space-x-1">
-                      <img src="" alt="Visa" className="h-6" />
-                      <img src="" alt="Mastercard" className="h-6" />
+                      <img
+                        src="/public/assets/kids.webp"
+                        alt="Visa"
+                        className="h-6"
+                      />
+                      <img
+                        src="/public/assets/kids.webp"
+                        alt="Mastercard"
+                        className="h-6"
+                      />
                     </div>
                   </div>
                   <div className="flex items-center space-x-2 rounded-md border p-3">
@@ -220,7 +228,11 @@ export default function CheckoutPage() {
                     <Label htmlFor="paypal" className="flex-1 cursor-pointer">
                       PayPal
                     </Label>
-                    <img src="" alt="PayPal" className="h-6" />
+                    <img
+                      src="/public/assets/kids.webp"
+                      alt="PayPal"
+                      className="h-6"
+                    />
                   </div>
                   <div className="flex items-center space-x-2 rounded-md border p-3">
                     <RadioGroupItem
@@ -268,7 +280,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center">
                       <div className="h-16 w-16 overflow-hidden rounded-md bg-muted">
                         <img
-                          src={item.image || ""}
+                          src={item.image || "/public/assets/kids.webp"}
                           alt={item.name}
                           className="h-full w-full object-cover"
                         />

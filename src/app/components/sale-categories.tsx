@@ -42,7 +42,7 @@ export function SaleCategories() {
         >
           <div className="relative aspect-square overflow-hidden">
             <img
-              src={category.image || ""}
+              src={category.image || undefined}
               alt={category.name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />

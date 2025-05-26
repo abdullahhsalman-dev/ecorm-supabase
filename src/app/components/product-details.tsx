@@ -87,7 +87,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       <div className="space-y-4">
         <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
           <img
-            src={productImages[activeImage] || ""}
+            src={productImages[activeImage] || undefined}
             alt={product.name}
             className="h-full w-full object-cover"
           />
@@ -107,7 +107,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               }`}
             >
               <img
-                src={image || ""}
+                src={image || undefined}
                 alt={`${product.name} ${index + 1}`}
                 className="h-full w-full object-cover"
               />

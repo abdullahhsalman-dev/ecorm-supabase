@@ -64,7 +64,7 @@ export function ProductCard({ product }: ProductCardProps) {
       >
         <Link href={`/products/${product.slug}`}>
           <img
-            src={displayImage || ""}
+            src={displayImage || undefined}
             alt={product.name}
             className="h-full w-full object-cover transition-all group-hover:scale-105"
           />

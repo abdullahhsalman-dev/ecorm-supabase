@@ -58,12 +58,12 @@ export default function FootwearPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Men's Footwear"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                <h3 className="mb-2 text-3xl font-bold">Men's Footwear</h3>
+                <h3 className="mb-2 text-3xl font-bold">Men&apos;s Footwear</h3>
                 <p className="mb-4 max-w-md">
                   Stylish and comfortable footwear for men.
                 </p>
@@ -77,12 +77,12 @@ export default function FootwearPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src=""
+                src="/public/assets/kids.webp"
                 alt="Women's Footwear"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                <h3 className="mb-2 text-3xl font-bold">Women's Footwear</h3>
+                <h3 className="mb-2 text-3xl font-bold">Women&apos;s Footwear</h3>
                 <p className="mb-4 max-w-md">
                   Elegant and trendy footwear for women.
                 </p>
