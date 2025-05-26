@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/src/app/components/ui/button";
 import { createClient } from "@/src/app/lib/supabase/client";
-import { useAuth } from "@/src/app/components/auth-provider";
+import { useAuth } from "@/src/app/context/auth-context";
 import { useCart } from "@/src/app/components/cart-provider";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/src/app/lib/utils";

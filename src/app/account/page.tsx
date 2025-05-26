@@ -14,7 +14,7 @@ import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Label } from "@/src/app/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/src/app/components/auth-provider";
+import { useAuth } from "@/src/app/context/auth-context";
 import { AccountOrders } from "@/src/app/components/account-orders";
 import { AccountAddresses } from "@/src/app/components/account-addresses";
 import { AccountWishlist } from "@/src/app/components/account-wishlist";

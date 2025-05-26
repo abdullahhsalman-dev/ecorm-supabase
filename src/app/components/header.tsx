@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from "@/src/app/components/ui/sheet";
 import { useCart } from "@/src/app/components/cart-provider";
-import { useAuth } from "@/src/app/components/auth-provider";
+import { useAuth } from "@/src/app/context/auth-context";
 import { cn } from "@/src/app/lib/utils";
 
 const mainCategories = [

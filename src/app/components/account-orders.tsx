@@ -6,7 +6,7 @@ import { Eye } from "lucide-react";
 import { Button } from "@/src/app/components/ui/button";
 import { Badge } from "@/src/app/components/ui/badge";
 import { createClient } from "@/src/app/lib/supabase/client";
-import { useAuth } from "@/src/app/components/auth-provider";
+import { useAuth } from "@/src/app/context/auth-context";
 import { formatCurrency } from "@/src/app/lib/utils";
 import { getDummyOrders } from "@/src/app/lib/dummy-data";
 

@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/src/app/components/ui/card";
 import { createClient } from "@/src/app/lib/supabase/client";
-import { useAuth } from "@/src/app/components/auth-provider";
+import { useAuth } from "@/src/app/context/auth-context";
 import { getDummyAddresses } from "@/src/app/lib/dummy-data";
 import { log } from "node:console";
 

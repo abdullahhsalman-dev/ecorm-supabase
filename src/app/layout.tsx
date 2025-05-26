@@ -8,7 +8,7 @@ import { Header } from "@/src/app/components/header";
 import Footer from "@/src/app/components/footer";
 import { Toaster } from "@/src/app/components/ui/toaster";
 import { CartProvider } from "@/src/app/components/cart-provider";
-import { AuthProvider } from "@/src/app/components/auth-provider";
+import { AuthProvider } from "@/src/app/context/auth-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
