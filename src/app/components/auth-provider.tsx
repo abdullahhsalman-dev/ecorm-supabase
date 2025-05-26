@@ -9,12 +9,12 @@ import type { User } from "@supabase/supabase-js";
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error }>;
   signUp: (
     email: string,
     password: string,
     fullName: string
-  ) => Promise<{ error: any }>;
+  ) => Promise<{ error }>;
   signOut: () => Promise<void>;
 };
 
@@ -26,7 +26,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
-    // Check for active session
+    let subscription: ReturnType<
+      typeof supabase.auth.onAuthStateChange
+    >["data"]["subscription"];
+
     const checkSession = async () => {
       const {
         data: { session },
@@ -34,19 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user || null);
       setLoading(false);
 
-      // Listen for auth changes
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
         setUser(session?.user || null);
       });
 
-      return () => {
-        subscription.unsubscribe();
-      };
+      subscription = data.subscription;
     };
 
     checkSession();
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

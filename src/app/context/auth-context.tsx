@@ -1,86 +1,63 @@
+// src/app/context/auth-context.tsx
 "use client";
 
 import {
   createContext,
+  useContext,
   useState,
   useEffect,
-  useContext,
   type ReactNode,
 } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import type { Session, User as SupabaseUser } from "@supabase/supabase-js";
-
-// Define your custom User type (extend if needed)
-type User = {
-  id: string;
-  email: string;
-  full_name: string;
-};
+import { createClient } from "@/src/app/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error }>;
   signUp: (
     email: string,
     password: string,
-    full_name: string
-  ) => Promise<{ error: any }>;
+    fullName: string
+  ) => Promise<{ error }>;
   signOut: () => Promise<void>;
 };
 
-// Create the context
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// AuthProvider component
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
+
+  console.log("AuthProvider rendering"); // Debug log
 
   useEffect(() => {
-    const getUserProfile = async (supabaseUser: SupabaseUser) => {
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", supabaseUser.id)
-        .single();
+    console.log("AuthProvider useEffect running"); // Debug log
+    let subscription: ReturnType<
+      typeof supabase.auth.onAuthStateChange
+    >["data"]["subscription"];
 
-      if (!error && data) {
-        setUser(data as User);
-      } else {
-        setUser(null);
-      }
-    };
-
-    const init = async () => {
+    const checkSession = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
-      if (session?.user) {
-        await getUserProfile(session.user);
-      }
-
+      setUser(session?.user || null);
       setLoading(false);
+
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        console.log("Auth state changed:", session?.user?.email || "null"); // Debug log
+        setUser(session?.user || null);
+      });
+
+      subscription = data.subscription;
     };
 
-    init();
+    checkSession();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        await getUserProfile(session.user);
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, [supabase]);
 
   const signIn = async (email: string, password: string) => {
@@ -88,22 +65,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
-
     return { error };
   };
 
-  const signUp = async (email: string, password: string, full_name: string) => {
+  const signUp = async (email: string, password: string, fullName: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { full_name },
-      },
+      options: { data: { full_name: fullName } },
     });
 
     if (!error) {
-      // Insert user into `users` table
-      await supabase.from("users").insert([{ email, full_name }]);
+      const { error: profileError } = await supabase.from("users").insert([
+        {
+          email,
+          full_name: fullName,
+          password_hash: "managed_by_supabase_auth",
+        },
+      ]);
+
+      if (profileError) return { error: profileError };
     }
 
     return { error };
@@ -121,11 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Optional: Add a helper hook for cleaner usage
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
+
+export { AuthContext };

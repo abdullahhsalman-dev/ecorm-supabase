@@ -1,7 +1,7 @@
+// src/app/login/page.tsx
 "use client";
 
 import type React from "react";
-
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { signIn, signUp } = useAuth();
+  console.log("LoginPage rendering, useAuth called"); // Debug log
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -56,6 +57,7 @@ export default function LoginPage() {
       router.push("/account");
       router.refresh();
     } catch (error) {
+      console.log("login error is ", error);
       toast({
         title: "Error",
         description: "Something went wrong. Please try again.",
@@ -97,6 +99,7 @@ export default function LoginPage() {
       setRegisterPassword("");
       setRegisterName("");
     } catch (error) {
+      console.log("login error is ", error);
       toast({
         title: "Error",
         description: "Something went wrong. Please try again.",

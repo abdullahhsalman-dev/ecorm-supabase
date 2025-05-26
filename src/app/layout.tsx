@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type React from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -21,6 +22,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log("RootLayout rendering with AuthProvider"); // Debug log
   return (
     <html lang="en">
       <body className={inter.className}>
