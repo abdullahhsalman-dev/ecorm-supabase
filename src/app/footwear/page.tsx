@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { FootwearHero } from "@/components/footwear-hero";
-import { FootwearCategories } from "@/components/footwear-categories";
-import { ProductGrid } from "@/components/product-grid";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { FootwearHero } from "@/src/app/components/footwear-hero";
+import { FootwearCategories } from "@/src/app/components/footwear-categories";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { Button } from "@/src/app/components/ui/button";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
 
 export const metadata = {
   title: "Footwear Collection | Diners",
@@ -58,12 +58,12 @@ export default function FootwearPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/footwear-men.png"
+                src="/public/assets/kids.webp"
                 alt="Men's Footwear"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                <h3 className="mb-2 text-3xl font-bold">Men's Footwear</h3>
+                <h3 className="mb-2 text-3xl font-bold">Men&apos;s Footwear</h3>
                 <p className="mb-4 max-w-md">
                   Stylish and comfortable footwear for men.
                 </p>
@@ -77,12 +77,12 @@ export default function FootwearPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/footwear-women.png"
+                src="/public/assets/kids.webp"
                 alt="Women's Footwear"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                <h3 className="mb-2 text-3xl font-bold">Women's Footwear</h3>
+                <h3 className="mb-2 text-3xl font-bold">Women&apos;s Footwear</h3>
                 <p className="mb-4 max-w-md">
                   Elegant and trendy footwear for women.
                 </p>

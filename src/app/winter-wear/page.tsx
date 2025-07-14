@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { WinterWearHero } from "@/components/winter-wear-hero";
-import { WinterWearCategories } from "@/components/winter-wear-categories";
-import { ProductGrid } from "@/components/product-grid";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { WinterWearHero } from "@/src/app/components/winter-wear-hero";
+import { WinterWearCategories } from "@/src/app/components/winter-wear-categories";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { Button } from "@/src/app/components/ui/button";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
 
 export const metadata = {
   title: "Winter Wear Collection | Diners",
@@ -58,16 +58,16 @@ export default function WinterWearPage() {
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/winter-wear-men.png"
+                src="/public/assets/kids.webp"
                 alt="Men's Winter Wear"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
                 <h3 className="mb-2 text-3xl font-bold">
-                  Men's Winter Collection
+                  Men&apos;s Winter Collection
                 </h3>
                 <p className="mb-4 max-w-md">
-                  Stay warm and stylish with our men's winter collection.
+                  Stay warm and stylish with our men&apos;s winter collection.
                 </p>
                 <Button
                   asChild
@@ -79,13 +79,13 @@ export default function WinterWearPage() {
             </div>
             <div className="relative overflow-hidden rounded-lg">
               <img
-                src="/winter-wear-women.png"
+                src="/public/assets/kids.webp"
                 alt="Women's Winter Wear"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
                 <h3 className="mb-2 text-3xl font-bold">
-                  Women's Winter Collection
+                  Women&apos;s Winter Collection
                 </h3>
                 <p className="mb-4 max-w-md">
                   Elegant and warm winter wear for women.

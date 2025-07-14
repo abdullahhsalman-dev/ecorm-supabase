@@ -1,13 +1,14 @@
+// src/app/layout.tsx
 import type React from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { Header } from "@/components/header";
-import Footer from "@/components/footer";
-import { Toaster } from "@/components/ui/toaster";
-import { CartProvider } from "@/components/cart-provider";
-import { AuthProvider } from "@/components/auth-provider";
+import "@/src/app/index.css";
+import { ThemeProvider } from "@/src/app/components/theme-provider";
+import { Header } from "@/src/app/components/header";
+import Footer from "@/src/app/components/footer";
+import { Toaster } from "@/src/app/components/ui/toaster";
+import { CartProvider } from "@/src/app/components/cart-provider";
+import { AuthProvider } from "@/src/app/context/auth-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,6 +22,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log("RootLayout rendering with AuthProvider"); // Debug log
   return (
     <html lang="en">
       <body className={inter.className}>

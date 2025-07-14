@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ProductCard } from "@/components/product-card";
-import { createClient } from "@/lib/supabase/client";
-import { generateDummyProducts } from "@/lib/dummy-data";
+import { ProductCard } from "@/src/app/components/product-card";
+import { createClient } from "@/src/app/lib/supabase/client";
+import { generateDummyProducts } from "@/src/app/lib/dummy-data";
 
 interface RelatedProductsProps {
   currentProductId: string;

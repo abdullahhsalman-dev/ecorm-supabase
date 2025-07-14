@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Trash2, Plus, Minus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { useCart } from "@/components/cart-provider";
+import { Button } from "@/src/app/components/ui/button";
+import { Input } from "@/src/app/components/ui/input";
+import { Separator } from "@/src/app/components/ui/separator";
+import { useCart } from "@/src/app/components/cart-provider";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/src/app/lib/utils";
 
 export default function CartPage() {
   const { items, cartTotal, updateItemQuantity, removeItem } = useCart();
@@ -83,7 +83,7 @@ export default function CartPage() {
                     <div className="col-span-6 flex items-center gap-4">
                       <div className="h-20 w-20 overflow-hidden rounded-md bg-muted">
                         <img
-                          src={item.image || "/placeholder.svg"}
+                          src={item.image || undefined}
                           alt={item.name}
                           className="h-full w-full object-cover"
                         />

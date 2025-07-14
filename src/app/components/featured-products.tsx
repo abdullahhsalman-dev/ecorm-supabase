@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { ProductCard } from "@/components/product-card";
-import { Button } from "@/components/ui/button";
-import { generateDummyProducts } from "@/lib/dummy-data";
+import { createClient } from "@/src/app/lib/supabase/client";
+import { ProductCard } from "@/src/app/components/product-card";
+import { Button } from "@/src/app/components/ui/button";
+import { generateDummyProducts } from "@/src/app/lib/dummy-data";
 
 export function FeaturedProducts() {
   const [products, setProducts] = useState([]);

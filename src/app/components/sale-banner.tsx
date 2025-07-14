@@ -1,5 +1,5 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import Link from "next/link";
+import { Button } from "@/src/app/components/ui/button";
 
 export function SaleBanner() {
   return (
@@ -22,11 +22,17 @@ export function SaleBanner() {
             <div className="text-xl font-semibold md:text-2xl">%OFF</div>
           </div>
         </div>
-        <p className="mb-8 text-lg md:text-xl">STARTING FROM 14th MAY TILL EID</p>
-        <Button size="lg" asChild className="bg-white text-red-700 hover:bg-gray-100">
+        <p className="mb-8 text-lg md:text-xl">
+          STARTING FROM 14th MAY TILL EID
+        </p>
+        <Button
+          size="lg"
+          asChild
+          className="bg-white text-red-700 hover:bg-gray-100"
+        >
           <Link href="#sale-products">SHOP NOW</Link>
         </Button>
       </div>
     </div>
-  )
+  );
 }

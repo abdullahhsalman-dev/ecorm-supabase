@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { SaleBanner } from "@/components/sale-banner";
-import { SaleCategories } from "@/components/sale-categories";
-import { ProductGrid } from "@/components/product-grid";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SaleBanner } from "@/src/app/components/sale-banner";
+import { SaleCategories } from "@/src/app/components/sale-categories";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
 
 export const metadata = {
   title: "Grand Festive Sale | Diners",

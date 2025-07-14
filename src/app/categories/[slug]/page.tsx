@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ProductGrid } from "@/components/product-grid";
-import { ProductFilters } from "@/components/product-filters";
-import { ProductSorting } from "@/components/product-sorting";
-import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/server";
+import { ProductGrid } from "@/src/app/components/product-grid";
+import { ProductFilters } from "@/src/app/components/product-filters";
+import { ProductSorting } from "@/src/app/components/product-sorting";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { createClient } from "@/src/app/lib/supabase/server";
 
 export async function generateMetadata({
   params,
