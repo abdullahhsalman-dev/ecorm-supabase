@@ -13,11 +13,11 @@ export function MenHero() {
         <div className=" flex h-full items-center px-4">
           <div className="max-w-lg text-white">
             <h1 className="mb-4 text-4xl font-bold md:text-5xl lg:text-6xl">
-              Men's Collection
+              Men&apos;s Collection
             </h1>
             <p className="mb-6 text-lg">
-              Discover our latest men's fashion collection featuring premium
-              quality clothing for every occasion.
+              Discover our latest men&apos;s fashion collection featuring
+              premium quality clothing for every occasion.
             </p>
             <div className="flex flex-wrap gap-4">
               <Button

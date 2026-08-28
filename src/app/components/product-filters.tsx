@@ -18,7 +18,7 @@ interface ProductFiltersProps {
   categoryId?: string;
 }
 
-export function ProductFilters({ categoryId }: ProductFiltersProps) {
+export function ProductFilters({}: ProductFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

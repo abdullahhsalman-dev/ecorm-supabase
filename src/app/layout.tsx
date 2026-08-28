@@ -1,10 +1,9 @@
 // src/app/layout.tsx
 import { CartProvider } from "@/src/app/components/cart-provider";
-import Footer from "@/src/app/components/footer";
-import { Header } from "@/src/app/components/header";
 import { ThemeProvider } from "@/src/app/components/theme-provider";
 import { Toaster } from "@/src/app/components/ui/toaster";
 import { AuthProvider } from "@/src/app/context/auth-context";
+import { LayoutWrapper } from "@/src/app/components/layout-wrapper";
 import "@/src/app/index.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -35,9 +34,7 @@ export default function RootLayout({
           <AuthProvider>
             <CartProvider>
               <div className="flex min-h-screen flex-col">
-                <Header />
-                <main className="flex-1">{children}</main>
-                <Footer />
+                <LayoutWrapper>{children}</LayoutWrapper>
               </div>
               <Toaster />
             </CartProvider>

@@ -15,8 +15,9 @@ export default function OrderSuccessPage() {
       </div>
       <h1 className="mb-4 text-3xl font-bold">Order Placed Successfully!</h1>
       <p className="mb-8 max-w-md text-muted-foreground">
-        Thank you for your purchase. We've received your order and will begin
-        processing it right away. You'll receive a confirmation email shortly.
+        Thank you for your purchase. We&apos;ve received your order and will
+        begin processing it right away. You&apos;ll receive a confirmation email
+        shortly.
       </p>
       <div className="mb-8 w-full max-w-md rounded-lg border bg-card p-6 text-left">
         <h2 className="mb-4 text-xl font-semibold">Order Details</h2>

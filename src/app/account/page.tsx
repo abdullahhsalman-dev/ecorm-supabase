@@ -76,9 +76,17 @@ export default function AccountPage() {
     <div className=" px-4 py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <h1 className="text-3xl font-bold">My Account</h1>
-        <Button variant="outline" onClick={handleSignOut}>
-          Sign Out
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            className="bg-[#FF3D6E] hover:bg-[#E0345F] text-white font-semibold"
+            onClick={() => router.push("/admin")}
+          >
+            Admin Portal
+          </Button>
+          <Button variant="outline" className="border-neutral-300 text-neutral-600 hover:bg-neutral-50" onClick={handleSignOut}>
+            Sign Out
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-8">

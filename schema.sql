@@ -120,3 +120,10 @@ CREATE TABLE wishlist_items (
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE users
+ADD COLUMN user_type VARCHAR(20) NOT NULL DEFAULT 'user';
+
+ALTER TABLE users
+ADD CONSTRAINT users_user_type_check
+CHECK (user_type IN ('admin', 'user'));
