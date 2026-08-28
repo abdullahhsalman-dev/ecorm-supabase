@@ -1,21 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/src/app/lib/utils";
+import { ArrowUpRight, Minus, Plus } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
-const categories = [
+type Subcategory = { name: string; href: string };
+type Category = {
+  name: string;
+  href: string;
+  accent?: boolean;
+  subcategories?: Subcategory[];
+};
+
+const categories: Category[] = [
+  { name: "Grand Festive Sale", href: "/sale", accent: true },
+  { name: "New In", href: "/new-arrivals" },
   {
-    name: "GRAND FESTIVE SALE",
-    href: "/sale",
-  },
-  {
-    name: "NEW IN",
-    href: "/new-arrivals",
-  },
-  {
-    name: "MEN",
+    name: "Men",
     href: "/men",
     subcategories: [
       { name: "T-Shirts", href: "/men/t-shirts" },
@@ -29,7 +31,7 @@ const categories = [
     ],
   },
   {
-    name: "WOMEN",
+    name: "Women",
     href: "/women",
     subcategories: [
       { name: "Tops", href: "/women/tops" },
@@ -42,7 +44,7 @@ const categories = [
     ],
   },
   {
-    name: "KIDS",
+    name: "Kids",
     href: "/kids",
     subcategories: [
       { name: "Boys", href: "/kids/boys" },
@@ -52,7 +54,7 @@ const categories = [
     ],
   },
   {
-    name: "FRAGRANCE",
+    name: "Fragrance",
     href: "/fragrance",
     subcategories: [
       { name: "Men", href: "/fragrance/men" },
@@ -62,7 +64,7 @@ const categories = [
     ],
   },
   {
-    name: "FOOTWEAR",
+    name: "Footwear",
     href: "/footwear",
     subcategories: [
       { name: "Men", href: "/footwear/men" },
@@ -74,7 +76,7 @@ const categories = [
     ],
   },
   {
-    name: "WINTER WEAR",
+    name: "Winter Wear",
     href: "/winter-wear",
     subcategories: [
       { name: "Men", href: "/winter-wear/men" },
@@ -87,92 +89,113 @@ const categories = [
   },
 ];
 
-export default function MobileNav() {
-  const [openCategories, setOpenCategories] = useState<string[]>([]);
+const utilityLinks = [
+  { name: "Login / Register", href: "/login" },
+  { name: "Track Order", href: "/track-order" },
+  { name: "Store Locator", href: "/stores" },
+  { name: "Returns & Exchanges", href: "/returns" },
+];
+
+type MobileNavProps = {
+  /** Called whenever a link inside the panel is tapped — use this to close the parent Sheet. */
+  onNavigate?: () => void;
+};
+
+export default function MobileNav({ onNavigate }: MobileNavProps) {
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
 
   const toggleCategory = (categoryName: string) => {
-    setOpenCategories((current) =>
-      current.includes(categoryName)
-        ? current.filter((name) => name !== categoryName)
-        : [...current, categoryName]
+    setOpenCategory((current) =>
+      current === categoryName ? null : categoryName,
     );
   };
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto py-6">
-      <div className="px-4">
-        <h2 className="mb-6 text-lg font-semibold">Menu</h2>
-        <nav className="flex flex-col space-y-1">
-          {categories.map((category) => (
-            <div key={category.name} className="border-b border-gray-100 py-2">
-              <div className="flex items-center justify-between">
+    <div className="flex h-full flex-col overflow-y-auto bg-white">
+      <div className="border-b border-neutral-100 px-6 pb-5 pt-6">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.35em] text-neutral-400">
+          Menu
+        </span>
+      </div>
+
+      <nav className="flex-1 px-6">
+        {categories.map((category) => {
+          const isOpen = openCategory === category.name;
+          return (
+            <div key={category.name} className="border-b border-neutral-100">
+              <div className="flex items-center justify-between py-4">
                 <Link
                   href={category.href}
-                  className="text-sm font-medium hover:text-gray-900"
+                  onClick={onNavigate}
+                  className={cn(
+                    "text-[15px] font-semibold uppercase tracking-[0.08em] transition-colors",
+                    category.accent
+                      ? "text-[#FF3D6E]"
+                      : "text-neutral-900 hover:text-neutral-500",
+                  )}
                 >
                   {category.name}
                 </Link>
+
                 {category.subcategories && (
                   <button
                     onClick={() => toggleCategory(category.name)}
-                    className="p-1"
+                    aria-expanded={isOpen}
+                    aria-label={`Toggle ${category.name} subcategories`}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-200 text-neutral-500 transition-colors hover:border-neutral-900 hover:text-neutral-900"
                   >
-                    {openCategories.includes(category.name) ? (
-                      <ChevronDown className="h-4 w-4" />
+                    {isOpen ? (
+                      <Minus className="h-3.5 w-3.5" />
                     ) : (
-                      <ChevronRight className="h-4 w-4" />
+                      <Plus className="h-3.5 w-3.5" />
                     )}
                   </button>
                 )}
               </div>
+
               {category.subcategories && (
                 <div
                   className={cn(
-                    "ml-4 mt-2 space-y-1 transition-all",
-                    openCategories.includes(category.name) ? "block" : "hidden"
+                    "grid overflow-hidden transition-all duration-300 ease-out",
+                    isOpen
+                      ? "grid-rows-[1fr] opacity-100"
+                      : "grid-rows-[0fr] opacity-0",
                   )}
                 >
-                  {category.subcategories.map((subcategory) => (
-                    <Link
-                      key={subcategory.name}
-                      href={subcategory.href}
-                      className="block py-1 text-sm text-gray-600 hover:text-gray-900"
-                    >
-                      {subcategory.name}
-                    </Link>
-                  ))}
+                  <div className="min-h-0">
+                    <div className="flex flex-wrap gap-2 border-l-2 border-[#FF3D6E]/30 py-1 pb-5 pl-4">
+                      {category.subcategories.map((subcategory) => (
+                        <Link
+                          key={subcategory.name}
+                          href={subcategory.href}
+                          onClick={onNavigate}
+                          className="rounded-full border border-neutral-200 px-3.5 py-1.5 text-[13px] text-neutral-600 transition-colors hover:border-neutral-900 hover:text-neutral-900"
+                        >
+                          {subcategory.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
+          );
+        })}
+      </nav>
+
+      <div className="mt-6 border-t border-neutral-100 bg-neutral-50 px-6 py-6">
+        <div className="flex flex-col divide-y divide-neutral-200">
+          {utilityLinks.map((link) => (
+            <Link
+              key={link.name}
+              href={link.href}
+              onClick={onNavigate}
+              className="group flex items-center justify-between py-3 text-sm font-medium text-neutral-700 transition-colors hover:text-neutral-900"
+            >
+              {link.name}
+              <ArrowUpRight className="h-3.5 w-3.5 text-neutral-300 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-neutral-900" />
+            </Link>
           ))}
-        </nav>
-      </div>
-      <div className="mt-auto border-t border-gray-100 px-4 pt-6">
-        <div className="flex flex-col space-y-4">
-          <Link
-            href="/login"
-            className="text-sm font-medium hover:text-gray-900"
-          >
-            Login / Register
-          </Link>
-          <Link
-            href="/track-order"
-            className="text-sm font-medium hover:text-gray-900"
-          >
-            Track Order
-          </Link>
-          <Link
-            href="/stores"
-            className="text-sm font-medium hover:text-gray-900"
-          >
-            Store Locator
-          </Link>
-          <Link
-            href="/returns"
-            className="text-sm font-medium hover:text-gray-900"
-          >
-            Returns & Exchanges
-          </Link>
         </div>
       </div>
     </div>

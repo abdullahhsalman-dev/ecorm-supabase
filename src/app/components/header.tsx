@@ -1,53 +1,58 @@
 "use client";
 
+import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+
 import { useCart } from "@/src/app/components/cart-provider";
+import MobileNav from "@/src/app/components/mobile-nav";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
   SheetTrigger,
 } from "@/src/app/components/ui/sheet";
 import { useAuth } from "@/src/app/context/auth-context";
 import { cn } from "@/src/app/lib/utils";
-import { Heart, Menu, Search, ShoppingBag, User } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
 
 const mainCategories = [
-  { name: "GRAND FESTIVE SALE", href: "/sale" },
-  { name: "NEW IN", href: "/new-arrivals" },
-  { name: "MEN", href: "/men" },
-  { name: "WOMEN", href: "/women" },
-  { name: "KIDS", href: "/kids" },
-  { name: "FRAGRANCE", href: "/fragrance" },
-  { name: "FOOTWEAR", href: "/footwear" },
-  { name: "WINTER WEAR", href: "/winter-wear" },
+  { name: "Grand Festive Sale", href: "/sale", accent: true },
+  { name: "New In", href: "/new-arrivals" },
+  { name: "Men", href: "/men" },
+  { name: "Women", href: "/women" },
+  { name: "Kids", href: "/kids" },
+  { name: "Fragrance", href: "/fragrance" },
+  { name: "Footwear", href: "/footwear" },
+  { name: "Winter Wear", href: "/winter-wear" },
 ];
 
 const topBarLinks = [
   { name: "PK", href: "#" },
-  { name: "RETURN & EXCHANGES", href: "/returns" },
-  { name: "STORE LOCATOR", href: "/stores" },
-  { name: "ORDER TRACKING", href: "/track-order" },
+  { name: "Returns & Exchanges", href: "/returns" },
+  { name: "Store Locator", href: "/stores" },
+  { name: "Order Tracking", href: "/track-order" },
 ];
 
 export function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { cartCount } = useCart();
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background">
-      {/* Top Bar */}
-      <div className="bg-gray-100 py-2">
-        <div className=" mx-auto flex items-center justify-between px-4">
-          <div className="flex items-center space-x-4">
+    <header className="sticky top-0 z-40 w-full border-b border-neutral-100 bg-white">
+      {/* Top bar */}
+      <div className="hidden bg-neutral-950 sm:block">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2">
+          <div className="flex items-center space-x-6">
             {topBarLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className="text-xs font-medium text-gray-600 hover:text-gray-900"
+                className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400 transition-colors hover:text-white"
               >
                 {link.name}
               </Link>
@@ -56,100 +61,115 @@ export function Header() {
         </div>
       </div>
 
-      {/* Main Header */}
-      <div className=" mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          {/* Mobile Menu */}
-          <Sheet>
-            <SheetTrigger asChild className="lg:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6 suppressHydrationWarning" />
+      {/* Main header */}
+      <div className="mx-auto max-w-7xl px-4 py-4">
+        <div className="flex items-center justify-between gap-4">
+          {/* Mobile menu trigger */}
+          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden">
+                <Menu className="h-6 w-6" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] sm:w-[350px]">
-              <div className="py-4">
-                <h2 className="mb-4 text-lg font-semibold">Menu</h2>
-                <nav className="flex flex-col space-y-3">
-                  {mainCategories.map((category) => (
-                    <Link
-                      key={category.name}
-                      href={category.href}
-                      className="text-sm font-medium hover:text-gray-900"
-                    >
-                      {category.name}
-                    </Link>
-                  ))}
-                </nav>
-              </div>
+            <SheetContent side="left" className="w-[300px] p-0 sm:w-[380px]">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Site menu</SheetTitle>
+              </SheetHeader>
+              <MobileNav onNavigate={() => setIsMenuOpen(false)} />
             </SheetContent>
           </Sheet>
 
           {/* Logo */}
           <div className="flex-1 text-center lg:flex-none lg:text-left">
-            <Link href="/" className="inline-block">
-              <h1 className="text-3xl font-bold tracking-wider">Lamees</h1>
+            <Link
+              href="/"
+              className="inline-flex flex-col items-center lg:items-start"
+            >
+              <span className="text-2xl font-bold uppercase tracking-[0.2em] text-neutral-900">
+                Lamees
+              </span>
+              <span className="mt-1 h-[2px] w-8 bg-[#FF3D6E]" />
             </Link>
           </div>
 
-          {/* Desktop Navigation - Hidden on Mobile */}
+          {/* Desktop navigation */}
           <nav className="hidden lg:flex lg:flex-1 lg:justify-center">
-            <ul className="flex space-x-8">
+            <ul className="flex items-center space-x-8">
               {mainCategories.map((category) => (
                 <li key={category.name}>
                   <Link
                     href={category.href}
-                    className="text-sm font-medium hover:text-gray-900"
+                    className={cn(
+                      "group relative py-1 text-[13px] font-semibold uppercase tracking-[0.08em] transition-colors",
+                      category.accent
+                        ? "text-[#FF3D6E]"
+                        : "text-neutral-700 hover:text-neutral-900",
+                    )}
                   >
                     {category.name}
+                    <span
+                      className={cn(
+                        "absolute -bottom-0.5 left-0 h-[1.5px] w-0 transition-all duration-200 group-hover:w-full",
+                        category.accent ? "bg-[#FF3D6E]" : "bg-neutral-900",
+                      )}
+                    />
                   </Link>
                 </li>
               ))}
             </ul>
           </nav>
 
-          {/* Search, Account, Wishlist, Cart */}
-          <div className="flex items-center space-x-4">
+          {/* Search, account, wishlist, cart */}
+          <div className="flex items-center gap-1">
             <div
-              className={cn("transition-all", isSearchOpen ? "w-64" : "w-0")}
-            >
-              {isSearchOpen && (
-                <Input
-                  type="search"
-                  placeholder="Search..."
-                  className="h-9 w-full"
-                />
+              className={cn(
+                "overflow-hidden transition-all duration-300 ease-out",
+                isSearchOpen ? "w-40 sm:w-64" : "w-0",
               )}
+            >
+              <Input
+                type="search"
+                placeholder="Search..."
+                autoFocus={isSearchOpen}
+                className="h-9 w-full border-neutral-200 focus-visible:ring-[#FF3D6E]"
+              />
             </div>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              onClick={() => setIsSearchOpen((open) => !open)}
+              aria-label={isSearchOpen ? "Close search" : "Open search"}
             >
-              <Search className="h-5 w-5" />
-              <span className="sr-only">Search</span>
+              {isSearchOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Search className="h-5 w-5" />
+              )}
             </Button>
             <Link href={user ? "/account" : "/login"}>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label="Account">
                 <User className="h-5 w-5" />
-                <span className="sr-only">Account</span>
               </Button>
             </Link>
             <Link href="/wishlist">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label="Wishlist">
                 <Heart className="h-5 w-5" />
-                <span className="sr-only">Wishlist</span>
               </Button>
             </Link>
             <Link href="/cart">
-              <Button variant="ghost" size="icon" className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                aria-label="Cart"
+              >
                 <ShoppingBag className="h-5 w-5" />
                 {cartCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black text-xs text-white">
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#FF3D6E] text-[10px] font-semibold text-white">
                     {cartCount}
                   </span>
                 )}
-                <span className="sr-only">Cart</span>
               </Button>
             </Link>
           </div>
