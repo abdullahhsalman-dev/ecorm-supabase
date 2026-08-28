@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { Trash2, Plus, Minus } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/src/app/components/cart-provider";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Separator } from "@/src/app/components/ui/separator";
-import { useCart } from "@/src/app/components/cart-provider";
-import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/src/app/lib/utils";
+import { Minus, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
 export default function CartPage() {
   const { items, cartTotal, updateItemQuantity, removeItem } = useCart();
@@ -47,7 +47,7 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
+      <div className=" mx-auto px-4 py-16 text-center">
         <h1 className="mb-6 text-3xl font-bold">Your Cart</h1>
         <p className="mb-8 text-gray-600">Your cart is currently empty.</p>
         <Button asChild>
@@ -58,7 +58,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className=" mx-auto px-4 py-8">
       <h1 className="mb-8 text-3xl font-bold">Your Cart</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">

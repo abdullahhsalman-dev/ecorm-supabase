@@ -1,10 +1,10 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { ProductGrid } from "@/src/app/components/product-grid";
 import { ProductFilters } from "@/src/app/components/product-filters";
+import { ProductGrid } from "@/src/app/components/product-grid";
 import { ProductSorting } from "@/src/app/components/product-sorting";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
 import { createClient } from "@/src/app/lib/supabase/server";
+import Link from "next/link";
+import { Suspense } from "react";
 
 export async function generateMetadata({
   params,
@@ -15,13 +15,13 @@ export async function generateMetadata({
 
   if (!subcategory) {
     return {
-      title: "Category Not Found | Diners",
+      title: "Category Not Found | Lamees",
       description: "The requested category could not be found.",
     };
   }
 
   return {
-    title: `${subcategory.name} | Women's Collection | Diners`,
+    title: `${subcategory.name} | Women's Collection | Lamees`,
     description:
       subcategory.description ||
       `Shop our collection of women's ${subcategory.name.toLowerCase()}.`,
@@ -72,7 +72,7 @@ export default async function WomenSubcategoryPage({
   const subcategory = await getSubcategory(params.subcategory);
 
   return (
-    <div className="container px-4 py-8 md:py-12">
+    <div className=" px-4 py-8 md:py-12">
       <div className="mb-8">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Link href="/" className="hover:text-foreground">

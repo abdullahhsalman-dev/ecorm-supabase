@@ -1,24 +1,24 @@
-import Link from "next/link";
+import { Button } from "@/src/app/components/ui/button";
 import {
   Facebook,
   Instagram,
+  Mail,
+  MapPin,
+  Phone,
   Twitter,
   Youtube,
-  Mail,
-  Phone,
-  MapPin,
 } from "lucide-react";
-import { Button } from "@/src/app/components/ui/button";
+import Link from "next/link";
 
 export default function Footer() {
   return (
     <footer className="bg-muted">
-      <div className="container px-4 py-12 md:px-6 lg:py-16">
+      <div className=" px-4 py-12 md:px-6 lg:py-16">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <h3 className="mb-4 text-lg font-semibold">About Us</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              Diners is a premier fashion destination offering the latest trends
+              Lamees is a premier fashion destination offering the latest trends
               for men, women, and kids. Quality products, exceptional service,
               and stylish designs.
             </p>
@@ -192,10 +192,10 @@ export default function Footer() {
               <li className="flex items-center">
                 <Mail className="mr-2 h-5 w-5 shrink-0" />
                 <a
-                  href="mailto:info@diners.com.pk"
+                  href="mailto:info@Lamees.com.pk"
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  info@diners.com.pk
+                  info@Lamees.com.pk
                 </a>
               </li>
             </ul>
@@ -204,7 +204,7 @@ export default function Footer() {
         <div className="mt-12 border-t pt-8">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             <p className="text-center text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} Diners. All rights reserved.
+              &copy; {new Date().getFullYear()} Lamees. All rights reserved.
             </p>
             <div className="flex items-center space-x-4">
               {/* <img src="" alt="Visa" className="h-8" />

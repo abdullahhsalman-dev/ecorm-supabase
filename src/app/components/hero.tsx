@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Button } from "@/src/app/components/ui/button";
+import { cn } from "@/src/app/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/src/app/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/src/app/lib/utils";
+import { useEffect, useState } from "react";
 
 const slides = [
   {
@@ -68,7 +68,7 @@ export default function Hero() {
               "absolute inset-0 flex h-full w-full items-center transition-opacity duration-1000",
               currentSlide === index
                 ? "opacity-100"
-                : "opacity-0 pointer-events-none"
+                : "opacity-0 pointer-events-none",
             )}
           >
             <div className={cn("absolute inset-0", slide.bgColor)}>
@@ -80,7 +80,7 @@ export default function Hero() {
                 priority={index === 0}
               />
             </div>
-            <div className="container relative z-10 mx-auto px-4 text-white">
+            <div className=" relative z-10 mx-auto px-4 text-white">
               <div className="max-w-lg">
                 <h2 className="mb-2 text-4xl font-bold md:text-5xl lg:text-6xl">
                   {slide.title}
@@ -129,7 +129,7 @@ export default function Hero() {
               "h-2 w-8 rounded-full transition-all",
               currentSlide === index
                 ? "bg-white"
-                : "bg-white/50 hover:bg-white/75"
+                : "bg-white/50 hover:bg-white/75",
             )}
             aria-label={`Go to slide ${index + 1}`}
           />

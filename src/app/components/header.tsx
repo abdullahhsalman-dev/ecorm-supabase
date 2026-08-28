@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { Search, ShoppingBag, Heart, Menu, User } from "lucide-react";
+import { useCart } from "@/src/app/components/cart-provider";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import {
@@ -10,9 +8,11 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/src/app/components/ui/sheet";
-import { useCart } from "@/src/app/components/cart-provider";
 import { useAuth } from "@/src/app/context/auth-context";
 import { cn } from "@/src/app/lib/utils";
+import { Heart, Menu, Search, ShoppingBag, User } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
 const mainCategories = [
   { name: "GRAND FESTIVE SALE", href: "/sale" },
@@ -41,7 +41,7 @@ export function Header() {
     <header className="sticky top-0 z-40 w-full border-b bg-background">
       {/* Top Bar */}
       <div className="bg-gray-100 py-2">
-        <div className="container mx-auto flex items-center justify-between px-4">
+        <div className=" mx-auto flex items-center justify-between px-4">
           <div className="flex items-center space-x-4">
             {topBarLinks.map((link) => (
               <Link
@@ -57,7 +57,7 @@ export function Header() {
       </div>
 
       {/* Main Header */}
-      <div className="container mx-auto px-4 py-4">
+      <div className=" mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Mobile Menu */}
           <Sheet>
@@ -88,7 +88,7 @@ export function Header() {
           {/* Logo */}
           <div className="flex-1 text-center lg:flex-none lg:text-left">
             <Link href="/" className="inline-block">
-              <h1 className="text-3xl font-bold tracking-wider">DINERS</h1>
+              <h1 className="text-3xl font-bold tracking-wider">Lamees</h1>
             </Link>
           </div>
 

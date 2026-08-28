@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { createClient } from "@/src/app/lib/supabase/client";
 import { ProductCard } from "@/src/app/components/product-card";
 import { Button } from "@/src/app/components/ui/button";
 import { generateDummyProducts } from "@/src/app/lib/dummy-data";
+import { createClient } from "@/src/app/lib/supabase/client";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export function FeaturedProducts() {
   const [products, setProducts] = useState([]);
@@ -26,7 +26,7 @@ export function FeaturedProducts() {
             price, 
             sale_price,
             product_images(image_url, is_primary)
-          `
+          `,
           )
           .eq("featured", true)
           .limit(8);
@@ -35,22 +35,22 @@ export function FeaturedProducts() {
           console.error("Error fetching featured products:", error);
           // Use dummy data on error
           const dummyData = generateDummyProducts("featured", 8);
-          setProducts(dummyData);
+          setProducts(dummyData as never);
           return;
         }
 
         if (data && data.length > 0) {
-          setProducts(data);
+          setProducts(data as never);
         } else {
           // No data found, use dummy data
           const dummyData = generateDummyProducts("featured", 8);
-          setProducts(dummyData);
+          setProducts(dummyData as never);
         }
       } catch (error) {
         console.error("Error in fetchProducts:", error);
         // Use dummy data on error
         const dummyData = generateDummyProducts("featured", 8);
-        setProducts(dummyData);
+        setProducts(dummyData as never);
       } finally {
         setLoading(false);
       }
@@ -91,7 +91,7 @@ export function FeaturedProducts() {
       </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product} product={product} />
         ))}
       </div>
       <div className="mt-10 text-center">

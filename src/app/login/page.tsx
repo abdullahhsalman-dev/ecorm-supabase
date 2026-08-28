@@ -1,10 +1,7 @@
 // src/app/login/page.tsx
 "use client";
 
-import type React from "react";
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Label } from "@/src/app/components/ui/label";
@@ -14,24 +11,31 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/src/app/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/src/app/hooks/use-auth";
+import { Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const { signIn, signUp } = useAuth();
-  console.log("LoginPage rendering, useAuth called"); // Debug log
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Register form state
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [registerName, setRegisterName] = useState("");
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,13 +74,24 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check passwords before submitting
+    if (registerPassword !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const { error } = await signUp(
         registerEmail,
         registerPassword,
-        registerName
+        registerName,
       );
 
       if (error) {
@@ -97,9 +112,10 @@ export default function LoginPage() {
       // Clear form
       setRegisterEmail("");
       setRegisterPassword("");
+      setConfirmPassword("");
       setRegisterName("");
     } catch (error) {
-      console.log("login error is ", error);
+      console.log("register error is ", error);
       toast({
         title: "Error",
         description: "Something went wrong. Please try again.",
@@ -111,7 +127,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="container mx-auto flex min-h-[80vh] flex-col items-center justify-center px-4 py-8">
+    <div className="mx-auto flex min-h-[80vh] flex-col items-center justify-center px-4 py-8">
       <div className="mx-auto w-full max-w-md space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Welcome Back</h1>
@@ -126,6 +142,7 @@ export default function LoginPage() {
             <TabsTrigger value="register">Register</TabsTrigger>
           </TabsList>
 
+          {/* Login */}
           <TabsContent value="login">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
@@ -139,6 +156,7 @@ export default function LoginPage() {
                   required
                 />
               </div>
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
@@ -149,20 +167,41 @@ export default function LoginPage() {
                     Forgot password?
                   </Link>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                />
+
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showLoginPassword ? "text" : "password"}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="pr-10"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-0 top-0 flex h-full w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                    aria-label={
+                      showLoginPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showLoginPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
           </TabsContent>
 
+          {/* Register */}
           <TabsContent value="register">
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-2">
@@ -176,6 +215,7 @@ export default function LoginPage() {
                   required
                 />
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="register-email">Email</Label>
                 <Input
@@ -187,16 +227,77 @@ export default function LoginPage() {
                   required
                 />
               </div>
+
+              {/* Password */}
               <div className="space-y-2">
                 <Label htmlFor="register-password">Password</Label>
-                <Input
-                  id="register-password"
-                  type="password"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  required
-                />
+
+                <div className="relative">
+                  <Input
+                    id="register-password"
+                    type={showRegisterPassword ? "text" : "password"}
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    className="pr-10"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowRegisterPassword(!showRegisterPassword)
+                    }
+                    className="absolute right-0 top-0 flex h-full w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                    aria-label={
+                      showRegisterPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showRegisterPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
+
+              {/* Confirm Password */}
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+
+                <div className="relative">
+                  <Input
+                    id="confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pr-10"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-0 top-0 flex h-full w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                    aria-label={
+                      showConfirmPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+
+                {confirmPassword && registerPassword !== confirmPassword && (
+                  <p className="text-sm text-destructive">
+                    Passwords do not match.
+                  </p>
+                )}
+              </div>
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Creating account..." : "Create Account"}
               </Button>

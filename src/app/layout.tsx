@@ -1,19 +1,19 @@
 // src/app/layout.tsx
-import type React from "react";
+import { CartProvider } from "@/src/app/components/cart-provider";
+import Footer from "@/src/app/components/footer";
+import { Header } from "@/src/app/components/header";
+import { ThemeProvider } from "@/src/app/components/theme-provider";
+import { Toaster } from "@/src/app/components/ui/toaster";
+import { AuthProvider } from "@/src/app/context/auth-context";
+import "@/src/app/index.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "@/src/app/index.css";
-import { ThemeProvider } from "@/src/app/components/theme-provider";
-import { Header } from "@/src/app/components/header";
-import Footer from "@/src/app/components/footer";
-import { Toaster } from "@/src/app/components/ui/toaster";
-import { CartProvider } from "@/src/app/components/cart-provider";
-import { AuthProvider } from "@/src/app/context/auth-context";
+import type React from "react";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Diners - Fashion E-commerce Store",
+  title: "Lamees - Fashion E-commerce Store",
   description: "Shop the latest fashion trends for men, women, and kids",
 };
 

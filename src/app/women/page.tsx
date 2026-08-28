@@ -1,13 +1,13 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { WomenHero } from "@/src/app/components/women-hero";
-import { WomenCategories } from "@/src/app/components/women-categories";
 import { ProductGrid } from "@/src/app/components/product-grid";
 import { Button } from "@/src/app/components/ui/button";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { WomenCategories } from "@/src/app/components/women-categories";
+import { WomenHero } from "@/src/app/components/women-hero";
+import Link from "next/link";
+import { Suspense } from "react";
 
 export const metadata = {
-  title: "Women's Collection | Diners",
+  title: "Women's Collection | Lamees",
   description:
     "Explore our stunning women's fashion collection for every style",
 };
@@ -17,14 +17,14 @@ export default function WomenPage() {
     <div>
       <WomenHero />
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <h2 className="mb-8 text-center text-3xl font-bold">
           Shop by Category
         </h2>
         <WomenCategories />
       </div>
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold">New Arrivals</h2>
           <Link
@@ -55,7 +55,7 @@ export default function WomenPage() {
       </div>
 
       <div className="bg-gray-100 py-12">
-        <div className="container px-4">
+        <div className=" px-4">
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
@@ -99,7 +99,7 @@ export default function WomenPage() {
         </div>
       </div>
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold">Trending Now</h2>
           <Link

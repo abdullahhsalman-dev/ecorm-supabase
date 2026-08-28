@@ -1,13 +1,13 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { FragranceHero } from "@/src/app/components/fragrance-hero";
 import { FragranceCategories } from "@/src/app/components/fragrance-categories";
+import { FragranceHero } from "@/src/app/components/fragrance-hero";
 import { ProductGrid } from "@/src/app/components/product-grid";
 import { Button } from "@/src/app/components/ui/button";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
+import Link from "next/link";
+import { Suspense } from "react";
 
 export const metadata = {
-  title: "Fragrance Collection | Diners",
+  title: "Fragrance Collection | Lamees",
   description:
     "Discover our exclusive collection of fragrances for men and women",
 };
@@ -17,14 +17,14 @@ export default function FragrancePage() {
     <div>
       <FragranceHero />
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <h2 className="mb-8 text-center text-3xl font-bold">
           Shop by Category
         </h2>
         <FragranceCategories />
       </div>
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold">New Arrivals</h2>
           <Link
@@ -55,7 +55,7 @@ export default function FragrancePage() {
       </div>
 
       <div className="bg-gray-100 py-12">
-        <div className="container px-4">
+        <div className=" px-4">
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
@@ -64,7 +64,9 @@ export default function FragrancePage() {
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                <h3 className="mb-2 text-3xl font-bold">Men&apos;s Fragrances</h3>
+                <h3 className="mb-2 text-3xl font-bold">
+                  Men&apos;s Fragrances
+                </h3>
                 <p className="mb-4 max-w-md">
                   Discover our collection of masculine scents.
                 </p>
@@ -83,7 +85,9 @@ export default function FragrancePage() {
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                <h3 className="mb-2 text-3xl font-bold">Women&apos;s Fragrances</h3>
+                <h3 className="mb-2 text-3xl font-bold">
+                  Women&apos;s Fragrances
+                </h3>
                 <p className="mb-4 max-w-md">
                   Explore our collection of feminine scents.
                 </p>
@@ -99,7 +103,7 @@ export default function FragrancePage() {
         </div>
       </div>
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold">Best Sellers</h2>
           <Link

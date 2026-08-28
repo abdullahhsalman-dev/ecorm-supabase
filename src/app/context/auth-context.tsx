@@ -1,16 +1,15 @@
 // src/app/context/auth-provider.tsx
 "use client";
 
+import { createClient } from "@/src/app/lib/supabase/client";
+import type { AuthError, PostgrestError, User } from "@supabase/supabase-js";
 import {
   createContext,
   useContext,
-  useState,
   useEffect,
+  useState,
   type ReactNode,
 } from "react";
-import { createClient } from "@/src/app/lib/supabase/client";
-import type { User, AuthError } from "@supabase/supabase-js";
-import type { PostgrestError } from "@supabase/supabase-js";
 
 // Type definitions
 export type AuthContextType = {
@@ -19,12 +18,12 @@ export type AuthContextType = {
   isAuthenticated: boolean;
   signIn: (
     email: string,
-    password: string
+    password: string,
   ) => Promise<{ error: AuthError | null }>;
   signUp: (
     email: string,
     password: string,
-    fullName: string
+    fullName: string,
   ) => Promise<{ error: AuthError | PostgrestError | null }>;
   signOut: () => Promise<{ error: AuthError | null }>;
 };

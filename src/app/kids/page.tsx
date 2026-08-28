@@ -1,13 +1,13 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { KidsHero } from "@/src/app/components/kids-hero";
 import { KidsCategories } from "@/src/app/components/kids-categories";
+import { KidsHero } from "@/src/app/components/kids-hero";
 import { ProductGrid } from "@/src/app/components/product-grid";
 import { Button } from "@/src/app/components/ui/button";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
+import Link from "next/link";
+import { Suspense } from "react";
 
 export const metadata = {
-  title: "Kids Collection | Diners",
+  title: "Kids Collection | Lamees",
   description: "Shop our collection of kids clothing and accessories",
 };
 
@@ -16,14 +16,14 @@ export default function KidsPage() {
     <div>
       <KidsHero />
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <h2 className="mb-8 text-center text-3xl font-bold">
           Shop by Category
         </h2>
         <KidsCategories />
       </div>
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold">New Arrivals</h2>
           <Link
@@ -54,7 +54,7 @@ export default function KidsPage() {
       </div>
 
       <div className="bg-gray-100 py-12">
-        <div className="container px-4">
+        <div className=" px-4">
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-lg">
               <img
@@ -98,7 +98,7 @@ export default function KidsPage() {
         </div>
       </div>
 
-      <div className="container px-4 py-12">
+      <div className=" px-4 py-12">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold">Best Sellers</h2>
           <Link

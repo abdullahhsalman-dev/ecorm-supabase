@@ -1,17 +1,17 @@
-import { Suspense } from "react";
+import { ProductGrid } from "@/src/app/components/product-grid";
 import { SaleBanner } from "@/src/app/components/sale-banner";
 import { SaleCategories } from "@/src/app/components/sale-categories";
-import { ProductGrid } from "@/src/app/components/product-grid";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { Suspense } from "react";
 
 export const metadata = {
-  title: "Grand Festive Sale | Diners",
+  title: "Grand Festiv Sale | Lamees",
   description: "Shop our exclusive sale with up to 50% off on selected items",
 };
 
 export default function SalePage() {
   return (
-    <div className="container px-4 py-8">
+    <div className=" px-4 py-8">
       <SaleBanner />
 
       <div className="my-12">

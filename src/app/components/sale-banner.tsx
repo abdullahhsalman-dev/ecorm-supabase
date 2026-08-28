@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { Button } from "@/src/app/components/ui/button";
+import Link from "next/link";
 
 export function SaleBanner() {
   return (
-    <div className="relative overflow-hidden rounded-lg bg-red-700 text-white">
+    <div className="relative mx-auto overflow-hidden rounded-lg bg-red-700 text-white">
       <div className="absolute inset-0 bg-[url('/sale-pattern-bg.png')] opacity-10"></div>
       <div className="relative z-10 px-6 py-16 text-center md:py-24">
         <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-6xl">

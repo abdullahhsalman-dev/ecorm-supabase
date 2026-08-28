@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { createClient } from "@/src/app/lib/supabase/client";
 import { Database } from "@/src/app/lib/supabase/database.types";
+import Link from "next/link";
 
 type Category = Database["public"]["Tables"]["categories"]["Row"];
 
@@ -10,7 +10,7 @@ async function getMainCategories(): Promise<Category[]> {
     .from("categories")
     .select("id, name, slug, image_url")
     .is("parent_id", null)
-    .limit(6)) as { data: Category[] | null; error };
+    .limit(6)) as { data: Category[] | null; error: any };
 
   if (error) {
     console.error("Error fetching categories:", error);

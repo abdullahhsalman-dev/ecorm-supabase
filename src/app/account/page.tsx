@@ -2,22 +2,22 @@
 
 import type React from "react";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { AccountAddresses } from "@/src/app/components/account-addresses";
+import { AccountOrders } from "@/src/app/components/account-orders";
+import { AccountWishlist } from "@/src/app/components/account-wishlist";
+import { Button } from "@/src/app/components/ui/button";
+import { Input } from "@/src/app/components/ui/input";
+import { Label } from "@/src/app/components/ui/label";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/src/app/components/ui/tabs";
-import { Button } from "@/src/app/components/ui/button";
-import { Input } from "@/src/app/components/ui/input";
-import { Label } from "@/src/app/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/src/app/context/auth-context";
-import { AccountOrders } from "@/src/app/components/account-orders";
-import { AccountAddresses } from "@/src/app/components/account-addresses";
-import { AccountWishlist } from "@/src/app/components/account-wishlist";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -62,7 +62,7 @@ export default function AccountPage() {
 
   if (!user) {
     return (
-      <div className="container flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
+      <div className=" flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
         <h1 className="mb-4 text-3xl font-bold">Account Access</h1>
         <p className="mb-8 text-muted-foreground">
           Please sign in to access your account.
@@ -73,7 +73,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="container px-4 py-8 md:py-12">
+    <div className=" px-4 py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <h1 className="text-3xl font-bold">My Account</h1>
         <Button variant="outline" onClick={handleSignOut}>

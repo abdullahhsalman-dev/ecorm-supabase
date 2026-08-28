@@ -1,15 +1,15 @@
-import { Suspense } from "react";
 import { ProductGrid } from "@/src/app/components/product-grid";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { Suspense } from "react";
 
 export const metadata = {
-  title: "New Arrivals | Diners",
+  title: "New Arrivals | Lamees",
   description: "Explore the latest products in our store",
 };
 
 export default function NewArrivalsPage() {
   return (
-    <div className="container px-4 py-12">
+    <div className=" px-4 py-12">
       <h1 className="text-3xl font-bold mb-8">New Arrivals</h1>
       <Suspense
         fallback={

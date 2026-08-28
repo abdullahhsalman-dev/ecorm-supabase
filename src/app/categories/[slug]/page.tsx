@@ -1,10 +1,10 @@
-import { notFound } from "next/navigation";
-import { Suspense } from "react";
-import { ProductGrid } from "@/src/app/components/product-grid";
 import { ProductFilters } from "@/src/app/components/product-filters";
+import { ProductGrid } from "@/src/app/components/product-grid";
 import { ProductSorting } from "@/src/app/components/product-sorting";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
 import { createClient } from "@/src/app/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 export async function generateMetadata({
   params,
@@ -15,13 +15,13 @@ export async function generateMetadata({
 
   if (!category) {
     return {
-      title: "Category Not Found | Diners",
+      title: "Category Not Found | Lamees",
       description: "The requested category could not be found.",
     };
   }
 
   return {
-    title: `${category.name} | Diners`,
+    title: `${category.name} | Lamees`,
     description:
       category.description ||
       `Browse our collection of ${category.name} products.`,
@@ -70,7 +70,7 @@ export default async function CategoryPage({
       : undefined;
 
   return (
-    <div className="container px-4 py-8 md:py-12">
+    <div className=" px-4 py-8 md:py-12">
       <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
       {category.description && (
         <p className="mb-8 text-muted-foreground">{category.description}</p>

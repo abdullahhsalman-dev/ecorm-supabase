@@ -1,10 +1,10 @@
-# Diners E-Commerce Store
+# Lamees E-Commerce Store
 
-![Diners E-Commerce Store](https://placeholder.svg?height=400&width=800&query=Diners+E-Commerce+Store+Banner)
+![Lamees E-Commerce Store](https://placeholder.svg?height=400&width=800&query=Lamees+E-Commerce+Store+Banner)
 
 ## Overview
 
-Diners is a full-featured e-commerce platform built with Next.js, Tailwind CSS, and Supabase. It's designed to provide a seamless shopping experience with a focus on fashion products for men, women, and kids. The platform includes comprehensive product management, user authentication, cart functionality, and order processing.
+Lamees is a full-featured e-commerce platform built with Next.js, Tailwind CSS, and Supabase. It's designed to provide a seamless shopping experience with a focus on fashion products for men, women, and kids. The platform includes comprehensive product management, user authentication, cart functionality, and order processing.
 
 ## Features
 
@@ -40,7 +40,7 @@ Diners is a full-featured e-commerce platform built with Next.js, Tailwind CSS, 
 ## Project Structure
 
 \`\`\`
-diners-ecommerce/
+Lamees-ecommerce/
 ├── app/ # Next.js App Router
 │ ├── account/ # User account pages
 │ ├── cart/ # Shopping cart
@@ -76,8 +76,8 @@ diners-ecommerce/
 1. Clone the repository:
 
 \`\`\`bash
-git clone https://github.com/yourusername/diners-ecommerce.git
-cd diners-ecommerce
+git clone https://github.com/yourusername/Lamees-ecommerce.git
+cd Lamees-ecommerce
 \`\`\`
 
 2. Install dependencies:

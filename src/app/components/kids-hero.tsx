@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Button } from "@/src/app/components/ui/button";
+import Link from "next/link";
 
 export function KidsHero() {
   return (
@@ -10,7 +10,7 @@ export function KidsHero() {
         className="h-full w-full object-cover"
       />
       <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent">
-        <div className="container flex h-full items-center px-4">
+        <div className=" flex h-full items-center px-4">
           <div className="max-w-lg text-white">
             <h1 className="mb-4 text-4xl font-bold md:text-5xl lg:text-6xl">
               Kids Collection

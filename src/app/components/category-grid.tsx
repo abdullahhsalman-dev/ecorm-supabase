@@ -1,5 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 
 const categories = [
   {
@@ -35,7 +35,7 @@ const categories = [
 export default function CategoryGrid() {
   return (
     <section className="py-12">
-      <div className="container mx-auto px-4">
+      <div className=" mx-auto px-4">
         <h2 className="mb-8 text-center text-3xl font-bold">
           Shop by Category
         </h2>

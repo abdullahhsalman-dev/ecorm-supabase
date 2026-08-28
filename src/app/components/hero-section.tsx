@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Button } from "@/src/app/components/ui/button";
+import Link from "next/link";
 
 export function HeroSection() {
   return (

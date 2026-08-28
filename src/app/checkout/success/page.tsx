@@ -1,15 +1,15 @@
-import Link from "next/link";
-import { CheckCircle } from "lucide-react";
 import { Button } from "@/src/app/components/ui/button";
+import { CheckCircle } from "lucide-react";
+import Link from "next/link";
 
 export const metadata = {
-  title: "Order Confirmation | Diners",
+  title: "Order Confirmation | Lamees",
   description: "Your order has been successfully placed",
 };
 
 export default function OrderSuccessPage() {
   return (
-    <div className="container flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
+    <div className=" flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
       <div className="mb-6 rounded-full bg-green-100 p-3">
         <CheckCircle className="h-12 w-12 text-green-600" />
       </div>

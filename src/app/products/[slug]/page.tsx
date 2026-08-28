@@ -1,10 +1,10 @@
-import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { ProductDetails } from "@/src/app/components/product-details";
 import { RelatedProducts } from "@/src/app/components/related-products";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
-import { createClient } from "@/src/app/lib/supabase/server";
 import { getDummyProduct } from "@/src/app/lib/dummy-data";
+import { createClient } from "@/src/app/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 export async function generateMetadata({
   params,
@@ -15,13 +15,13 @@ export async function generateMetadata({
 
   if (!product) {
     return {
-      title: "Product Not Found | Diners",
+      title: "Product Not Found | Lamees",
       description: "The requested product could not be found.",
     };
   }
 
   return {
-    title: `${product.name} | Diners`,
+    title: `${product.name} | Lamees`,
     description:
       product.description || "View product details and purchase options.",
   };
@@ -38,7 +38,7 @@ async function getProduct(slug: string) {
         *,
         product_images(*),
         categories:category_id(id, name, slug)
-      `
+      `,
       )
       .eq("slug", slug)
       .single();
@@ -69,7 +69,7 @@ export default async function ProductPage({
   }
 
   return (
-    <div className="container px-4 py-8 md:py-12">
+    <div className=" px-4 py-8 md:py-12">
       <Suspense
         fallback={
           <div className="grid gap-8 md:grid-cols-2">

@@ -1,10 +1,10 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { ProductGrid } from "@/src/app/components/product-grid";
 import { ProductFilters } from "@/src/app/components/product-filters";
+import { ProductGrid } from "@/src/app/components/product-grid";
 import { ProductSorting } from "@/src/app/components/product-sorting";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
 import { createClient } from "@/src/app/lib/supabase/server";
+import Link from "next/link";
+import { Suspense } from "react";
 
 export async function generateMetadata({
   params,
@@ -14,7 +14,7 @@ export async function generateMetadata({
   const subcategory = await getSubcategory(params.subcategory);
 
   return {
-    title: `${subcategory.name} Fragrances | Diners`,
+    title: `${subcategory.name} Fragrances | Lamees`,
     description:
       subcategory.description ||
       `Shop our collection of ${subcategory.name.toLowerCase()} fragrances.`,
@@ -43,7 +43,7 @@ async function getSubcategory(slug: string) {
       slug: slug,
       description: `Shop our collection of ${slug.replace(
         /-/g,
-        " "
+        " ",
       )} fragrances.`,
       parent_slug: "fragrance",
     };
@@ -56,7 +56,7 @@ async function getSubcategory(slug: string) {
       slug: slug,
       description: `Shop our collection of ${slug.replace(
         /-/g,
-        " "
+        " ",
       )} fragrances.`,
       parent_slug: "fragrance",
     };
@@ -71,7 +71,7 @@ export default async function FragranceSubcategoryPage({
   const subcategory = await getSubcategory(params.subcategory);
 
   return (
-    <div className="container px-4 py-8 md:py-12">
+    <div className=" px-4 py-8 md:py-12">
       <div className="mb-8">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Link href="/" className="hover:text-foreground">

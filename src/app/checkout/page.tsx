@@ -2,8 +2,8 @@
 
 import type React from "react";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/src/app/components/cart-provider";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Label } from "@/src/app/components/ui/label";
@@ -13,9 +13,9 @@ import {
 } from "@/src/app/components/ui/radio-group";
 import { Separator } from "@/src/app/components/ui/separator";
 import { Textarea } from "@/src/app/components/ui/textarea";
-import { useCart } from "@/src/app/components/cart-provider";
-import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/src/app/lib/utils";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function CheckoutPage() {
   });
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -64,7 +64,7 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
+      <div className=" mx-auto px-4 py-16 text-center">
         <h1 className="mb-6 text-3xl font-bold">Checkout</h1>
         <p className="mb-8 text-gray-600">
           Your cart is empty. Please add items to your cart before checking out.
@@ -77,7 +77,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="container px-4 py-8 md:py-12">
+    <div className=" px-4 py-8 md:py-12">
       <h1 className="mb-8 text-3xl font-bold">Checkout</h1>
 
       <form onSubmit={handleSubmit}>
@@ -321,7 +321,7 @@ export default function CheckoutPage() {
                     {formatCurrency(
                       cartTotal +
                         (cartTotal > 5000 ? 0 : 500) +
-                        cartTotal * 0.05
+                        cartTotal * 0.05,
                     )}
                   </span>
                 </div>

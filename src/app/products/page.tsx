@@ -1,11 +1,11 @@
-import { Suspense } from "react";
-import { ProductGrid } from "@/src/app/components/product-grid";
 import { ProductFilters } from "@/src/app/components/product-filters";
+import { ProductGrid } from "@/src/app/components/product-grid";
 import { ProductSorting } from "@/src/app/components/product-sorting";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { Suspense } from "react";
 
 export const metadata = {
-  title: "Products | Diners",
+  title: "Products | Lamees",
   description: "Browse our collection of products",
 };
 
@@ -30,7 +30,7 @@ export default function ProductsPage({
       : undefined;
 
   return (
-    <div className="container px-4 py-8 md:py-12">
+    <div className=" px-4 py-8 md:py-12">
       <h1 className="mb-8 text-3xl font-bold">All Products</h1>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
