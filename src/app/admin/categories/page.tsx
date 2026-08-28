@@ -35,7 +35,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface Category {
   id: string;
@@ -46,274 +46,561 @@ interface Category {
   image_url: string | null;
 }
 
+interface CategoryPayload {
+  name: string;
+  slug: string;
+  description: string | null;
+  parent_id: string | null;
+  image_url: string | null;
+}
+
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
   const { toast } = useToast();
 
-  // Form Sheet state
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Form state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
-  // Form fields
   const [formName, setFormName] = useState("");
   const [formSlug, setFormSlug] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formParentId, setFormParentId] = useState<string>("none");
+  const [formParentId, setFormParentId] = useState("none");
   const [formImageUrl, setFormImageUrl] = useState("");
 
-  const supabase = createClient();
-
-  const loadCategories = async () => {
+  /*
+   * ---------------------------------------------------------
+   * LOAD CATEGORIES
+   * ---------------------------------------------------------
+   */
+  const loadCategories = useCallback(async () => {
     setLoading(true);
+
     try {
       const { data, error } = await supabase
         .from("categories")
-        .select("*")
+        .select("id, name, slug, description, parent_id, image_url")
         .order("name", { ascending: true });
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        setCategories(data);
-      } else {
-        throw new Error("No database categories found");
+      if (error) {
+        throw error;
       }
-    } catch (err) {
-      console.warn("Using sandbox mode for categories CRUD:", err);
+
+      // Empty table is a valid state.
+      setCategories((data ?? []) as Category[]);
+    } catch (error) {
+      console.error("Failed to load categories:", error);
+
+      toast({
+        title: "Failed to load categories",
+        description:
+          error instanceof Error ? error.message : "Could not load categories.",
+        variant: "destructive",
+      });
+
       setCategories([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase, toast]);
 
   useEffect(() => {
     loadCategories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadCategories]);
 
-  // Sync Slug during typing when not editing
+  /*
+   * ---------------------------------------------------------
+   * DERIVED CATEGORY DATA
+   * ---------------------------------------------------------
+   */
+
+  const parentCategories = useMemo(
+    () => categories.filter((category) => !category.parent_id),
+    [categories],
+  );
+
+  const getSubcategories = useCallback(
+    (parentId: string) => {
+      return categories.filter((category) => category.parent_id === parentId);
+    },
+    [categories],
+  );
+
+  /*
+   * ---------------------------------------------------------
+   * SLUG GENERATOR
+   * ---------------------------------------------------------
+   */
+
+  const generateSlug = (value: string) => {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  };
+
+  /*
+   * Automatically generate slug for NEW categories.
+   *
+   * For existing categories we don't automatically overwrite
+   * the slug because the admin may intentionally have changed it.
+   */
   useEffect(() => {
     if (!editingCategory) {
-      const generatedSlug = formName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)+/g, "");
-      setFormSlug(generatedSlug);
+      setFormSlug(generateSlug(formName));
     }
   }, [formName, editingCategory]);
+
+  /*
+   * ---------------------------------------------------------
+   * FORM HELPERS
+   * ---------------------------------------------------------
+   */
+
+  const resetForm = () => {
+    setEditingCategory(null);
+    setFormName("");
+    setFormSlug("");
+    setFormDescription("");
+    setFormParentId("none");
+    setFormImageUrl("");
+  };
 
   const handleOpenForm = (category: Category | null = null) => {
     if (category) {
       setEditingCategory(category);
       setFormName(category.name);
       setFormSlug(category.slug);
-      setFormDescription(category.description || "");
-      setFormParentId(category.parent_id || "none");
-      setFormImageUrl(category.image_url || "");
+      setFormDescription(category.description ?? "");
+      setFormParentId(category.parent_id ?? "none");
+      setFormImageUrl(category.image_url ?? "");
     } else {
-      setEditingCategory(null);
-      setFormName("");
-      setFormSlug("");
-      setFormDescription("");
-      setFormParentId("none");
-      setFormImageUrl("");
+      resetForm();
     }
+
     setIsFormOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCloseForm = (open: boolean) => {
+    setIsFormOpen(open);
+
+    if (!open && !saving) {
+      resetForm();
+    }
+  };
+
+  /*
+   * ---------------------------------------------------------
+   * CHECK IF CATEGORY IS DESCENDANT
+   * ---------------------------------------------------------
+   *
+   * Example:
+   *
+   * Men
+   *  └── Shirts
+   *       └── Formal Shirts
+   *
+   * Men cannot have Shirts as parent.
+   *
+   * This prevents circular hierarchy.
+   */
+  const isDescendant = (
+    categoryId: string,
+    possibleParentId: string,
+  ): boolean => {
+    let currentParentId =
+      categories.find((category) => category.id === possibleParentId)
+        ?.parent_id ?? null;
+
+    while (currentParentId) {
+      if (currentParentId === categoryId) {
+        return true;
+      }
+
+      currentParentId =
+        categories.find((category) => category.id === currentParentId)
+          ?.parent_id ?? null;
+    }
+
+    return false;
+  };
+
+  /*
+   * ---------------------------------------------------------
+   * SUBMIT CREATE / UPDATE
+   * ---------------------------------------------------------
+   */
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!formName || !formSlug) {
+    if (saving) return;
+
+    const name = formName.trim();
+    const slug = formSlug.trim().toLowerCase();
+
+    if (!name) {
       toast({
-        title: "Required Fields Missing",
-        description: "Please fill in Name and Slug.",
+        title: "Category name required",
+        description: "Please enter a category name.",
         variant: "destructive",
       });
       return;
     }
 
-    const parentVal = formParentId === "none" ? null : formParentId;
-
-    // Prevent recursive parenting (setting a category as its own parent)
-    if (editingCategory && parentVal === editingCategory.id) {
+    if (!slug) {
       toast({
-        title: "Circular Hierarchy",
+        title: "Slug required",
+        description: "Please enter a category slug.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const parentId = formParentId === "none" ? null : formParentId;
+
+    /*
+     * Prevent category from being its own parent.
+     */
+    if (editingCategory && parentId === editingCategory.id) {
+      toast({
+        title: "Invalid parent",
         description: "A category cannot be its own parent.",
         variant: "destructive",
       });
       return;
     }
 
-    const payload = {
-      name: formName,
-      slug: formSlug,
-      description: formDescription || null,
-      parent_id: parentVal,
-      image_url: formImageUrl || null,
-    };
-
-    try {
-      if (editingCategory) {
-        if (editingCategory) {
-          const { error } = await supabase
-            .from("categories")
-            .update(payload)
-            .eq("id", editingCategory.id);
-
-          if (error) throw error;
-          toast({
-            title: "Category Updated",
-            description: `Category "${formName}" updated successfully.`,
-          });
-        } else {
-          const { error } = await supabase.from("categories").insert([payload]);
-
-          if (error) throw error;
-          toast({
-            title: "Category Created",
-            description: `Category "${formName}" created successfully.`,
-          });
-        }
-        await loadCategories();
-      }
-
-      setIsFormOpen(false);
-    } catch (err: unknown) {
-      console.error(err);
+    /*
+     * Prevent circular hierarchy.
+     *
+     * Example:
+     *
+     * Men
+     *   └── Shirts
+     *
+     * You cannot edit Men and make Shirts its parent.
+     */
+    if (
+      editingCategory &&
+      parentId &&
+      isDescendant(editingCategory.id, parentId)
+    ) {
       toast({
-        title: "Operation Failed",
+        title: "Circular hierarchy",
         description:
-          err instanceof Error
-            ? err.message
-            : "An error occurred writing data.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async (id: string, name: string) => {
-    // Check if category has subcategories
-    const hasChildren = categories.some((c) => c.parent_id === id);
-    if (hasChildren) {
-      toast({
-        title: "Delete Restricted",
-        description: `"${name}" contains subcategories. Please reassign or delete subcategories first.`,
+          "You cannot select one of this category's subcategories as its parent.",
         variant: "destructive",
       });
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
+    /*
+     * Prevent duplicate slug.
+     */
+    const duplicateSlug = categories.some(
+      (category) =>
+        category.slug.toLowerCase() === slug &&
+        category.id !== editingCategory?.id,
+    );
 
-    try {
-      const { error } = await supabase.from("categories").delete().eq("id", id);
-      if (error) throw error;
+    if (duplicateSlug) {
       toast({
-        title: "Category Deleted",
-        description: `Category "${name}" deleted successfully.`,
-      });
-      await loadCategories();
-    } catch (err: unknown) {
-      console.error(err);
-      toast({
-        title: "Delete Failed",
-        description:
-          err instanceof Error ? err.message : "Could not delete category.",
+        title: "Slug already exists",
+        description: "Please choose a different slug for this category.",
         variant: "destructive",
       });
+      return;
+    }
+
+    const payload: CategoryPayload = {
+      name,
+      slug,
+      description: formDescription.trim() || null,
+      parent_id: parentId,
+      image_url: formImageUrl.trim() || null,
+    };
+
+    setSaving(true);
+
+    try {
+      /*
+       * UPDATE
+       */
+      if (editingCategory) {
+        const { error } = await supabase
+          .from("categories")
+          .update(payload)
+          .eq("id", editingCategory.id);
+
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: "Category updated",
+          description: `"${name}" has been updated successfully.`,
+        });
+      } else {
+        /*
+         * CREATE
+         */
+        const { error } = await supabase.from("categories").insert(payload);
+
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: "Category created",
+          description: `"${name}" has been created successfully.`,
+        });
+      }
+
+      /*
+       * Refresh the list after successful operation.
+       */
+      await loadCategories();
+
+      /*
+       * Close and reset form ONLY after success.
+       */
+      setIsFormOpen(false);
+      resetForm();
+    } catch (error: unknown) {
+      console.error("Category save error:", error);
+
+      let message = "Could not save category.";
+
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error
+      ) {
+        message = String((error as { message: unknown }).message);
+      }
+
+      toast({
+        title: editingCategory ? "Update failed" : "Creation failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Group Categories: Parents (top-level) vs Children
-  const parentCategories = categories.filter((c) => !c.parent_id);
-  const getSubcategories = (parentId: string) => {
-    return categories.filter((c) => c.parent_id === parentId);
+  /*
+   * ---------------------------------------------------------
+   * DELETE CATEGORY
+   * ---------------------------------------------------------
+   */
+
+  const handleDelete = async (id: string, name: string) => {
+    if (deletingId) return;
+
+    /*
+     * Don't allow deletion when children exist.
+     */
+    const hasChildren = categories.some(
+      (category) => category.parent_id === id,
+    );
+
+    if (hasChildren) {
+      toast({
+        title: "Cannot delete category",
+        description: `"${name}" contains subcategories. Delete or move them first.`,
+        variant: "destructive",
+      });
+
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${name}"?`,
+    );
+
+    if (!confirmed) return;
+
+    setDeletingId(id);
+
+    try {
+      const { error } = await supabase.from("categories").delete().eq("id", id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Category deleted",
+        description: `"${name}" has been deleted successfully.`,
+      });
+
+      await loadCategories();
+    } catch (error: unknown) {
+      console.error("Category delete error:", error);
+
+      toast({
+        title: "Delete failed",
+        description:
+          error instanceof Error ? error.message : "Could not delete category.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
   };
+
+  /*
+   * ---------------------------------------------------------
+   * AVAILABLE PARENT CATEGORIES
+   * ---------------------------------------------------------
+   *
+   * When editing a category, don't show:
+   *
+   * 1. The category itself
+   * 2. Any of its descendants
+   *
+   * This prevents circular relationships.
+   */
+  const availableParentCategories = useMemo(() => {
+    if (!editingCategory) {
+      return parentCategories;
+    }
+
+    return parentCategories.filter((category) => {
+      if (category.id === editingCategory.id) {
+        return false;
+      }
+
+      if (isDescendant(editingCategory.id, category.id)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [parentCategories, editingCategory, categories]);
+
+  /*
+   * ---------------------------------------------------------
+   * RENDER
+   * ---------------------------------------------------------
+   */
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-neutral-900 md:text-3xl">
             Categories
           </h1>
+
           <p className="text-sm text-neutral-500">
-            Structure your departments, parent headers, and product
+            Structure your departments, parent categories, and product
             subcategories.
           </p>
         </div>
+
         <Button
-          onClick={() => handleOpenForm(null)}
-          className="bg-[#FF3D6E] hover:bg-[#E0345F] text-white flex items-center gap-2 self-start sm:self-auto"
+          onClick={() => handleOpenForm()}
+          className="flex items-center gap-2 self-start bg-[#FF3D6E] text-white hover:bg-[#E0345F] sm:self-auto"
         >
           <Plus className="h-4 w-4" />
           Add Category
         </Button>
       </div>
 
-      {/* Main Grid View */}
+      {/* Loading */}
       {loading ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, index) => (
             <Card
-              key={i}
-              className="border-neutral-200 shadow-sm animate-pulse"
+              key={index}
+              className="animate-pulse border-neutral-200 shadow-sm"
             >
               <CardHeader className="pb-3">
-                <div className="h-5 w-24 bg-neutral-200 rounded"></div>
+                <div className="h-5 w-24 rounded bg-neutral-200" />
               </CardHeader>
+
               <CardContent className="space-y-2">
-                <div className="h-4 w-full bg-neutral-200 rounded"></div>
-                <div className="h-4 w-3/4 bg-neutral-200 rounded"></div>
+                <div className="h-4 w-full rounded bg-neutral-200" />
+                <div className="h-4 w-3/4 rounded bg-neutral-200" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : parentCategories.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center text-neutral-400 border border-dashed rounded-xl bg-white">
-          <FolderOpen className="h-12 w-12 text-neutral-300 mb-3" />
+        /* Empty state */
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-white p-12 text-center text-neutral-400">
+          <FolderOpen className="mb-3 h-12 w-12 text-neutral-300" />
+
           <p className="text-sm font-semibold">No categories defined yet.</p>
-          <p className="text-xs text-neutral-400 mt-1">
-            Get started by creating a top-level parent category.
+
+          <p className="mt-1 text-xs text-neutral-400">
+            Get started by creating a top-level category.
           </p>
+
+          <Button
+            onClick={() => handleOpenForm()}
+            className="mt-5 bg-[#FF3D6E] text-white hover:bg-[#E0345F]"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Category
+          </Button>
         </div>
       ) : (
+        /* Categories */
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {parentCategories.map((parent) => {
             const subs = getSubcategories(parent.id);
+
             return (
               <Card
                 key={parent.id}
-                className="border-neutral-200 shadow-sm flex flex-col justify-between overflow-hidden transition-all hover:shadow-md hover:border-neutral-300"
+                className="flex flex-col justify-between overflow-hidden border-neutral-200 shadow-sm transition-all hover:border-neutral-300 hover:shadow-md"
               >
                 <div>
-                  {/* Card Header (Parent name + actions) */}
-                  <CardHeader className="flex flex-row items-center justify-between pb-3 bg-neutral-50/50 border-b border-neutral-100">
+                  {/* Parent header */}
+                  <CardHeader className="flex flex-row items-center justify-between border-b border-neutral-100 bg-neutral-50/50 pb-3">
                     <div className="flex items-center gap-2">
-                      <FolderTree className="h-4.5 w-4.5 text-[#FF3D6E]" />
-                      <CardTitle className="text-sm font-bold text-neutral-850">
+                      <FolderTree className="h-[18px] w-[18px] text-[#FF3D6E]" />
+
+                      <CardTitle className="text-sm font-bold text-neutral-800">
                         {parent.name}
                       </CardTitle>
                     </div>
+
                     <div className="flex gap-0.5">
+                      {/* Edit */}
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => handleOpenForm(parent)}
-                        className="h-7 w-7 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
-                        title="Edit parent"
+                        className="h-7 w-7 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+                        title="Edit category"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
+
+                      {/* Delete */}
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
+                        disabled={deletingId === parent.id}
                         onClick={() => handleDelete(parent.id, parent.name)}
-                        className="h-7 w-7 text-neutral-400 hover:text-red-600 hover:bg-red-50"
-                        title="Delete parent"
+                        className="h-7 w-7 text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                        title="Delete category"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -321,26 +608,27 @@ export default function AdminCategoriesPage() {
                   </CardHeader>
 
                   <CardContent className="pt-4">
-                    {/* Slug and description */}
+                    {/* Slug */}
                     <div className="mb-4">
-                      <span className="text-[10px] font-mono text-neutral-400 bg-neutral-50 px-1.5 py-0.5 rounded border">
+                      <span className="rounded border bg-neutral-50 px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
                         /{parent.slug}
                       </span>
+
                       {parent.description && (
-                        <p className="text-xs text-neutral-500 mt-2 line-clamp-2">
+                        <p className="mt-2 line-clamp-2 text-xs text-neutral-500">
                           {parent.description}
                         </p>
                       )}
                     </div>
 
-                    {/* Subcategories title */}
-                    <div className="mt-4 pt-4 border-t border-neutral-100">
-                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                    {/* Subcategories */}
+                    <div className="mt-4 border-t border-neutral-100 pt-4">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                         Subcategories ({subs.length})
                       </span>
 
                       {subs.length === 0 ? (
-                        <p className="text-xs text-neutral-400 mt-1.5 italic">
+                        <p className="mt-1.5 text-xs italic text-neutral-400">
                           No subcategories linked
                         </p>
                       ) : (
@@ -348,32 +636,39 @@ export default function AdminCategoriesPage() {
                           {subs.map((sub) => (
                             <div
                               key={sub.id}
-                              className="flex items-center justify-between group p-1.5 rounded hover:bg-neutral-50 transition-all border border-transparent hover:border-neutral-100"
+                              className="group flex items-center justify-between rounded border border-transparent p-1.5 transition-all hover:border-neutral-100 hover:bg-neutral-50"
                             >
-                              <div className="flex items-center gap-1.5">
-                                <ChevronRight className="h-3.5 w-3.5 text-neutral-300" />
-                                <span className="text-xs font-semibold text-neutral-700">
+                              <div className="flex min-w-0 items-center gap-1.5">
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
+
+                                <span className="truncate text-xs font-semibold text-neutral-700">
                                   {sub.name}
                                 </span>
-                                <span className="text-[9px] font-mono text-neutral-400">
+
+                                <span className="hidden truncate font-mono text-[9px] text-neutral-400 sm:inline">
                                   ({sub.slug})
                                 </span>
                               </div>
-                              <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 transition-opacity">
+
+                              <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                                 <Button
+                                  type="button"
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleOpenForm(sub)}
-                                  className="h-6 w-6 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200"
+                                  className="h-6 w-6 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900"
                                   title="Edit subcategory"
                                 >
                                   <Edit2 className="h-3 w-3" />
                                 </Button>
+
                                 <Button
+                                  type="button"
                                   variant="ghost"
                                   size="icon"
+                                  disabled={deletingId === sub.id}
                                   onClick={() => handleDelete(sub.id, sub.name)}
-                                  className="h-6 w-6 text-neutral-400 hover:text-red-650 hover:bg-red-50"
+                                  className="h-6 w-6 text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                                   title="Delete subcategory"
                                 >
                                   <Trash2 className="h-3 w-3" />
@@ -387,15 +682,16 @@ export default function AdminCategoriesPage() {
                   </CardContent>
                 </div>
 
-                {/* Footer action to directly create child */}
-                <div className="p-3 border-t bg-neutral-50/20 text-center">
+                {/* Add subcategory */}
+                <div className="border-t z-50 bg-neutral-50/20 p-3 text-center">
                   <Button
+                    type="button"
                     variant="ghost"
                     onClick={() => {
-                      handleOpenForm(null);
+                      handleOpenForm();
                       setFormParentId(parent.id);
                     }}
-                    className="text-xs text-neutral-500 hover:text-[#FF3D6E] font-bold h-7 w-full gap-1 hover:bg-neutral-50"
+                    className="h-7 w-full gap-1 text-xs font-bold text-neutral-500 hover:bg-neutral-50 hover:text-[#FF3D6E]"
                   >
                     <Plus className="h-3 w-3" />
                     Add Subcategory
@@ -407,17 +703,19 @@ export default function AdminCategoriesPage() {
         </div>
       )}
 
-      {/* Slide-out Form Sheet */}
-      <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-white">
-          <SheetHeader className="border-b pb-4 mb-6">
+      {/* Form Sheet */}
+      <Sheet open={isFormOpen} onOpenChange={handleCloseForm}>
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-md">
+          <SheetHeader className="mb-6 border-b pb-4">
             <SheetTitle className="text-lg font-bold text-neutral-900">
               {editingCategory
                 ? `Edit Category: ${editingCategory.name}`
                 : "Create Category"}
             </SheetTitle>
+
             <SheetDescription className="text-xs text-neutral-400">
-              Set details and place within the storefront hierarchy.
+              Set the category details and place it within your storefront
+              hierarchy.
             </SheetDescription>
           </SheetHeader>
 
@@ -430,12 +728,14 @@ export default function AdminCategoriesPage() {
               >
                 Category Name <span className="text-red-500">*</span>
               </Label>
+
               <Input
                 id="cat-name"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="e.g. Shirts, Blazers"
                 required
+                disabled={saving}
                 className="border-neutral-200"
               />
             </div>
@@ -448,17 +748,24 @@ export default function AdminCategoriesPage() {
               >
                 Slug <span className="text-red-500">*</span>
               </Label>
+
               <Input
                 id="cat-slug"
                 value={formSlug}
-                onChange={(e) => setFormSlug(e.target.value)}
+                onChange={(e) => setFormSlug(generateSlug(e.target.value))}
                 placeholder="e.g. men-shirts"
                 required
-                className="font-mono text-xs border-neutral-200"
+                disabled={saving}
+                className="border-neutral-200 font-mono text-xs"
               />
+
+              <p className="text-[10px] text-neutral-400">
+                Used in URLs. Example: /categories/
+                {formSlug || "category"}
+              </p>
             </div>
 
-            {/* Parent Category Selector */}
+            {/* Parent */}
             <div className="space-y-1.5">
               <Label
                 htmlFor="cat-parent"
@@ -466,39 +773,46 @@ export default function AdminCategoriesPage() {
               >
                 Parent Category (Optional)
               </Label>
-              <Select value={formParentId} onValueChange={setFormParentId}>
+
+              <Select
+                value={formParentId}
+                onValueChange={setFormParentId}
+                disabled={saving}
+              >
                 <SelectTrigger className="border-neutral-200">
-                  <SelectValue placeholder="Select Parent Category" />
+                  <SelectValue placeholder="Select parent category" />
                 </SelectTrigger>
+
                 <SelectContent>
-                  <SelectItem value="none">None (Top-Level Parent)</SelectItem>
-                  {/* List top-level parents to nest under */}
-                  {parentCategories
-                    .filter(
-                      (pc) => !editingCategory || pc.id !== editingCategory.id,
-                    ) // Cannot nest under self
-                    .map((pc) => (
-                      <SelectItem key={pc.id} value={pc.id}>
-                        {pc.name}
-                      </SelectItem>
-                    ))}
+                  <SelectItem value="none">
+                    None (Top-Level Category)
+                  </SelectItem>
+
+                  {availableParentCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Banner/Image URL */}
+            {/* Image */}
             <div className="space-y-1.5">
               <Label
                 htmlFor="cat-image"
                 className="text-xs font-bold text-neutral-700"
               >
-                Banner/Image URL
+                Banner / Image URL
               </Label>
+
               <Input
                 id="cat-image"
+                type="url"
                 value={formImageUrl}
                 onChange={(e) => setFormImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/... or /images/banner.jpg"
+                placeholder="https://..."
+                disabled={saving}
                 className="border-neutral-200"
               />
             </div>
@@ -511,32 +825,43 @@ export default function AdminCategoriesPage() {
               >
                 Description
               </Label>
+
               <Textarea
                 id="cat-desc"
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
                 placeholder="Brief summary of items in this category..."
                 rows={3}
+                disabled={saving}
                 className="border-neutral-200"
               />
             </div>
 
-            {/* Submission buttons */}
-            <div className="flex gap-3 pt-6 border-t mt-8">
+            {/* Actions */}
+            <div className="mt-8 flex gap-3 border-t pt-6">
               <SheetClose asChild>
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={saving}
                   className="flex-1 border-neutral-300 text-neutral-600"
                 >
                   Cancel
                 </Button>
               </SheetClose>
+
               <Button
                 type="submit"
-                className="flex-1 bg-[#FF3D6E] hover:bg-[#E0345F] text-white"
+                disabled={saving}
+                className="flex-1 bg-[#FF3D6E] text-white hover:bg-[#E0345F]"
               >
-                {editingCategory ? "Save Changes" : "Create Category"}
+                {saving
+                  ? editingCategory
+                    ? "Saving..."
+                    : "Creating..."
+                  : editingCategory
+                    ? "Save Changes"
+                    : "Create Category"}
               </Button>
             </div>
           </form>
