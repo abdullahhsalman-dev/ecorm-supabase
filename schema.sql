@@ -511,3 +511,324 @@ CREATE INDEX IF NOT EXISTS wishlists_user_id_idx
 
 CREATE INDEX IF NOT EXISTS wishlist_items_wishlist_id_idx
   ON wishlist_items (wishlist_id);
+
+
+-- ============================================================
+-- REVIEWS
+-- ============================================================
+--
+-- Star ratings and written reviews on products, with the two
+-- things a storefront needs around them: a "Verified purchase"
+-- badge the shopper cannot award themselves, and a moderation
+-- switch for the admin panel.
+--
+-- Safe to run on an existing database -- it adds one table, one
+-- view, two functions and their policies, and touches nothing
+-- that is already there.
+
+-- ------------------------------------------------------------
+-- 1. HELPER
+-- ------------------------------------------------------------
+-- SECURITY DEFINER so it can see orders that the calling
+-- shopper's own policies would hide (a guest order that was
+-- later claimed, an order row read through order_items).
+
+-- Where a brand new review starts its life. Used both as the
+-- column default and by the trigger that overwrites whatever
+-- status a client tried to send, so switching the store to
+-- approve-before-publish is this one word.
+
+CREATE OR REPLACE FUNCTION public.default_review_status()
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT 'published'::TEXT;
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_purchased_product(
+  p_product_id UUID,
+  p_user_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.order_items oi
+    JOIN public.orders o ON o.id = oi.order_id
+    WHERE oi.product_id = p_product_id
+      AND o.user_id = p_user_id
+  );
+$$;
+
+-- ------------------------------------------------------------
+-- 2. TABLE
+-- ------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+  rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  title VARCHAR(150),
+  body TEXT,
+
+  -- Copied from users.full_name when the review is written.
+  --
+  -- Not a join: users is readable only by its owner and by
+  -- staff (users_select_own_or_admin), so embedding the author
+  -- would render every review by somebody else as anonymous.
+  -- Storing it also keeps the byline the review was published
+  -- under if the shopper later renames themselves.
+  reviewer_name VARCHAR(255) NOT NULL DEFAULT '',
+
+  -- Reviews appear immediately and staff hide the bad ones.
+  -- default_review_status() above is the switch: return
+  -- 'hidden' from it and the store becomes approve-before-
+  -- publish, which the admin screen already handles.
+  status VARCHAR(20) NOT NULL DEFAULT public.default_review_status()
+    CHECK (status IN ('published', 'hidden')),
+
+  -- Stamped by the trigger below, never by the client.
+  is_verified_purchase BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- The store's public reply, shown under the review.
+  admin_response TEXT,
+  admin_response_at TIMESTAMP WITH TIME ZONE,
+
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- One review per shopper per product. The form upserts on
+  -- this, so writing again edits the review already there.
+  CONSTRAINT reviews_one_per_product_per_user UNIQUE (product_id, user_id)
+);
+
+-- ------------------------------------------------------------
+-- 3. WHAT THE CLIENT MAY NOT SET
+-- ------------------------------------------------------------
+-- RLS decides which ROWS you may touch; it does not stop you
+-- sending whatever COLUMNS you like in a row you own. Every
+-- field a shopper must not choose for themselves is therefore
+-- overwritten here, on the way in.
+
+CREATE OR REPLACE FUNCTION public.handle_review_write()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  previous_response TEXT;
+BEGIN
+  NEW.updated_at := NOW();
+
+  -- The badge is a fact about orders, recomputed on every
+  -- write rather than accepted from the browser.
+  NEW.is_verified_purchase :=
+    public.has_purchased_product(NEW.product_id, NEW.user_id);
+
+  -- The byline follows the profile, not the payload.
+  SELECT COALESCE(u.full_name, '')
+    INTO NEW.reviewer_name
+    FROM public.users u
+   WHERE u.id = NEW.user_id;
+
+  NEW.reviewer_name := COALESCE(NEW.reviewer_name, '');
+
+  IF TG_OP = 'INSERT' THEN
+    previous_response := NULL;
+  ELSE
+    previous_response := OLD.admin_response;
+    NEW.created_at := OLD.created_at;
+  END IF;
+
+  -- Moderation and the store's reply belong to staff. Without
+  -- this a shopper could un-hide their own review, or publish
+  -- an "official" response to it, by including those columns
+  -- in an update of a row they legitimately own.
+  IF NOT public.is_admin() THEN
+    IF TG_OP = 'INSERT' THEN
+      NEW.status := public.default_review_status();
+      NEW.admin_response := NULL;
+      NEW.admin_response_at := NULL;
+    ELSE
+      NEW.status := OLD.status;
+      NEW.admin_response := OLD.admin_response;
+      NEW.admin_response_at := OLD.admin_response_at;
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  -- Staff: the reply timestamp tracks the reply itself, so the
+  -- admin screen never has to remember to send it.
+  IF NEW.admin_response IS DISTINCT FROM previous_response THEN
+    NEW.admin_response_at :=
+      CASE WHEN NEW.admin_response IS NULL THEN NULL ELSE NOW() END;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS reviews_before_write ON reviews;
+
+CREATE TRIGGER reviews_before_write
+  BEFORE INSERT OR UPDATE ON reviews
+  FOR EACH ROW EXECUTE FUNCTION public.handle_review_write();
+
+-- ------------------------------------------------------------
+-- 4. ROW LEVEL SECURITY
+-- ------------------------------------------------------------
+-- Anyone may read a published review -- including signed-out
+-- visitors, since the product page is public. A shopper can
+-- always see their own, so a hidden review does not silently
+-- vanish from under them.
+--
+-- Writing requires an account: user_id = auth.uid() leaves no
+-- way to post as somebody else, and the unique constraint
+-- above caps it at one review per product.
+--
+-- Note that a review does NOT require a purchase. Verified
+-- ones simply carry the badge. To make buying a precondition,
+-- add to reviews_insert_own:
+--
+--   AND public.has_purchased_product(product_id, auth.uid())
+
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "reviews_public_read" ON reviews
+  FOR SELECT USING (
+    status = 'published'
+    OR user_id = auth.uid()
+    OR public.is_admin()
+  );
+
+CREATE POLICY "reviews_insert_own" ON reviews
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "reviews_update_own" ON reviews
+  FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "reviews_delete_own" ON reviews
+  FOR DELETE USING (user_id = auth.uid());
+
+CREATE POLICY "reviews_admin_manage" ON reviews
+  FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- ------------------------------------------------------------
+-- 5. AGGREGATE
+-- ------------------------------------------------------------
+-- The average, the total and the 5..1 histogram, so a product
+-- page renders its rating summary in one round trip instead of
+-- pulling every review down to count them in the browser.
+--
+-- security_invoker means the view runs under the RLS of
+-- whoever queries it rather than its owner's; without it a
+-- view in public would quietly hand out rows the caller's own
+-- policies deny. The status filter is what keeps the numbers
+-- identical for everyone -- staff and authors can read hidden
+-- reviews, but hidden reviews never move the average.
+
+CREATE OR REPLACE VIEW public.product_review_stats
+WITH (security_invoker = true) AS
+  SELECT
+    product_id,
+    COUNT(*)::INT                               AS review_count,
+    ROUND(AVG(rating)::NUMERIC, 2)              AS average_rating,
+    COUNT(*) FILTER (WHERE rating = 5)::INT     AS five_star,
+    COUNT(*) FILTER (WHERE rating = 4)::INT     AS four_star,
+    COUNT(*) FILTER (WHERE rating = 3)::INT     AS three_star,
+    COUNT(*) FILTER (WHERE rating = 2)::INT     AS two_star,
+    COUNT(*) FILTER (WHERE rating = 1)::INT     AS one_star
+  FROM public.reviews
+  WHERE status = 'published'
+  GROUP BY product_id;
+
+GRANT SELECT ON public.product_review_stats TO anon, authenticated;
+
+-- ------------------------------------------------------------
+-- 6. INDEXES
+-- ------------------------------------------------------------
+
+-- The product page: this product's reviews, newest first.
+CREATE INDEX IF NOT EXISTS reviews_product_id_created_at_idx
+  ON reviews (product_id, created_at DESC);
+
+-- The average and histogram above scan a product's rows.
+CREATE INDEX IF NOT EXISTS reviews_product_id_rating_idx
+  ON reviews (product_id, rating) WHERE status = 'published';
+
+-- The admin moderation queue, and "my reviews".
+CREATE INDEX IF NOT EXISTS reviews_created_at_idx
+  ON reviews (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS reviews_user_id_idx
+  ON reviews (user_id);
+
+
+-- ============================================================
+-- CATALOGUE IMAGE STORAGE
+-- ============================================================
+--
+-- Product and category art is uploaded from the admin panel
+-- instead of being pasted in as a third-party link, so it lives
+-- in one public bucket that next.config.ts already allow-lists.
+-- Objects are keyed products/... and categories/... .
+--
+-- Safe to run on an existing database -- the bucket is created
+-- once and its limits are re-applied on every run.
+
+-- ------------------------------------------------------------
+-- 1. BUCKET
+-- ------------------------------------------------------------
+-- Public: the storefront reads images with the anon key and no
+-- signed URLs. 2 MB / image, enforced by storage itself as well
+-- as by the admin form.
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'Lamees-images',
+  'Lamees-images',
+  TRUE,
+  2097152,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif']
+)
+ON CONFLICT (id) DO UPDATE
+  SET public             = EXCLUDED.public,
+      file_size_limit    = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- ------------------------------------------------------------
+-- 2. POLICIES - anyone reads, only admins write
+-- ------------------------------------------------------------
+-- The bucket being public covers reads through the CDN; the
+-- SELECT policy is what lets the client list and read objects
+-- through the API. Writes go through public.is_admin(), the
+-- same gate the catalogue tables use.
+
+DROP POLICY IF EXISTS "lamees_images_public_read" ON storage.objects;
+CREATE POLICY "lamees_images_public_read" ON storage.objects
+  FOR SELECT USING (bucket_id = 'Lamees-images');
+
+DROP POLICY IF EXISTS "lamees_images_admin_insert" ON storage.objects;
+CREATE POLICY "lamees_images_admin_insert" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'Lamees-images' AND public.is_admin());
+
+DROP POLICY IF EXISTS "lamees_images_admin_update" ON storage.objects;
+CREATE POLICY "lamees_images_admin_update" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'Lamees-images' AND public.is_admin())
+  WITH CHECK (bucket_id = 'Lamees-images' AND public.is_admin());
+
+DROP POLICY IF EXISTS "lamees_images_admin_delete" ON storage.objects;
+CREATE POLICY "lamees_images_admin_delete" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'Lamees-images' AND public.is_admin());

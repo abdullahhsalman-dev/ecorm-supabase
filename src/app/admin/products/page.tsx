@@ -14,6 +14,7 @@ import { cn } from "@/src/app/lib/utils";
 import { PackageOpen, Plus, Upload } from "lucide-react";
 import { useState } from "react";
 import {
+  ConfirmDialog,
   DataPanel,
   FILTER_BAR_CLASS,
   FilterSelect,
@@ -51,8 +52,11 @@ export default function AdminProductsPage() {
     filteredProducts,
     loading,
     deletingId,
+    pendingDelete,
     loadData,
-    removeProduct,
+    requestDelete,
+    confirmDelete,
+    cancelDelete,
     searchQuery,
     setSearchQuery,
     categoryFilter,
@@ -80,10 +84,7 @@ export default function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Products"
-        description="Create, update, and manage your inventory items."
-      >
+      <PageHeader title="Products" description="Create, update, and manage your inventory items.">
         <RefreshButton onClick={loadData} loading={loading} />
 
         <Button
@@ -148,9 +149,24 @@ export default function AdminProductsPage() {
             product={product}
             deleting={deletingId === product.id}
             onEdit={openForm}
-            onDelete={removeProduct}
+            onDelete={requestDelete}
           />
         )}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelDelete();
+          }
+        }}
+        title="Delete product"
+        description={`"${pendingDelete?.name ?? ""}" will be permanently deleted. This cannot be undone.`}
+        confirmLabel="Delete product"
+        confirmingLabel="Deleting..."
+        confirming={deletingId !== null}
+        onConfirm={confirmDelete}
       />
 
       <ProductImportSheet

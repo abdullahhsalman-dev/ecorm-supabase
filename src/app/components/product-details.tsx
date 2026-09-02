@@ -16,25 +16,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/src/app/components/cart-provider";
+import { ProductReviews } from "@/src/app/components/product-reviews";
+import { StarRating } from "@/src/app/components/ui/star-rating";
 import { useAuth } from "@/src/app/context/auth-context";
 import { useAsyncData } from "@/src/app/lib/use-async-data";
 import {
-  addToWishlist,
-  fetchWishlistProductIds,
-  removeFromWishlist,
-} from "@/src/app/lib/wishlist";
+  EMPTY_REVIEW_STATS,
+  fetchReviewStats,
+  formatAverageRating,
+  formatReviewCount,
+  type ReviewStats,
+} from "@/src/app/lib/reviews";
+import { addToWishlist, fetchWishlistProductIds, removeFromWishlist } from "@/src/app/lib/wishlist";
 import { Button } from "@/src/app/components/ui/button";
 import { Label } from "@/src/app/components/ui/label";
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from "@/src/app/components/ui/radio-group";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/src/app/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/src/app/components/ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/app/components/ui/tabs";
 import {
   getDiscountPercent,
   getEffectivePrice,
@@ -77,13 +74,19 @@ const CSS_COLORS = new Set([
 
 export function ProductDetails({ product }: ProductDetailsProps) {
   /* One selected variant id per group name, e.g. { Size: "uuid" }. */
-  const [selectedVariants, setSelectedVariants] = useState<
-    Record<string, string>
-  >({});
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [brokenImages, setBrokenImages] = useState<string[]>([]);
   const [savingFavorite, setSavingFavorite] = useState(false);
+  const [activeTab, setActiveTab] = useState("description");
+
+  /*
+   * The average lives here rather than inside the reviews tab:
+   * the headline rating has to be on screen before anyone opens
+   * that tab, and Radix unmounts the panels it is not showing.
+   */
+  const [reviewStats, setReviewStats] = useState<ReviewStats>(EMPTY_REVIEW_STATS);
 
   const { addItem } = useCart();
   const { toast } = useToast();
@@ -105,10 +108,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     console.error("Could not read wishlist:", error);
   }, []);
 
-  const { data: isFavorite, setData: setIsFavorite } = useAsyncData(
-    loadFavorite,
-    { fallback: false, enabled: Boolean(user), onError: onFavoriteError },
-  );
+  const { data: isFavorite, setData: setIsFavorite } = useAsyncData(loadFavorite, {
+    fallback: false,
+    enabled: Boolean(user),
+    onError: onFavoriteError,
+  });
 
   const handleToggleFavorite = async () => {
     if (!user) {
@@ -147,14 +151,26 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
       toast({
         title: "Couldn't update your wishlist",
-        description:
-          error instanceof Error ? error.message : "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     } finally {
       setSavingFavorite(false);
     }
   };
+
+  const loadReviewStats = useCallback(async () => {
+    try {
+      setReviewStats(await fetchReviewStats(product.id));
+    } catch (error: unknown) {
+      /* A missing average is not worth breaking the page over. */
+      console.error("Could not read review stats:", error);
+    }
+  }, [product.id]);
+
+  useEffect(() => {
+    loadReviewStats();
+  }, [loadReviewStats]);
 
   const productImages = useMemo(() => {
     const images = product.product_images
@@ -170,19 +186,15 @@ export function ProductDetails({ product }: ProductDetailsProps) {
    */
   const variantGroups = useMemo(
     () => groupVariants(product.product_variants),
-    [product.product_variants],
+    [product.product_variants]
   );
 
   const chosenVariants = useMemo<ProductVariant[]>(
     () =>
       variantGroups
-        .map((group) =>
-          group.values.find(
-            (variant) => variant.id === selectedVariants[group.name],
-          ),
-        )
+        .map((group) => group.values.find((variant) => variant.id === selectedVariants[group.name]))
         .filter((variant): variant is ProductVariant => Boolean(variant)),
-    [variantGroups, selectedVariants],
+    [variantGroups, selectedVariants]
   );
 
   const basePrice = product.price;
@@ -190,7 +202,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   /* Each selected variant can nudge the price. */
   const priceAdjustment = chosenVariants.reduce(
     (total, variant) => total + variant.price_adjustment,
-    0,
+    0
   );
 
   const currentPrice = getEffectivePrice(product) + priceAdjustment;
@@ -206,24 +218,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       ? Math.min(...chosenVariants.map((variant) => variant.stock_quantity))
       : product.stock_quantity;
 
-  const allGroupsChosen = variantGroups.every((group) =>
-    Boolean(selectedVariants[group.name]),
-  );
+  const allGroupsChosen = variantGroups.every((group) => Boolean(selectedVariants[group.name]));
 
   const categoryName = product.categories?.name;
   const categorySlug = product.categories?.slug;
 
   useEffect(() => {
-    setActiveImage((current) =>
-      Math.min(current, Math.max(productImages.length - 1, 0)),
-    );
+    setActiveImage((current) => Math.min(current, Math.max(productImages.length - 1, 0)));
   }, [productImages.length]);
 
-  const showToast = (
-    title: string,
-    description: string,
-    variant?: "default" | "destructive",
-  ) => {
+  const showToast = (title: string, description: string, variant?: "default" | "destructive") => {
     toast({ title, description, variant });
   };
 
@@ -236,17 +240,13 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       showToast(
         "Select your options",
         `Choose a ${missing.join(" and ")} before adding this product to your cart.`,
-        "destructive",
+        "destructive"
       );
       return;
     }
 
     if (availableStock <= 0) {
-      showToast(
-        "Out of stock",
-        "This combination is not available right now.",
-        "destructive",
-      );
+      showToast("Out of stock", "This combination is not available right now.", "destructive");
       return;
     }
 
@@ -254,9 +254,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
      * The cart keys on id, so the chosen variants are part of
      * it - otherwise two sizes would collapse into one line.
      */
-    const variantSuffix = chosenVariants
-      .map((variant) => variant.id)
-      .join("-");
+    const variantSuffix = chosenVariants.map((variant) => variant.id).join("-");
 
     const variantLabel = chosenVariants
       .map((variant) => `${variant.name}: ${variant.value}`)
@@ -302,7 +300,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       showToast(
         "Couldn't share",
         "Please try copying the product URL from your browser.",
-        "destructive",
+        "destructive"
       );
     }
   };
@@ -316,15 +314,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     brokenImages.includes(src) ? FALLBACK_IMAGE : safeImageSrc(src, FALLBACK_IMAGE);
 
   const handleImageError = (src: string) => {
-    setBrokenImages((current) =>
-      current.includes(src) ? current : [...current, src],
-    );
+    setBrokenImages((current) => (current.includes(src) ? current : [...current, src]));
   };
 
   const goToPreviousImage = () => {
-    setActiveImage((current) =>
-      current === 0 ? productImages.length - 1 : current - 1,
-    );
+    setActiveImage((current) => (current === 0 ? productImages.length - 1 : current - 1));
   };
 
   const goToNextImage = () => {
@@ -344,9 +338,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               priority
               sizes="(min-width: 1024px) 50vw, 100vw"
               className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
-              onError={() =>
-                handleImageError(productImages[activeImage] || FALLBACK_IMAGE)
-              }
+              onError={() => handleImageError(productImages[activeImage] || FALLBACK_IMAGE)}
             />
 
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
@@ -418,7 +410,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             {categoryName && categorySlug ? (
               <Link
                 href={`/categories/${categorySlug}`}
-                className="font-medium transition-colors hover:text-foreground hover:underline underline-offset-4"
+                className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
                 {categoryName}
               </Link>
@@ -430,9 +422,24 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             <span>Premium quality</span>
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            {product.name}
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{product.name}</h1>
+
+          {/* Jumps to the reviews rather than repeating them here. */}
+          {reviewStats.reviewCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("reviews")}
+              className="mt-3 flex items-center gap-2 text-sm transition-colors hover:text-foreground/70"
+            >
+              <StarRating value={reviewStats.averageRating} size="sm" />
+              <span className="font-semibold">
+                {formatAverageRating(reviewStats.averageRating)}
+              </span>
+              <span className="text-muted-foreground underline underline-offset-4">
+                {formatReviewCount(reviewStats.reviewCount)}
+              </span>
+            </button>
+          )}
 
           <div className="mt-5 flex flex-wrap items-end gap-x-3 gap-y-1">
             <span className="text-3xl font-bold tracking-tight">
@@ -462,9 +469,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           {/* Variant pickers, one per product_variants group */}
           {variantGroups.map((group) => {
             const selectedId = selectedVariants[group.name];
-            const selected = group.values.find(
-              (variant) => variant.id === selectedId,
-            );
+            const selected = group.values.find((variant) => variant.id === selectedId);
 
             return (
               <div key={group.name} className="mb-7">
@@ -533,9 +538,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             <div className="flex h-12 w-full items-center rounded-xl border bg-background sm:w-auto">
               <button
                 type="button"
-                onClick={() =>
-                  setQuantity((current) => Math.max(1, current - 1))
-                }
+                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
                 disabled={quantity <= 1}
                 aria-label="Decrease quantity"
                 className="flex h-full w-12 items-center justify-center rounded-l-xl text-lg transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
@@ -551,9 +554,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               <button
                 type="button"
                 onClick={() =>
-                  setQuantity((current) =>
-                    Math.min(Math.max(availableStock, 1), current + 1),
-                  )
+                  setQuantity((current) => Math.min(Math.max(availableStock, 1), current + 1))
                 }
                 disabled={quantity >= Math.max(availableStock, 1)}
                 aria-label="Increase quantity"
@@ -577,17 +578,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               size="icon"
               onClick={handleToggleFavorite}
               disabled={savingFavorite}
-              aria-label={
-                isFavorite ? "Remove from wishlist" : "Add to wishlist"
-              }
+              aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}
               aria-pressed={isFavorite}
               className="h-12 w-12 shrink-0 rounded-xl"
             >
-              <Heart
-                className={`h-5 w-5 transition ${
-                  isFavorite ? "fill-current" : ""
-                }`}
-              />
+              <Heart className={`h-5 w-5 transition ${isFavorite ? "fill-current" : ""}`} />
             </Button>
 
             <Button
@@ -622,9 +617,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               </div>
               <div>
                 <p className="text-xs font-semibold">Free shipping</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Orders over Rs. 5,000
-                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Orders over Rs. 5,000</p>
               </div>
             </div>
 
@@ -634,9 +627,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               </div>
               <div>
                 <p className="text-xs font-semibold">Easy returns</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  30-day returns
-                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">30-day returns</p>
               </div>
             </div>
 
@@ -646,33 +637,26 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               </div>
               <div>
                 <p className="text-xs font-semibold">Authentic</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  100% genuine products
-                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">100% genuine products</p>
               </div>
             </div>
           </div>
 
           {/* Product tabs */}
-          <Tabs defaultValue="description" className="mt-8">
-            <TabsList className="grid h-11 w-full grid-cols-3 rounded-xl bg-muted p-1">
-              <TabsTrigger
-                value="description"
-                className="rounded-lg text-xs sm:text-sm"
-              >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8">
+            <TabsList className="grid h-11 w-full grid-cols-4 rounded-xl bg-muted p-1">
+              <TabsTrigger value="description" className="rounded-lg text-xs sm:text-sm">
                 Description
               </TabsTrigger>
-              <TabsTrigger
-                value="details"
-                className="rounded-lg text-xs sm:text-sm"
-              >
+              <TabsTrigger value="details" className="rounded-lg text-xs sm:text-sm">
                 Details
               </TabsTrigger>
-              <TabsTrigger
-                value="shipping"
-                className="rounded-lg text-xs sm:text-sm"
-              >
+              <TabsTrigger value="shipping" className="rounded-lg text-xs sm:text-sm">
                 Shipping
+              </TabsTrigger>
+              <TabsTrigger value="reviews" className="rounded-lg text-xs sm:text-sm">
+                Reviews
+                {reviewStats.reviewCount > 0 && ` (${reviewStats.reviewCount})`}
               </TabsTrigger>
             </TabsList>
 
@@ -690,9 +674,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                   `SKU: ${product.slug}`,
                   ...variantGroups.map(
                     (group) =>
-                      `${group.name}: ${group.values
-                        .map((variant) => variant.value)
-                        .join(", ")}`,
+                      `${group.name}: ${group.values.map((variant) => variant.value).join(", ")}`
                   ),
                   availableStock > 0
                     ? `Availability: ${availableStock} in stock`
@@ -710,10 +692,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               </ul>
             </TabsContent>
 
-            <TabsContent
-              value="shipping"
-              className="mt-5 text-sm leading-7 text-muted-foreground"
-            >
+            <TabsContent value="shipping" className="mt-5 text-sm leading-7 text-muted-foreground">
               <p>
                 Standard delivery: 3–5 business days
                 <br />
@@ -721,6 +700,15 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                 <br />
                 Free shipping on orders over Rs. 5,000
               </p>
+            </TabsContent>
+
+            <TabsContent value="reviews">
+              <ProductReviews
+                productId={product.id}
+                productName={product.name}
+                stats={reviewStats}
+                onReviewsChanged={loadReviewStats}
+              />
             </TabsContent>
           </Tabs>
         </div>

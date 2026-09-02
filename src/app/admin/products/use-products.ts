@@ -7,7 +7,9 @@
  *
  * Fetching and cancellation come from useAsyncData; the
  * category list comes from the shared useCategories hook, so
- * this file is only filters and the delete path.
+ * this file is only filters and the delete path - which is
+ * split in two, because the confirmation is a modal the page
+ * renders rather than a blocking window.confirm.
  */
 
 import { useToast } from "@/hooks/use-toast";
@@ -36,11 +38,7 @@ const matchesStockFilter = (stock: number, filter: StockFilter): boolean => {
 export function useProducts() {
   const { toast } = useToast();
 
-  const {
-    categories,
-    loading: loadingCategories,
-    reload: reloadCategories,
-  } = useCategories();
+  const { categories, loading: loadingCategories, reload: reloadCategories } = useCategories();
 
   const onError = useCallback(
     (error: unknown) => {
@@ -52,7 +50,7 @@ export function useProducts() {
         variant: "destructive",
       });
     },
-    [toast],
+    [toast]
   );
 
   const {
@@ -64,6 +62,12 @@ export function useProducts() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  /* The product the confirm dialog is open for, if any. */
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
@@ -73,44 +77,62 @@ export function useProducts() {
     reloadProducts();
   }, [reloadCategories, reloadProducts]);
 
-  const removeProduct = useCallback(
-    async (id: string, name: string): Promise<void> => {
+  /*
+   * The row asks, the dialog confirms: the click only records
+   * which product is up for deletion, and the page renders the
+   * modal from that.
+   */
+  const requestDelete = useCallback(
+    (id: string, name: string): void => {
       if (deletingId !== null) {
         return;
       }
 
-      if (!window.confirm(`Are you sure you want to delete "${name}"?`)) {
-        return;
-      }
-
-      setDeletingId(id);
-
-      try {
-        await deleteProduct(id);
-
-        /* Drop the row locally rather than refetching the table. */
-        setProducts((current) =>
-          current.filter((product) => product.id !== id),
-        );
-
-        toast({
-          title: "Product deleted",
-          description: `"${name}" has been deleted successfully.`,
-        });
-      } catch (error: unknown) {
-        console.error("Product delete error:", error);
-
-        toast({
-          title: "Delete failed",
-          description: getErrorMessage(error),
-          variant: "destructive",
-        });
-      } finally {
-        setDeletingId(null);
-      }
+      setPendingDelete({ id, name });
     },
-    [deletingId, setProducts, toast],
+    [deletingId]
   );
+
+  const cancelDelete = useCallback((): void => {
+    if (deletingId !== null) {
+      return;
+    }
+
+    setPendingDelete(null);
+  }, [deletingId]);
+
+  const confirmDelete = useCallback(async (): Promise<void> => {
+    if (!pendingDelete || deletingId !== null) {
+      return;
+    }
+
+    const { id, name } = pendingDelete;
+
+    setDeletingId(id);
+
+    try {
+      await deleteProduct(id);
+
+      /* Drop the row locally rather than refetching the table. */
+      setProducts((current) => current.filter((product) => product.id !== id));
+
+      toast({
+        title: "Product deleted",
+        description: `"${name}" has been deleted successfully.`,
+      });
+    } catch (error: unknown) {
+      console.error("Product delete error:", error);
+
+      toast({
+        title: "Delete failed",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+      setPendingDelete(null);
+    }
+  }, [pendingDelete, deletingId, setProducts, toast]);
 
   const filteredProducts = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
@@ -121,7 +143,7 @@ export function useProducts() {
           product.name.toLowerCase().includes(search) ||
           product.slug.toLowerCase().includes(search)) &&
         (categoryFilter === "all" || product.category_id === categoryFilter) &&
-        matchesStockFilter(product.stock_quantity, stockFilter),
+        matchesStockFilter(product.stock_quantity, stockFilter)
     );
   }, [products, searchQuery, categoryFilter, stockFilter]);
 
@@ -131,8 +153,11 @@ export function useProducts() {
     filteredProducts,
     loading: loadingProducts || loadingCategories,
     deletingId,
+    pendingDelete,
     loadData,
-    removeProduct,
+    requestDelete,
+    confirmDelete,
+    cancelDelete,
     searchQuery,
     setSearchQuery,
     categoryFilter,

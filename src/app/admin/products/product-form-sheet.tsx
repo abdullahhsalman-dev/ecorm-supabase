@@ -18,8 +18,9 @@ import {
   SelectValue,
 } from "@/src/app/components/ui/select";
 import { Textarea } from "@/src/app/components/ui/textarea";
-import { cn } from "@/src/app/lib/utils";
-import { useEffect, useRef, useState } from "react";
+import { cn, safeImageSrc } from "@/src/app/lib/utils";
+import { ImageIcon, Trash2, Upload } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FormActions,
   FormField,
@@ -28,6 +29,14 @@ import {
   INPUT_CLASS,
 } from "../components/admin-ui";
 import {
+  formatBytes,
+  IMAGE_ACCEPT,
+  MAX_IMAGE_BYTES,
+  removeImage,
+  uploadImage,
+  validateImageFile,
+} from "../lib/storage";
+import {
   emptyProductForm,
   generateSlug,
   productFormValues,
@@ -35,7 +44,7 @@ import {
   type ProductFormValues,
 } from "./product-form";
 import { createProduct, updateProduct } from "./queries";
-import type { Category, Product } from "./types";
+import { primaryImageOf, type Category, type Product } from "./types";
 
 interface ProductFormSheetProps {
   open: boolean;
@@ -60,6 +69,10 @@ export function ProductFormSheet({
 
   const [values, setValues] = useState<ProductFormValues>(emptyProductForm());
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  /* Clearing the input by hand is what lets the same file be re-picked. */
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /*
    * Read through a ref so a background refresh of the category
@@ -75,15 +88,40 @@ export function ProductFormSheet({
     }
 
     setValues(
-      product
-        ? productFormValues(product)
-        : emptyProductForm(categoriesRef.current[0]?.id ?? ""),
+      product ? productFormValues(product) : emptyProductForm(categoriesRef.current[0]?.id ?? "")
     );
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }, [open, product]);
+
+  /*
+   * A picked file is previewed from an object URL, which has to
+   * be revoked or the blob is held until the tab closes.
+   */
+  const filePreview = useMemo(
+    () => (values.imageFile ? URL.createObjectURL(values.imageFile) : null),
+    [values.imageFile]
+  );
+
+  useEffect(() => {
+    if (!filePreview) {
+      return;
+    }
+
+    return () => URL.revokeObjectURL(filePreview);
+  }, [filePreview]);
+
+  /* Both save paths are blocking, so the whole form locks. */
+  const busy = saving || uploading;
+
+  /* A pending file wins over whatever is already saved. */
+  const previewSrc = filePreview ?? (values.imageUrl ? safeImageSrc(values.imageUrl) : null);
 
   const setValue = <K extends keyof ProductFormValues>(
     key: K,
-    value: ProductFormValues[K],
+    value: ProductFormValues[K]
   ): void => {
     setValues((current) => ({ ...current, [key]: value }));
   };
@@ -97,48 +135,120 @@ export function ProductFormSheet({
     }));
   };
 
+  /*
+   * The file is only held in state here; it is uploaded on
+   * submit so an abandoned sheet leaves nothing in the bucket.
+   */
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0] ?? null;
+
+    if (!file) {
+      return;
+    }
+
+    const reason = validateImageFile(file);
+
+    if (reason) {
+      toast({
+        title: "Invalid image",
+        description: reason,
+        variant: "destructive",
+      });
+
+      event.target.value = "";
+      return;
+    }
+
+    setValue("imageFile", file);
+  };
+
+  /* Drops both the pending file and the image already saved. */
+  const handleClearImage = (): void => {
+    setValues((current) => ({ ...current, imageFile: null, imageUrl: "" }));
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleOpenChange = (nextOpen: boolean): void => {
-    if (saving) {
+    if (busy) {
       return;
     }
 
     onOpenChange(nextOpen);
   };
 
-  const handleSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
-    if (saving) {
+    if (busy) {
       return;
     }
 
-    const { payload, error } = validateProductForm(
-      values,
-      existingProducts,
-      product?.id ?? null,
-    );
+    const { payload, error } = validateProductForm(values, existingProducts, product?.id ?? null);
 
     if (error) {
       toast({ ...error, variant: "destructive" });
       return;
     }
 
+    /* The picture the product points at before this save. */
+    const previousImageUrl = product ? (primaryImageOf(product)?.image_url ?? "") : "";
+
+    let imageUrl = values.imageUrl;
+
+    if (values.imageFile) {
+      setUploading(true);
+
+      try {
+        imageUrl = await uploadImage(values.imageFile, "products", payload.slug);
+
+        /*
+         * The file is in the bucket now. Folding it into the
+         * form means a failed save can be retried without
+         * uploading a second copy.
+         */
+        setValues((current) => ({ ...current, imageUrl, imageFile: null }));
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } catch (caught: unknown) {
+        console.error("Product image upload error:", caught);
+
+        toast({
+          title: "Image upload failed",
+          description: getErrorMessage(caught),
+          variant: "destructive",
+        });
+
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
     setSaving(true);
 
     try {
       if (product) {
-        await updateProduct(product.id, payload, values.imageUrl);
+        await updateProduct(product.id, payload, imageUrl);
       } else {
-        await createProduct(payload, values.imageUrl);
+        await createProduct(payload, imageUrl);
+      }
+
+      /*
+       * The row points elsewhere now, so the file it replaced is
+       * dead weight. Cleanup never fails the save.
+       */
+      if (previousImageUrl && previousImageUrl !== imageUrl) {
+        await removeImage(previousImageUrl);
       }
 
       toast({
         title: product ? "Product updated" : "Product created",
-        description: `"${payload.name}" has been ${
-          product ? "updated" : "created"
-        } successfully.`,
+        description: `"${payload.name}" has been ${product ? "updated" : "created"} successfully.`,
       });
 
       await onSaved();
@@ -162,9 +272,7 @@ export function ProductFormSheet({
     <FormSheet
       open={open}
       onOpenChange={handleOpenChange}
-      title={
-        product ? `Edit Product: ${product.name}` : "Create New Product"
-      }
+      title={product ? `Edit Product: ${product.name}` : "Create New Product"}
       description="Add the product information below."
     >
       <form onSubmit={handleSubmit} className="space-y-4 pr-1">
@@ -175,7 +283,7 @@ export function ProductFormSheet({
             onChange={(event) => handleNameChange(event.target.value)}
             placeholder="e.g. Men's Casual Polo"
             required
-            disabled={saving}
+            disabled={busy}
             className={INPUT_CLASS}
           />
         </FormField>
@@ -184,12 +292,10 @@ export function ProductFormSheet({
           <Input
             id="form-slug"
             value={values.slug}
-            onChange={(event) =>
-              setValue("slug", generateSlug(event.target.value))
-            }
+            onChange={(event) => setValue("slug", generateSlug(event.target.value))}
             placeholder="mens-casual-polo"
             required
-            disabled={saving}
+            disabled={busy}
             className={cn(INPUT_CLASS, "font-mono text-xs")}
           />
         </FormField>
@@ -198,7 +304,7 @@ export function ProductFormSheet({
           <Select
             value={values.categoryId}
             onValueChange={(value) => setValue("categoryId", value)}
-            disabled={saving}
+            disabled={busy}
           >
             <SelectTrigger id="form-category" className={INPUT_CLASS}>
               <SelectValue placeholder="Select Category" />
@@ -209,11 +315,7 @@ export function ProductFormSheet({
               className="max-h-60 w-[var(--radix-select-trigger-width)]"
             >
               {categories.map((category) => (
-                <SelectItem
-                  key={category.id}
-                  value={category.id}
-                  className="cursor-pointer"
-                >
+                <SelectItem key={category.id} value={category.id} className="cursor-pointer">
                   {category.name}
                 </SelectItem>
               ))}
@@ -232,7 +334,7 @@ export function ProductFormSheet({
               onChange={(event) => setValue("price", event.target.value)}
               placeholder="2500"
               required
-              disabled={saving}
+              disabled={busy}
               className={INPUT_CLASS}
             />
           </FormField>
@@ -246,7 +348,7 @@ export function ProductFormSheet({
               value={values.salePrice}
               onChange={(event) => setValue("salePrice", event.target.value)}
               placeholder="Optional"
-              disabled={saving}
+              disabled={busy}
               className={INPUT_CLASS}
             />
           </FormField>
@@ -262,21 +364,66 @@ export function ProductFormSheet({
             onChange={(event) => setValue("stock", event.target.value)}
             placeholder="50"
             required
-            disabled={saving}
+            disabled={busy}
             className={INPUT_CLASS}
           />
         </FormField>
 
-        <FormField id="form-image" label="Primary Image URL">
-          <Input
-            id="form-image"
-            type="url"
-            value={values.imageUrl}
-            onChange={(event) => setValue("imageUrl", event.target.value)}
-            placeholder="https://..."
-            disabled={saving}
-            className={INPUT_CLASS}
-          />
+        <FormField id="form-image" label="Primary Image">
+          <div className="flex items-start gap-4">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50">
+              {previewSrc ? (
+                /*
+                 * A pending file is previewed from a blob: URL,
+                 * which next/image cannot take, so both the saved
+                 * and the pending state render through plain img.
+                 */
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={previewSrc}
+                  alt="Product image preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <ImageIcon className="h-7 w-7 text-neutral-300" />
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-2">
+              <input
+                ref={fileInputRef}
+                id="form-image"
+                type="file"
+                accept={IMAGE_ACCEPT}
+                onChange={handleFileChange}
+                disabled={busy}
+                className="block w-full cursor-pointer text-xs text-neutral-500 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-neutral-200 file:bg-neutral-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-neutral-700 hover:file:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+
+              {values.imageFile ? (
+                <p className="flex items-center gap-1 truncate text-[11px] text-neutral-600">
+                  <Upload className="h-3 w-3 shrink-0" />
+                  {values.imageFile.name} ({formatBytes(values.imageFile.size)}) — uploads on save
+                </p>
+              ) : (
+                <p className="text-[11px] text-neutral-400">
+                  JPEG, PNG, WebP, AVIF or GIF — up to {formatBytes(MAX_IMAGE_BYTES)}.
+                </p>
+              )}
+
+              {previewSrc ? (
+                <button
+                  type="button"
+                  onClick={handleClearImage}
+                  disabled={busy}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-700 disabled:opacity-60"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Remove image
+                </button>
+              ) : null}
+            </div>
+          </div>
         </FormField>
 
         <FormField id="form-desc" label="Description">
@@ -286,7 +433,7 @@ export function ProductFormSheet({
             onChange={(event) => setValue("description", event.target.value)}
             placeholder="Describe the product..."
             rows={4}
-            disabled={saving}
+            disabled={busy}
             className={INPUT_CLASS}
           />
         </FormField>
@@ -295,7 +442,7 @@ export function ProductFormSheet({
           <Checkbox
             id="form-featured"
             checked={values.featured}
-            disabled={saving}
+            disabled={busy}
             onCheckedChange={(checked) => setValue("featured", checked === true)}
           />
 
@@ -308,9 +455,9 @@ export function ProductFormSheet({
         </div>
 
         <FormActions
-          saving={saving}
+          saving={busy}
           submitLabel={product ? "Save Changes" : "Create Product"}
-          savingLabel={product ? "Saving..." : "Creating..."}
+          savingLabel={uploading ? "Uploading image..." : product ? "Saving..." : "Creating..."}
           onCancel={() => handleOpenChange(false)}
         />
       </form>

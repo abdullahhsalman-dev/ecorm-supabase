@@ -5,6 +5,7 @@ import { Toaster } from "@/src/app/components/ui/toaster";
 import { AuthProvider } from "@/src/app/context/auth-context";
 import { LayoutWrapper } from "@/src/app/components/layout-wrapper";
 import "@/src/app/index.css";
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import type React from "react";
@@ -24,11 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          disableTransitionOnChange
-        >
+        <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange>
           <AuthProvider>
             <CartProvider>
               <div className="flex min-h-screen flex-col">
@@ -38,6 +35,13 @@ export default function RootLayout({
             </CartProvider>
           </AuthProvider>
         </ThemeProvider>
+
+        {/*
+         * Vercel Web Analytics: page views and visitors, no
+         * cookies. Outside the providers because it renders
+         * nothing and only reports the route it is on.
+         */}
+        <Analytics />
       </body>
     </html>
   );

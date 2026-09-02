@@ -14,6 +14,7 @@
  * colours and status labels.
  */
 
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Badge } from "@/src/app/components/ui/badge";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
@@ -52,8 +53,7 @@ import type React from "react";
 
 export const ACCENT = "#FF3D6E";
 
-export const PRIMARY_BUTTON_CLASS =
-  "bg-[#FF3D6E] text-white hover:bg-[#E0345F]";
+export const PRIMARY_BUTTON_CLASS = "bg-[#FF3D6E] text-white hover:bg-[#E0345F]";
 
 export const PANEL_CLASS =
   "overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm";
@@ -142,9 +142,7 @@ export const formatDateTime = (value: string | null): string => {
 export const formatOrderId = (id: string): string => `#${id.slice(0, 8)}`;
 
 export const titleCase = (value: string): string =>
-  value
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+  value.replace(/[_-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 
 export const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
@@ -180,17 +178,13 @@ export function PageHeader({ title, description, children }: PageHeaderProps) {
   return (
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900 md:text-3xl">
-          {title}
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900 md:text-3xl">{title}</h1>
 
         <p className="mt-0.5 text-sm text-neutral-500">{description}</p>
       </div>
 
       {children ? (
-        <div className="flex items-center gap-3 self-start sm:self-auto">
-          {children}
-        </div>
+        <div className="flex items-center gap-3 self-start sm:self-auto">{children}</div>
       ) : null}
     </div>
   );
@@ -251,7 +245,7 @@ export function AdminTable({ columns, children }: AdminTableProps) {
               className={cn(
                 "px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-neutral-400",
                 column.align === "right" && "text-right",
-                column.className,
+                column.className
               )}
             >
               {column.label}
@@ -320,7 +314,7 @@ export function EmptyState({
     <div
       className={cn(
         "flex flex-col items-center justify-center p-12 text-center",
-        bordered && "rounded-xl border border-dashed border-neutral-200 bg-white",
+        bordered && "rounded-xl border border-dashed border-neutral-200 bg-white"
       )}
     >
       <Icon className="mb-3 h-12 w-12 text-neutral-300" />
@@ -351,8 +345,7 @@ const ORDER_STATUS_STYLES: Record<string, string> = {
   delivered: "border-green-200 bg-green-50 text-green-700 hover:bg-green-50",
   shipped: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50",
   processing: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50",
-  pending:
-    "border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-neutral-50",
+  pending: "border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-neutral-50",
   cancelled: "border-red-200 bg-red-50 text-red-700 hover:bg-red-50",
 };
 
@@ -361,9 +354,7 @@ export function StatusBadge({ status }: { status: string | null }) {
 
   const style = ORDER_STATUS_STYLES[value] ?? ORDER_STATUS_STYLES.pending;
 
-  const label =
-    ORDER_STATUSES.find((option) => option.value === value)?.label ??
-    titleCase(value);
+  const label = ORDER_STATUSES.find((option) => option.value === value)?.label ?? titleCase(value);
 
   return <Badge className={cn(BADGE_BASE, style)}>{label}</Badge>;
 }
@@ -372,8 +363,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
   paid: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50",
   refunded: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50",
   failed: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-50",
-  pending:
-    "border-neutral-200 bg-neutral-50 text-neutral-500 hover:bg-neutral-50",
+  pending: "border-neutral-200 bg-neutral-50 text-neutral-500 hover:bg-neutral-50",
 };
 
 export function PaymentBadge({ status }: { status: string | null }) {
@@ -394,12 +384,7 @@ export const LOW_STOCK_THRESHOLD = 10;
 export function StockBadge({ stock }: { stock: number }) {
   if (stock <= 0) {
     return (
-      <Badge
-        className={cn(
-          BADGE_BASE,
-          "border-red-200 bg-red-50 text-red-700 hover:bg-red-50",
-        )}
-      >
+      <Badge className={cn(BADGE_BASE, "border-red-200 bg-red-50 text-red-700 hover:bg-red-50")}>
         <XCircle className="h-3 w-3 text-red-500" />
         Out of Stock
       </Badge>
@@ -409,10 +394,7 @@ export function StockBadge({ stock }: { stock: number }) {
   if (stock < LOW_STOCK_THRESHOLD) {
     return (
       <Badge
-        className={cn(
-          BADGE_BASE,
-          "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50",
-        )}
+        className={cn(BADGE_BASE, "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50")}
       >
         <AlertTriangle className="h-3 w-3 text-amber-500" />
         Low Stock ({stock})
@@ -422,10 +404,7 @@ export function StockBadge({ stock }: { stock: number }) {
 
   return (
     <Badge
-      className={cn(
-        BADGE_BASE,
-        "border-green-200 bg-green-50 text-green-700 hover:bg-green-50",
-      )}
+      className={cn(BADGE_BASE, "border-green-200 bg-green-50 text-green-700 hover:bg-green-50")}
     >
       <CheckCircle className="h-3 w-3 text-green-500" />
       In Stock ({stock})
@@ -446,12 +425,7 @@ interface FormActionsProps {
   onCancel: () => void;
 }
 
-export function FormActions({
-  saving,
-  submitLabel,
-  savingLabel,
-  onCancel,
-}: FormActionsProps) {
+export function FormActions({ saving, submitLabel, savingLabel, onCancel }: FormActionsProps) {
   return (
     <div className="mt-8 flex gap-3 border-t border-neutral-100 pt-6">
       <Button
@@ -464,11 +438,7 @@ export function FormActions({
         Cancel
       </Button>
 
-      <Button
-        type="submit"
-        disabled={saving}
-        className={cn("flex-1", PRIMARY_BUTTON_CLASS)}
-      >
+      <Button type="submit" disabled={saving} className={cn("flex-1", PRIMARY_BUTTON_CLASS)}>
         {saving ? savingLabel : submitLabel}
       </Button>
     </div>
@@ -491,11 +461,7 @@ interface SearchInputProps {
   placeholder: string;
 }
 
-export function SearchInput({
-  value,
-  onChange,
-  placeholder,
-}: SearchInputProps) {
+export function SearchInput({ value, onChange, placeholder }: SearchInputProps) {
   return (
     <div className="relative flex-1">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
@@ -523,12 +489,7 @@ interface FilterSelectProps {
   options: readonly SelectOption[];
 }
 
-export function FilterSelect({
-  value,
-  onChange,
-  allLabel,
-  options,
-}: FilterSelectProps) {
+export function FilterSelect({ value, onChange, allLabel, options }: FilterSelectProps) {
   return (
     <div className="w-full md:w-48">
       <Select value={value} onValueChange={onChange}>
@@ -567,19 +528,10 @@ interface FormFieldProps {
   children: React.ReactNode;
 }
 
-export function FormField({
-  id,
-  label,
-  required = false,
-  icon: Icon,
-  children,
-}: FormFieldProps) {
+export function FormField({ id, label, required = false, icon: Icon, children }: FormFieldProps) {
   return (
     <div className="space-y-1.5">
-      <Label
-        htmlFor={id}
-        className={cn(LABEL_CLASS, Icon && "flex items-center gap-1")}
-      >
+      <Label htmlFor={id} className={cn(LABEL_CLASS, Icon && "flex items-center gap-1")}>
         {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
@@ -619,19 +571,14 @@ export function FormSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        className={cn(
-          "w-full overflow-y-auto bg-white",
-          wide ? "sm:max-w-xl" : "sm:max-w-lg",
-        )}
+        className={cn("w-full overflow-y-auto bg-white", wide ? "sm:max-w-xl" : "sm:max-w-lg")}
       >
         <SheetHeader className="mb-6 border-b border-neutral-100 pb-4">
           <SheetTitle className="flex items-center gap-2 text-lg font-bold text-neutral-900">
             {title}
           </SheetTitle>
 
-          <SheetDescription className="text-xs text-neutral-400">
-            {description}
-          </SheetDescription>
+          <SheetDescription className="text-xs text-neutral-400">{description}</SheetDescription>
         </SheetHeader>
 
         {children}
@@ -685,15 +632,104 @@ export function DataPanel<T>({
           <EmptyState
             icon={emptyIcon}
             title={totalRows === 0 ? emptyTitle : filteredTitle}
-            description={
-              totalRows === 0 ? emptyDescription : filteredDescription
-            }
+            description={totalRows === 0 ? emptyDescription : filteredDescription}
           />
         ) : (
           <AdminTable columns={columns}>{rows.map(renderRow)}</AdminTable>
         )}
       </div>
     </div>
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * CONFIRM DIALOG
+ * ---------------------------------------------------------
+ *
+ * Deletes used to go through window.confirm, which the browser
+ * silently suppresses once the user ticks "prevent this page
+ * from creating additional dialogs" - the click then does
+ * nothing at all. This is the same modal primitive the sheets
+ * are built on, so it cannot be switched off.
+ */
+
+interface ConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  confirmingLabel: string;
+  /* True while the action runs: the dialog locks open. */
+  confirming: boolean;
+  onConfirm: () => void;
+}
+
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel,
+  confirmingLabel,
+  confirming,
+  onConfirm,
+}: ConfirmDialogProps) {
+  return (
+    <DialogPrimitive.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (confirming) {
+          return;
+        }
+
+        onOpenChange(next);
+      }}
+    >
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+
+        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-neutral-200 bg-white p-6 shadow-xl focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-red-50 p-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+            </div>
+
+            <div className="min-w-0">
+              <DialogPrimitive.Title className="text-base font-bold text-neutral-900">
+                {title}
+              </DialogPrimitive.Title>
+
+              <DialogPrimitive.Description className="mt-1 text-sm text-neutral-500">
+                {description}
+              </DialogPrimitive.Description>
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={confirming}
+              onClick={() => onOpenChange(false)}
+              className="flex-1 border-neutral-300 text-neutral-600"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              disabled={confirming}
+              onClick={onConfirm}
+              className="flex-1 bg-red-600 text-white hover:bg-red-700"
+            >
+              {confirming ? confirmingLabel : confirmLabel}
+            </Button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
@@ -706,9 +742,7 @@ export function DataPanel<T>({
  * shapes, a single-element array.
  */
 
-export const firstRelation = <T,>(
-  relation: T | T[] | null | undefined,
-): T | null => {
+export const firstRelation = <T,>(relation: T | T[] | null | undefined): T | null => {
   if (!relation) {
     return null;
   }

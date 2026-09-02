@@ -4,7 +4,9 @@ import { ProductCard } from "@/src/app/components/product-card";
 import { ProductSorting } from "@/src/app/components/product-sorting";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
 import { useProductList } from "@/src/app/lib/use-product-list";
+import { statsFor, useReviewStats } from "@/src/app/lib/use-review-stats";
 import { PackageOpen } from "lucide-react";
+import { useMemo } from "react";
 
 interface ProductGridProps {
   categorySlug?: string;
@@ -43,6 +45,9 @@ export function ProductGrid({
     variantValues,
   });
 
+  /* One stats query for the whole grid, not one per card. */
+  const stats = useReviewStats(useMemo(() => products.map((product) => product.id), [products]));
+
   const errorMessage =
     error === null
       ? null
@@ -80,8 +85,7 @@ export function ProductGrid({
   const toolbar = showToolbar ? (
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <p className="text-sm text-muted-foreground">
-        Showing{" "}
-        <span className="font-medium text-foreground">{products.length}</span>{" "}
+        Showing <span className="font-medium text-foreground">{products.length}</span>{" "}
         {products.length === 1 ? "product" : "products"}
       </p>
 
@@ -137,7 +141,7 @@ export function ProductGrid({
 
       <div className={gridClass}>
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} stats={statsFor(stats, product.id)} />
         ))}
       </div>
     </div>

@@ -3,6 +3,8 @@
 import { ProductCard } from "@/src/app/components/product-card";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
 import { useProductList } from "@/src/app/lib/use-product-list";
+import { statsFor, useReviewStats } from "@/src/app/lib/use-review-stats";
+import { useMemo } from "react";
 
 interface RelatedProductsProps {
   currentProductId: string;
@@ -10,10 +12,7 @@ interface RelatedProductsProps {
   categoryId: string | null;
 }
 
-export function RelatedProducts({
-  currentProductId,
-  categoryId,
-}: RelatedProductsProps) {
+export function RelatedProducts({ currentProductId, categoryId }: RelatedProductsProps) {
   /* Nothing to relate to without a category. */
   const { products, loading } = useProductList({
     enabled: Boolean(categoryId),
@@ -22,6 +21,9 @@ export function RelatedProducts({
     limit: 4,
     label: "related products",
   });
+
+  /* One stats query for the whole grid, not one per card. */
+  const stats = useReviewStats(useMemo(() => products.map((product) => product.id), [products]));
 
   if (loading) {
     return (
@@ -52,7 +54,7 @@ export function RelatedProducts({
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 md:grid-cols-4">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} stats={statsFor(stats, product.id)} />
         ))}
       </div>
     </section>

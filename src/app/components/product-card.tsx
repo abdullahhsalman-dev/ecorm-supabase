@@ -2,6 +2,7 @@
 
 import { useCart } from "@/src/app/components/cart-provider";
 import { Button } from "@/src/app/components/ui/button";
+import { StarRating } from "@/src/app/components/ui/star-rating";
 import { useToast } from "@/hooks/use-toast";
 import {
   getDiscountPercent,
@@ -11,6 +12,7 @@ import {
   isInStock,
   type StorefrontProduct,
 } from "@/src/app/lib/products";
+import { EMPTY_REVIEW_STATS, formatAverageRating, type ReviewStats } from "@/src/app/lib/reviews";
 import { cn, formatCurrency, safeImageSrc } from "@/src/app/lib/utils";
 import { Heart, ImageOff } from "lucide-react";
 import Image from "next/image";
@@ -19,9 +21,14 @@ import { useState } from "react";
 
 interface ProductCardProps {
   product: StorefrontProduct;
+  /*
+   * Supplied by the grid, which reads every card's stats in one
+   * query. Left out, the card simply shows no stars.
+   */
+  stats?: ReviewStats;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
 
@@ -79,15 +86,13 @@ export function ProductCard({ product }: ProductCardProps) {
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
               className={cn(
                 "object-cover transition-transform duration-500 ease-out",
-                inStock ? "group-hover:scale-[1.04]" : "opacity-60",
+                inStock ? "group-hover:scale-[1.04]" : "opacity-60"
               )}
             />
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center gap-2">
               <ImageOff className="h-7 w-7 text-muted-foreground/40" />
-              <span className="text-[11px] text-muted-foreground/60">
-                No image
-              </span>
+              <span className="text-[11px] text-muted-foreground/60">No image</span>
             </div>
           )}
         </Link>
@@ -139,10 +144,17 @@ export function ProductCard({ product }: ProductCardProps) {
           </h3>
         </Link>
 
+        {stats.reviewCount > 0 && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <StarRating value={stats.averageRating} size="sm" />
+            <span className="text-[11px] text-muted-foreground">
+              {formatAverageRating(stats.averageRating)} ({stats.reviewCount})
+            </span>
+          </div>
+        )}
+
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-[15px] font-semibold tracking-tight">
-            {formatCurrency(price)}
-          </span>
+          <span className="text-[15px] font-semibold tracking-tight">{formatCurrency(price)}</span>
 
           {hasDiscount(product) && (
             <span className="text-xs text-muted-foreground line-through">
@@ -157,20 +169,11 @@ export function ProductCard({ product }: ProductCardProps) {
               Out of stock
             </Button>
           ) : needsVariantSelection ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full rounded-full"
-              asChild
-            >
+            <Button size="sm" variant="outline" className="w-full rounded-full" asChild>
               <Link href={`/products/${product.slug}`}>Select options</Link>
             </Button>
           ) : (
-            <Button
-              size="sm"
-              className="w-full rounded-full"
-              onClick={handleAddToCart}
-            >
+            <Button size="sm" className="w-full rounded-full" onClick={handleAddToCart}>
               Add to cart
             </Button>
           )}

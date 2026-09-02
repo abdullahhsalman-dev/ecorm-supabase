@@ -2,14 +2,12 @@
 
 import { ProductCard } from "@/src/app/components/product-card";
 import { Button } from "@/src/app/components/ui/button";
-import {
-  Container,
-  Section,
-  SectionHeading,
-} from "@/src/app/components/ui/container";
+import { Container, Section, SectionHeading } from "@/src/app/components/ui/container";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
 import { useProductList } from "@/src/app/lib/use-product-list";
+import { statsFor, useReviewStats } from "@/src/app/lib/use-review-stats";
 import Link from "next/link";
+import { useMemo } from "react";
 
 export function FeaturedProducts() {
   const { products, loading } = useProductList({
@@ -18,6 +16,9 @@ export function FeaturedProducts() {
     limit: 8,
     label: "featured products",
   });
+
+  /* One stats query for the whole grid, not one per card. */
+  const stats = useReviewStats(useMemo(() => products.map((product) => product.id), [products]));
 
   if (loading) {
     return (
@@ -65,7 +66,7 @@ export function FeaturedProducts() {
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} stats={statsFor(stats, product.id)} />
           ))}
         </div>
 

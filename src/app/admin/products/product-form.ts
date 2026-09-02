@@ -3,11 +3,14 @@
  * PRODUCT FORM VALUES + VALIDATION
  * ---------------------------------------------------------
  *
- * Pure form logic: no React, no Supabase. The sheet holds the
- * values in state and calls validateProductForm on submit.
+ * Pure form logic: no React, no network. The sheet holds the
+ * values in state and calls validateProductForm on submit; the
+ * picked file is checked against the same bucket rules the
+ * uploader enforces.
  */
 
 import { generateSlug } from "@/src/app/lib/utils";
+import { validateImageFile } from "../lib/storage";
 import { primaryImageOf, type Product, type ProductPayload } from "./types";
 
 export interface ProductFormValues {
@@ -19,7 +22,10 @@ export interface ProductFormValues {
   stock: string;
   categoryId: string;
   featured: boolean;
+  /* The image already saved for this product, "" once removed. */
   imageUrl: string;
+  /* A file picked in the sheet, uploaded on submit. */
+  imageFile: File | null;
 }
 
 export const emptyProductForm = (categoryId = ""): ProductFormValues => ({
@@ -32,6 +38,7 @@ export const emptyProductForm = (categoryId = ""): ProductFormValues => ({
   categoryId,
   featured: false,
   imageUrl: "",
+  imageFile: null,
 });
 
 export const productFormValues = (product: Product): ProductFormValues => ({
@@ -44,6 +51,7 @@ export const productFormValues = (product: Product): ProductFormValues => ({
   categoryId: product.category_id ?? "",
   featured: product.featured,
   imageUrl: primaryImageOf(product)?.image_url ?? "",
+  imageFile: null,
 });
 
 export interface ValidationError {
@@ -52,8 +60,7 @@ export interface ValidationError {
 }
 
 type ValidationResult =
-  | { payload: ProductPayload; error?: never }
-  | { payload?: never; error: ValidationError };
+  { payload: ProductPayload; error?: never } | { payload?: never; error: ValidationError };
 
 const invalid = (title: string, description: string): ValidationResult => ({
   error: { title, description },
@@ -63,7 +70,7 @@ export function validateProductForm(
   values: ProductFormValues,
   /* Used to reject a slug another product already owns. */
   existingProducts: Pick<Product, "id" | "slug">[],
-  editingProductId: string | null,
+  editingProductId: string | null
 ): ValidationResult {
   const name = values.name.trim();
   const slug = values.slug.trim().toLowerCase();
@@ -83,10 +90,7 @@ export function validateProductForm(
   const price = Number.parseFloat(values.price);
 
   if (!Number.isFinite(price) || price < 0) {
-    return invalid(
-      "Invalid price",
-      "Price must be a valid number greater than or equal to 0.",
-    );
+    return invalid("Invalid price", "Price must be a valid number greater than or equal to 0.");
   }
 
   const stock = Number.parseInt(values.stock, 10);
@@ -94,7 +98,7 @@ export function validateProductForm(
   if (!Number.isInteger(stock) || stock < 0) {
     return invalid(
       "Invalid stock",
-      "Stock quantity must be a whole number greater than or equal to 0.",
+      "Stock quantity must be a whole number greater than or equal to 0."
     );
   }
 
@@ -108,23 +112,24 @@ export function validateProductForm(
     }
 
     if (salePrice > price) {
-      return invalid(
-        "Invalid sale price",
-        "Sale price cannot be greater than the regular price.",
-      );
+      return invalid("Invalid sale price", "Sale price cannot be greater than the regular price.");
+    }
+  }
+
+  if (values.imageFile) {
+    const imageError = validateImageFile(values.imageFile);
+
+    if (imageError) {
+      return invalid("Invalid image", imageError);
     }
   }
 
   const duplicateSlug = existingProducts.some(
-    (product) =>
-      product.slug.toLowerCase() === slug && product.id !== editingProductId,
+    (product) => product.slug.toLowerCase() === slug && product.id !== editingProductId
   );
 
   if (duplicateSlug) {
-    return invalid(
-      "Slug already exists",
-      "Please choose a different product slug.",
-    );
+    return invalid("Slug already exists", "Please choose a different product slug.");
   }
 
   return {

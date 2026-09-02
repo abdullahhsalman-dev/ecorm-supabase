@@ -72,11 +72,7 @@ function ProductSection({
       </div>
 
       <Suspense fallback={<ProductSkeletons />}>
-        <ProductGrid
-          categorySlug={categorySlug}
-          sort={section.sort}
-          limit={4}
-        />
+        <ProductGrid categorySlug={categorySlug} sort={section.sort} limit={4} />
       </Suspense>
     </div>
   );
@@ -100,23 +96,17 @@ export function DepartmentPage({ department }: { department: Department }) {
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent">
           <div className="flex h-full items-center px-4">
             <div className="max-w-lg text-white">
-              <h1 className="mb-4 text-4xl font-bold md:text-5xl lg:text-6xl">
-                {hero.title}
-              </h1>
+              <h1 className="mb-4 text-4xl font-bold md:text-5xl lg:text-6xl">{hero.title}</h1>
               <p className="mb-6 text-lg">{hero.description}</p>
               <div className="flex flex-wrap gap-4">
-                <Button
-                  asChild
-                  size="lg"
-                  className="bg-white text-black hover:bg-gray-100"
-                >
+                <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100">
                   <Link href={`#${sections[0].id}`}>{hero.primaryCta}</Link>
                 </Button>
                 <Button
                   asChild
                   size="lg"
                   variant="outline"
-                  className="border-white text-white hover:bg-white/10"
+                  className="border-white bg-transparent text-white hover:bg-transparent/10 hover:text-white"
                 >
                   <Link href={`/sale/${slug}`}>Shop Sale</Link>
                 </Button>
@@ -136,36 +126,33 @@ export function DepartmentPage({ department }: { department: Department }) {
         subcategories that may not exist.
       */}
       {promos.length > 0 && (
-      <div className="bg-gray-100 py-12">
-        <div className="px-4">
-          <div className="grid gap-8 md:grid-cols-2">
-            {promos.map((promo) => (
-              <div
-                key={promo.segment}
-                className="relative aspect-[4/3] overflow-hidden rounded-lg"
-              >
-                <Image
-                  src={PROMO_IMAGE}
-                  alt={promo.title}
-                  fill
-                  sizes="(min-width: 768px) 50vw, 100vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
-                  <h3 className="mb-2 text-3xl font-bold">{promo.title}</h3>
-                  <p className="mb-4 max-w-md">{promo.description}</p>
-                  <Button
-                    asChild
-                    className="bg-white text-black hover:bg-gray-100"
-                  >
-                    <Link href={`${base}/${promo.segment}`}>Shop Now</Link>
-                  </Button>
+        <div className="bg-gray-100 py-12">
+          <div className="px-4">
+            <div className="grid gap-8 md:grid-cols-2">
+              {promos.map((promo) => (
+                <div
+                  key={promo.segment}
+                  className="relative aspect-[4/3] overflow-hidden rounded-lg"
+                >
+                  <Image
+                    src={PROMO_IMAGE}
+                    alt={promo.title}
+                    fill
+                    sizes="(min-width: 768px) 50vw, 100vw"
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-6 text-center text-white">
+                    <h3 className="mb-2 text-3xl font-bold">{promo.title}</h3>
+                    <p className="mb-4 max-w-md">{promo.description}</p>
+                    <Button asChild className="bg-white text-black hover:bg-gray-100">
+                      <Link href={`${base}/${promo.segment}`}>Shop Now</Link>
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       <ProductSection section={sections[1]} categorySlug={slug} />

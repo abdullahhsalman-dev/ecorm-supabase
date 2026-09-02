@@ -9,6 +9,7 @@
  */
 
 import { createClient } from "@/src/app/lib/supabase/client";
+import { removeImage } from "../lib/storage";
 import type { Product, ProductImage, ProductPayload } from "./types";
 
 const PRODUCT_SELECT = `
@@ -57,9 +58,7 @@ const normaliseProduct = (row: ProductRow): Product => ({
   description: row.description ?? null,
   price: Number(row.price),
   sale_price:
-    row.sale_price === null || row.sale_price === undefined
-      ? null
-      : Number(row.sale_price),
+    row.sale_price === null || row.sale_price === undefined ? null : Number(row.sale_price),
   stock_quantity: Number(row.stock_quantity),
   category_id: row.category_id,
   featured: Boolean(row.featured),
@@ -99,10 +98,7 @@ export async function fetchProducts(): Promise<Product[]> {
  * the three cases - clear, replace, create - are handled here
  * instead of at the call site.
  */
-async function savePrimaryImage(
-  productId: string,
-  imageUrl: string,
-): Promise<void> {
+async function savePrimaryImage(productId: string, imageUrl: string): Promise<void> {
   const supabase = createClient();
   const trimmedUrl = imageUrl.trim();
 
@@ -121,10 +117,7 @@ async function savePrimaryImage(
   /* URL cleared: drop the row rather than storing an empty src. */
   if (!trimmedUrl) {
     if (existingImage) {
-      const { error } = await supabase
-        .from("product_images")
-        .delete()
-        .eq("id", existingImage.id);
+      const { error } = await supabase.from("product_images").delete().eq("id", existingImage.id);
 
       if (error) {
         throw error;
@@ -161,12 +154,9 @@ async function savePrimaryImage(
 export async function updateProduct(
   productId: string,
   payload: ProductPayload,
-  imageUrl: string,
+  imageUrl: string
 ): Promise<void> {
-  const { error } = await createClient()
-    .from("products")
-    .update(payload)
-    .eq("id", productId);
+  const { error } = await createClient().from("products").update(payload).eq("id", productId);
 
   if (error) {
     throw error;
@@ -175,10 +165,7 @@ export async function updateProduct(
   await savePrimaryImage(productId, imageUrl);
 }
 
-export async function createProduct(
-  payload: ProductPayload,
-  imageUrl: string,
-): Promise<void> {
+export async function createProduct(payload: ProductPayload, imageUrl: string): Promise<void> {
   const supabase = createClient();
 
   const { data: newProduct, error } = await supabase
@@ -219,6 +206,16 @@ export async function createProduct(
 export async function deleteProduct(productId: string): Promise<void> {
   const supabase = createClient();
 
+  /* Read the URLs before the rows that hold them are gone. */
+  const { data: images, error: selectError } = await supabase
+    .from("product_images")
+    .select("image_url")
+    .eq("product_id", productId);
+
+  if (selectError) {
+    throw selectError;
+  }
+
   /* Images first, in case the FK has no ON DELETE CASCADE. */
   const { error: imageError } = await supabase
     .from("product_images")
@@ -233,5 +230,14 @@ export async function deleteProduct(productId: string): Promise<void> {
 
   if (error) {
     throw error;
+  }
+
+  /*
+   * Only once the product is really gone: the uploads it owned
+   * would otherwise sit in the bucket forever. Best-effort, and
+   * a no-op for images hosted anywhere but our bucket.
+   */
+  for (const image of images ?? []) {
+    await removeImage(image.image_url);
   }
 }
