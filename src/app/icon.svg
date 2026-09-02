@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lamees">
+  <!--
+    The header wordmark is LAMEES in heavy uppercase sitting on a
+    short pink rule. Neither survives 16 pixels, so the tab keeps
+    what does: the L, and the pink.
+  -->
+  <defs>
+    <linearGradient id="lamees-rose" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF5C84"/>
+      <stop offset="1" stop-color="#FF2E62"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="url(#lamees-rose)"/>
+
+  <!-- Stem and foot in one path, so the corner stays sharp. -->
+  <path d="M20 13h10v29h14v10H20z" fill="#fff"/>
+</svg>
