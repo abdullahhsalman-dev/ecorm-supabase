@@ -17,10 +17,10 @@ export interface CustomerProfile {
   phone: string | null;
 }
 
-export const GUEST_CUSTOMER = "Guest Customer";
+export { GUEST_CUSTOMER } from "./dashboard-figures";
 
 export async function fetchCustomerProfiles(
-  userIds: string[],
+  userIds: string[]
 ): Promise<Map<string, CustomerProfile>> {
   const profiles = new Map<string, CustomerProfile>();
 
@@ -51,13 +51,5 @@ export async function fetchCustomerProfiles(
 }
 
 /* The distinct, non-null user ids across a set of order rows. */
-export const customerIdsOf = (
-  rows: { user_id: string | null }[],
-): string[] =>
-  Array.from(
-    new Set(
-      rows
-        .map((row) => row.user_id)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  );
+export const customerIdsOf = (rows: { user_id: string | null }[]): string[] =>
+  Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => Boolean(id))));
