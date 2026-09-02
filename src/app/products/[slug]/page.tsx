@@ -1,114 +1,74 @@
 import { ProductDetails } from "@/src/app/components/product-details";
 import { RelatedProducts } from "@/src/app/components/related-products";
-import { Skeleton } from "@/src/app/components/ui/skeleton";
-import { getDummyProduct } from "@/src/app/lib/dummy-data";
+import { fetchProductBySlug } from "@/src/app/lib/products";
 import { createClient } from "@/src/app/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { cache } from "react";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const product = await getProduct(params.slug);
+/* Next 15 hands route props in as promises. */
+type Params = Promise<{ slug: string }>;
 
-  if (!product) {
-    return {
-      title: "Product Not Found | Lamees",
-      description: "The requested product could not be found.",
-    };
-  }
-
-  return {
-    title: `${product.name} | Lamees`,
-    description:
-      product.description || "View product details and purchase options.",
-  };
-}
-
-async function getProduct(slug: string) {
+/*
+ * generateMetadata and the page both need the product, and
+ * React's cache collapses that into a single query per request.
+ */
+const getProduct = cache(async (slug: string) => {
   try {
-    const supabase = createClient();
+    return await fetchProductBySlug(slug, createClient());
+  } catch (error) {
+    console.error("Error fetching product:", error);
+    throw error;
+  }
+});
 
-    const { data, error } = await supabase
-      .from("products")
-      .select(
-        `
-        *,
-        product_images(*),
-        categories:category_id(id, name, slug)
-      `,
-      )
-      .eq("slug", slug)
-      .single();
+export async function generateMetadata({ params }: { params: Params }) {
+  const { slug } = await params;
 
-    if (error || !data) {
-      console.error("Error fetching product:", error);
-      // Return dummy product data
-      return getDummyProduct(slug);
+  try {
+    const product = await getProduct(slug);
+
+    if (!product) {
+      return {
+        title: "Product Not Found | Lamees",
+        description: "The requested product could not be found.",
+      };
     }
 
-    return data;
-  } catch (error) {
-    console.error("Error in getProduct:", error);
-    // Return dummy product data on error
-    return getDummyProduct(slug);
+    return {
+      title: `${product.name} | Lamees`,
+      description:
+        product.description || "View product details and purchase options.",
+    };
+  } catch {
+    return {
+      title: "Product | Lamees",
+      description: "View product details and purchase options.",
+    };
   }
 }
 
-export default async function ProductPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const product = await getProduct(params.slug);
+export default async function ProductPage({ params }: { params: Params }) {
+  const { slug } = await params;
+
+  /*
+   * A missing product is a 404 rather than placeholder data,
+   * so a broken link is visible instead of looking like a real
+   * listing.
+   */
+  const product = await getProduct(slug);
 
   if (!product) {
     notFound();
   }
 
   return (
-    <div className=" px-4 py-8 md:py-12">
-      <Suspense
-        fallback={
-          <div className="grid gap-8 md:grid-cols-2">
-            <Skeleton className="aspect-square w-full rounded-lg" />
-            <div className="space-y-4">
-              <Skeleton className="h-8 w-2/3" />
-              <Skeleton className="h-6 w-1/3" />
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          </div>
-        }
-      >
-        <ProductDetails product={product} />
-      </Suspense>
+    <div className="px-4 py-8 md:py-12">
+      <ProductDetails product={product} />
 
-      <Suspense
-        fallback={
-          <div className="mt-16 space-y-4">
-            <Skeleton className="h-8 w-1/4" />
-            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-              {Array(4)
-                .fill(null)
-                .map((_, i) => (
-                  <div key={i} className="space-y-4">
-                    <Skeleton className="aspect-square w-full rounded-lg" />
-                    <Skeleton className="h-4 w-2/3" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
-                ))}
-            </div>
-          </div>
-        }
-      >
-        <RelatedProducts
-          currentProductId={product.id}
-          categoryId={product.category_id}
-        />
-      </Suspense>
+      <RelatedProducts
+        currentProductId={product.id}
+        categoryId={product.category_id}
+      />
     </div>
   );
 }

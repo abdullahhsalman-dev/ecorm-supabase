@@ -16,39 +16,178 @@ import {
   TabsTrigger,
 } from "@/src/app/components/ui/tabs";
 import { useAuth } from "@/src/app/context/auth-context";
+import { useAsyncData } from "@/src/app/lib/use-async-data";
+import {
+  fetchUserProfileByEmail,
+  updateUserProfile,
+  type UserProfile,
+} from "@/src/app/lib/users";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : "Please try again.";
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, signIn, updatePassword } = useAuth();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Profile form state
   const [formData, setFormData] = useState({
-    fullName: user?.user_metadata?.full_name || "",
+    fullName: "",
     email: user?.email || "",
-    phone: user?.user_metadata?.phone || "",
+    phone: "",
   });
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  /*
+   * The `users` row is the profile of record - auth metadata only holds what
+   * was passed at signup, so reading it made an edited name reappear as the
+   * old one on the next visit.
+   */
+  const loadProfile = useCallback(async (): Promise<UserProfile | null> => {
+    if (!user?.email) {
+      return null;
+    }
+
+    return fetchUserProfileByEmail(user.email);
+  }, [user?.email]);
+
+  const onProfileError = useCallback((error: unknown) => {
+    console.error("Error loading profile:", error);
+  }, []);
+
+  const { data: profile } = useAsyncData(loadProfile, {
+    fallback: null as UserProfile | null,
+    enabled: Boolean(user?.email),
+    onError: onProfileError,
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        fullName: profile.full_name ?? "",
+        email: profile.email,
+        phone: profile.phone ?? "",
+      });
+    }
+  }, [profile]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      return;
+    }
+
     setIsUpdating(true);
 
-    // Simulate API call for profile update
-    setTimeout(() => {
+    try {
+      await updateUserProfile(user.id, {
+        fullName: formData.fullName,
+        phone: formData.phone,
+      });
+
       toast({
         title: "Profile updated",
-        description: "Your profile information has been updated successfully.",
+        description: "Your profile information has been saved.",
       });
+    } catch (error: unknown) {
+      console.error("Failed to update profile:", error);
+
+      toast({
+        title: "Couldn't update your profile",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
       setIsUpdating(false);
-    }, 1000);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user?.email) {
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Passwords do not match",
+        description: "Re-enter the new password in both fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      /*
+       * Supabase changes a password on the session alone, so anyone at an
+       * unlocked browser could do it. Re-signing in with the current password
+       * is what makes the "Current Password" field mean something.
+       */
+      const { error: reauthError } = await signIn(
+        user.email,
+        passwordForm.currentPassword,
+      );
+
+      if (reauthError) {
+        toast({
+          title: "Current password is incorrect",
+          description: "Check it and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await updatePassword(passwordForm.newPassword);
+
+      if (error) {
+        throw error;
+      }
+
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      toast({
+        title: "Password changed",
+        description: "Use your new password the next time you sign in.",
+      });
+    } catch (error: unknown) {
+      console.error("Failed to change password:", error);
+
+      toast({
+        title: "Couldn't change your password",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -67,7 +206,9 @@ export default function AccountPage() {
         <p className="mb-8 text-muted-foreground">
           Please sign in to access your account.
         </p>
-        <Button onClick={() => router.push("/login")}>Sign In</Button>
+        <Button onClick={() => router.push("/login?redirect=/account")}>
+          Sign In
+        </Button>
       </div>
     );
   }
@@ -153,7 +294,7 @@ export default function AccountPage() {
 
           <div className="rounded-lg border bg-card p-6">
             <h2 className="mb-6 text-xl font-semibold">Change Password</h2>
-            <form className="space-y-4">
+            <form onSubmit={handleChangePassword} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="currentPassword">Current Password</Label>
@@ -161,6 +302,8 @@ export default function AccountPage() {
                     id="currentPassword"
                     name="currentPassword"
                     type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={handlePasswordChange}
                     required
                   />
                 </div>
@@ -171,6 +314,9 @@ export default function AccountPage() {
                     id="newPassword"
                     name="newPassword"
                     type="password"
+                    value={passwordForm.newPassword}
+                    onChange={handlePasswordChange}
+                    minLength={6}
                     required
                   />
                 </div>
@@ -180,11 +326,16 @@ export default function AccountPage() {
                     id="confirmPassword"
                     name="confirmPassword"
                     type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={handlePasswordChange}
+                    minLength={6}
                     required
                   />
                 </div>
               </div>
-              <Button type="submit">Change Password</Button>
+              <Button type="submit" disabled={isChangingPassword}>
+                {isChangingPassword ? "Changing…" : "Change Password"}
+              </Button>
             </form>
           </div>
         </TabsContent>

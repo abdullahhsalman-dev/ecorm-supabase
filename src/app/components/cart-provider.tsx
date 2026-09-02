@@ -4,8 +4,21 @@ import type React from "react";
 
 import { createContext, useContext, useState, useEffect } from "react";
 
-type CartItem = {
+/**
+ * A line in the cart.
+ *
+ * `id` is the line key: a product on its own uses the product uuid, and a
+ * product configured with variants appends them ("<product>-<variant>-…") so
+ * two sizes of the same shirt stay separate lines.
+ *
+ * `productId` and `variantIds` carry those uuids on their own because checkout
+ * writes them to order_items.product_id / product_variant_id, and the composite
+ * key cannot be split back apart reliably — uuids contain hyphens themselves.
+ */
+export type CartItem = {
   id: string;
+  productId: string;
+  variantIds: string[];
   name: string;
   price: number;
   image: string;
@@ -24,6 +37,64 @@ type CartContextType = {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const UUID_LENGTH = 36;
+
+/**
+ * Recovers the uuids from a line key, for carts saved before the line carried
+ * them. The key is fixed-width segments joined by a hyphen, so it splits by
+ * offset rather than by separator.
+ */
+function splitLineId(lineId: string): {
+  productId: string;
+  variantIds: string[];
+} {
+  const segments: string[] = [];
+
+  for (let start = 0; start < lineId.length; start += UUID_LENGTH + 1) {
+    segments.push(lineId.slice(start, start + UUID_LENGTH));
+  }
+
+  const [productId, ...variantIds] = segments;
+
+  return { productId: productId ?? lineId, variantIds };
+}
+
+/**
+ * A stored cart is whatever an older build of the site left in localStorage, so
+ * it is treated as untrusted input: anything without a usable line key is
+ * dropped, and the uuids are backfilled from the key when absent.
+ */
+function normaliseStoredItem(raw: unknown): CartItem | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const item = raw as Partial<CartItem>;
+
+  if (typeof item.id !== "string" || !item.id) {
+    return null;
+  }
+
+  const recovered = splitLineId(item.id);
+
+  return {
+    id: item.id,
+    productId:
+      typeof item.productId === "string" && item.productId
+        ? item.productId
+        : recovered.productId,
+    variantIds: Array.isArray(item.variantIds)
+      ? item.variantIds.filter(
+          (variantId): variantId is string => typeof variantId === "string",
+        )
+      : recovered.variantIds,
+    name: typeof item.name === "string" ? item.name : "",
+    price: Number(item.price) || 0,
+    image: typeof item.image === "string" ? item.image : "",
+    quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
+  };
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
@@ -32,7 +103,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       const storedCart = localStorage.getItem("cart");
       if (storedCart) {
-        setItems(JSON.parse(storedCart));
+        const parsed: unknown = JSON.parse(storedCart);
+
+        setItems(
+          Array.isArray(parsed)
+            ? parsed
+                .map(normaliseStoredItem)
+                .filter((item): item is CartItem => item !== null)
+            : [],
+        );
       }
     } catch (error) {
       console.error("Failed to access localStorage:", error);
@@ -65,7 +144,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (existingItemIndex > -1) {
         // Item exists, update quantity
         const updatedItems = [...prevItems];
-        updatedItems[existingItemIndex].quantity += newItem.quantity;
+        updatedItems[existingItemIndex] = {
+          ...updatedItems[existingItemIndex],
+          quantity:
+            updatedItems[existingItemIndex].quantity + newItem.quantity,
+        };
         return updatedItems;
       } else {
         // Item doesn't exist, add it

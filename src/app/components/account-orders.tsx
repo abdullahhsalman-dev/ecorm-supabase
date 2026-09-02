@@ -1,62 +1,69 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Eye } from "lucide-react";
+import { useCallback } from "react";
+import { AlertCircle, Package } from "lucide-react";
 import { Button } from "@/src/app/components/ui/button";
 import { Badge } from "@/src/app/components/ui/badge";
+import { EmptyState } from "@/src/app/components/ui/empty-state";
 import { createClient } from "@/src/app/lib/supabase/client";
 import { useAuth } from "@/src/app/context/auth-context";
 import { formatCurrency } from "@/src/app/lib/utils";
-import { getDummyOrders } from "@/src/app/lib/dummy-data";
+import { useAsyncData } from "@/src/app/lib/use-async-data";
+import Link from "next/link";
+
+/**
+ * The subset of the `orders` row this list renders. The nullable columns match
+ * the generated database types so a Supabase result assigns without a cast.
+ */
+interface Order {
+  id: string;
+  created_at: string | null;
+  status: string;
+  payment_status: string | null;
+  total_amount: number;
+  tracking_number: string | null;
+}
+
+const ORDER_SELECT =
+  "id, created_at, status, payment_status, total_amount, tracking_number";
+
+const NO_ORDERS: Order[] = [];
 
 export function AccountOrders() {
   const { user } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchOrders() {
-      if (!user) {
-        // Use dummy data if no user
-        setOrders(getDummyOrders());
-        setLoading(false);
-        return;
-      }
-
-      const supabase = createClient();
-
-      try {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Error fetching orders:", error);
-          // Use dummy data on error
-          setOrders(getDummyOrders());
-          return;
-        }
-
-        if (data && data.length > 0) {
-          setOrders(data);
-        } else {
-          // No data found, use dummy data
-          setOrders(getDummyOrders());
-        }
-      } catch (error) {
-        console.error("Error in fetchOrders:", error);
-        // Use dummy data on error
-        setOrders(getDummyOrders());
-      } finally {
-        setLoading(false);
-      }
+  const fetchOrders = useCallback(async (): Promise<Order[]> => {
+    if (!user) {
+      return NO_ORDERS;
     }
 
-    fetchOrders();
+    const { data, error } = await createClient()
+      .from("orders")
+      .select(ORDER_SELECT)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []) as Order[];
   }, [user]);
+
+  const onError = useCallback((error: unknown) => {
+    console.error("Error fetching orders:", error);
+  }, []);
+
+  const {
+    data: orders,
+    loading,
+    error,
+    reload,
+  } = useAsyncData(fetchOrders, {
+    fallback: NO_ORDERS,
+    enabled: Boolean(user),
+    onError,
+  });
 
   if (loading) {
     return (
@@ -79,20 +86,51 @@ export function AccountOrders() {
     );
   }
 
+  /* A failed load is not an empty account, and must not read like one. */
+  if (error) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Couldn't load your orders"
+        description="Something went wrong reaching the store. Your orders are safe — try again in a moment."
+        action={
+          <Button variant="outline" onClick={reload}>
+            Try again
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <EmptyState
+        icon={Package}
+        title="No orders yet"
+        description="When you place an order it will appear here, with its status and tracking number."
+        action={
+          <Button asChild>
+            <Link href="/products">Start shopping</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {orders.map((order: any) => (
+      {orders.map((order) => (
         <div key={order.id} className="rounded-lg border bg-card">
           <div className="flex flex-col justify-between border-b p-4 sm:flex-row sm:items-center">
             <div>
               <p className="font-medium">
-                Order #
-                {typeof order.id === "string"
-                  ? order.id.substring(0, 8)
-                  : order.id}
+                Order #{order.id.substring(0, 8).toUpperCase()}
               </p>
               <p className="text-sm text-muted-foreground">
-                Placed on {new Date(order.created_at).toLocaleDateString()}
+                Placed on{" "}
+                {order.created_at
+                  ? new Date(order.created_at).toLocaleDateString()
+                  : "—"}
               </p>
             </div>
             <div className="mt-2 flex items-center sm:mt-0">
@@ -106,16 +144,9 @@ export function AccountOrders() {
                     ? "destructive"
                     : "outline"
                 }
-                className="mr-2"
               >
                 {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
               </Badge>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={`/account/orders/${order.id}`}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View
-                </Link>
-              </Button>
             </div>
           </div>
           <div className="p-4">
@@ -127,7 +158,9 @@ export function AccountOrders() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Payment Status:</span>
-              <span className="font-medium">{order.payment_status}</span>
+              <span className="font-medium">
+                {order.payment_status ?? "pending"}
+              </span>
             </div>
             {order.tracking_number && (
               <div className="flex justify-between">

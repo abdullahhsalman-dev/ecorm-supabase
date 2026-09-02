@@ -7,22 +7,26 @@ import { useCart } from "@/src/app/components/cart-provider";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Label } from "@/src/app/components/ui/label";
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from "@/src/app/components/ui/radio-group";
 import { Separator } from "@/src/app/components/ui/separator";
 import { Textarea } from "@/src/app/components/ui/textarea";
-import { formatCurrency } from "@/src/app/lib/utils";
+import { useAuth } from "@/src/app/context/auth-context";
+import { calculateOrderTotals } from "@/src/app/lib/order-totals";
+import { formatCurrency, safeImageSrc } from "@/src/app/lib/utils";
+import { Banknote } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { PAYMENT_METHOD, placeOrder } from "./queries";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, cartTotal, clearCart } = useCart();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("credit-card");
+
+  /* The summary below and the order row are priced from the same call. */
+  const totals = useMemo(() => calculateOrderTotals(cartTotal), [cartTotal]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -49,17 +53,48 @@ export default function CheckoutPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call for order processing
-    setTimeout(() => {
+    try {
+      /*
+       * A guest order carries no user_id. It still reaches the admin Orders
+       * screen, where it shows as a Guest customer.
+       */
+      const orderId = await placeOrder({
+        userId: user?.id ?? null,
+        customer: formData,
+        items,
+        paymentMethod: PAYMENT_METHOD,
+        totals,
+      });
+
       toast({
         title: "Order placed successfully!",
         description:
           "Thank you for your purchase. Your order has been received.",
       });
+
       clearCart();
-      router.push("/checkout/success");
+
+      /*
+       * The id travels in the URL because a guest cannot read their own order
+       * back — the confirmation page has no other way to name it.
+       */
+      router.push(
+        `/checkout/success?order=${orderId}`,
+      );
+    } catch (error: unknown) {
+      console.error("Failed to place order:", error);
+
+      toast({
+        title: "Order could not be placed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Something went wrong. Your cart has been kept — please try again.",
+        variant: "destructive",
+      });
+
       setIsSubmitting(false);
-    }, 2000);
+    }
   };
 
   if (items.length === 0) {
@@ -197,63 +232,37 @@ export default function CheckoutPage() {
               {/* Payment Method */}
               <div>
                 <h2 className="mb-4 text-xl font-semibold">Payment Method</h2>
-                <RadioGroup
-                  value={paymentMethod}
-                  onValueChange={setPaymentMethod}
-                  className="space-y-3"
-                >
-                  <div className="flex items-center space-x-2 rounded-md border p-3">
-                    <RadioGroupItem value="credit-card" id="credit-card" />
-                    <Label
-                      htmlFor="credit-card"
-                      className="flex-1 cursor-pointer"
-                    >
-                      Credit Card
-                    </Label>
-                    <div className="flex space-x-1">
-                      <img
-                        src="/public/assets/kids.webp"
-                        alt="Visa"
-                        className="h-6"
-                      />
-                      <img
-                        src="/public/assets/kids.webp"
-                        alt="Mastercard"
-                        className="h-6"
-                      />
-                    </div>
+
+                {/*
+                  Cash on delivery is the only way to pay, so this
+                  states it rather than offering a choice of one.
+                  Card and PayPal used to be listed here and were
+                  never wired to a processor - every order they
+                  produced was unpaid, which is a promise the shop
+                  could not keep.
+                */}
+                <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-4">
+                  <Banknote
+                    className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+
+                  <div>
+                    <p className="font-medium">Cash on Delivery</p>
+
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Pay the courier in cash when your order arrives. Please
+                      have the exact amount ready.
+                    </p>
                   </div>
-                  <div className="flex items-center space-x-2 rounded-md border p-3">
-                    <RadioGroupItem value="paypal" id="paypal" />
-                    <Label htmlFor="paypal" className="flex-1 cursor-pointer">
-                      PayPal
-                    </Label>
-                    <img
-                      src="/public/assets/kids.webp"
-                      alt="PayPal"
-                      className="h-6"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2 rounded-md border p-3">
-                    <RadioGroupItem
-                      value="cash-on-delivery"
-                      id="cash-on-delivery"
-                    />
-                    <Label
-                      htmlFor="cash-on-delivery"
-                      className="cursor-pointer"
-                    >
-                      Cash on Delivery
-                    </Label>
-                  </div>
-                </RadioGroup>
+                </div>
               </div>
 
               {/* Order Notes */}
               <div>
-                <h2 className="mb-4 text-xl font-semibold">
+                <Label htmlFor="notes" className="mb-4 block text-xl font-semibold">
                   Order Notes (Optional)
-                </h2>
+                </Label>
                 <Textarea
                   id="notes"
                   name="notes"
@@ -278,11 +287,13 @@ export default function CheckoutPage() {
                     className="flex items-center justify-between py-3"
                   >
                     <div className="flex items-center">
-                      <div className="h-16 w-16 overflow-hidden rounded-md bg-muted">
-                        <img
-                          src={item.image || "/public/assets/kids.webp"}
+                      <div className="relative h-16 w-16 overflow-hidden rounded-md bg-muted">
+                        <Image
+                          src={safeImageSrc(item.image, "/assets/kids.webp")}
                           alt={item.name}
-                          className="h-full w-full object-cover"
+                          fill
+                          sizes="64px"
+                          className="object-cover"
                         />
                       </div>
                       <div className="ml-4">
@@ -304,26 +315,16 @@ export default function CheckoutPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(cartTotal)}</span>
+                  <span>{formatCurrency(totals.subtotal)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Shipping</span>
-                  <span>{formatCurrency(cartTotal > 5000 ? 0 : 500)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Tax (5%)</span>
-                  <span>{formatCurrency(cartTotal * 0.05)}</span>
+                  <span>Delivery</span>
+                  <span>{formatCurrency(totals.shipping)}</span>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between font-medium">
                   <span>Total</span>
-                  <span>
-                    {formatCurrency(
-                      cartTotal +
-                        (cartTotal > 5000 ? 0 : 500) +
-                        cartTotal * 0.05,
-                    )}
-                  </span>
+                  <span>{formatCurrency(totals.total)}</span>
                 </div>
               </div>
 

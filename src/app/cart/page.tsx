@@ -5,16 +5,21 @@ import { useCart } from "@/src/app/components/cart-provider";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Separator } from "@/src/app/components/ui/separator";
-import { formatCurrency } from "@/src/app/lib/utils";
+import { calculateOrderTotals } from "@/src/app/lib/order-totals";
+import { formatCurrency, safeImageSrc } from "@/src/app/lib/utils";
 import { Minus, Plus, Trash2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export default function CartPage() {
   const { items, cartTotal, updateItemQuantity, removeItem } = useCart();
   const { toast } = useToast();
   const [couponCode, setCouponCode] = useState("");
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  /* Same rules the checkout and the order row use. */
+  const totals = useMemo(() => calculateOrderTotals(cartTotal), [cartTotal]);
 
   const handleQuantityChange = (id: string, quantity: number) => {
     if (quantity < 1) return;
@@ -81,11 +86,13 @@ export default function CartPage() {
                     className="py-4 md:grid md:grid-cols-12 md:items-center md:gap-4"
                   >
                     <div className="col-span-6 flex items-center gap-4">
-                      <div className="h-20 w-20 overflow-hidden rounded-md bg-muted">
-                        <img
-                          src={item.image || undefined}
+                      <div className="relative h-20 w-20 overflow-hidden rounded-md bg-muted">
+                        <Image
+                          src={safeImageSrc(item.image)}
                           alt={item.name}
-                          className="h-full w-full object-cover"
+                          fill
+                          sizes="80px"
+                          className="object-cover"
                         />
                       </div>
                       <div>
@@ -166,21 +173,21 @@ export default function CartPage() {
                 <span>{formatCurrency(cartTotal)}</span>
               </div>
 
+              {/*
+                Delivery is a flat charge, so the cart can show the
+                real total rather than deferring it to checkout and
+                surprising the shopper there.
+              */}
               <div className="flex items-center justify-between">
-                <span>Shipping</span>
-                <span>Calculated at checkout</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span>Tax</span>
-                <span>Calculated at checkout</span>
+                <span>Delivery</span>
+                <span>{formatCurrency(totals.shipping)}</span>
               </div>
 
               <Separator />
 
               <div className="flex items-center justify-between font-medium">
                 <span>Total</span>
-                <span>{formatCurrency(cartTotal)}</span>
+                <span>{formatCurrency(totals.total)}</span>
               </div>
 
               <div className="space-y-2">

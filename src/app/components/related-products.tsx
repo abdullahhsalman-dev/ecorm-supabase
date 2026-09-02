@@ -1,94 +1,56 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ProductCard } from "@/src/app/components/product-card";
-import { createClient } from "@/src/app/lib/supabase/client";
-import { generateDummyProducts } from "@/src/app/lib/dummy-data";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { useProductList } from "@/src/app/lib/use-product-list";
 
 interface RelatedProductsProps {
   currentProductId: string;
-  categoryId: string;
+  /* products.category_id is nullable, so this can be absent. */
+  categoryId: string | null;
 }
 
 export function RelatedProducts({
   currentProductId,
   categoryId,
 }: RelatedProductsProps) {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchRelatedProducts() {
-      const supabase = createClient();
-
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select(
-            `
-            id, 
-            name, 
-            slug, 
-            price, 
-            sale_price,
-            product_images(image_url, is_primary)
-          `
-          )
-          .eq("category_id", categoryId)
-          .neq("id", currentProductId)
-          .limit(4);
-
-        if (error) {
-          console.error("Error fetching related products:", error);
-          // Use dummy data on error
-          const dummyData = generateDummyProducts(categoryId, 4);
-          setProducts(dummyData);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          setProducts(data);
-        } else {
-          // No data found, use dummy data
-          const dummyData = generateDummyProducts(categoryId, 4);
-          setProducts(dummyData);
-        }
-      } catch (error) {
-        console.error("Error in fetchRelatedProducts:", error);
-        // Use dummy data on error
-        const dummyData = generateDummyProducts(categoryId, 4);
-        setProducts(dummyData);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchRelatedProducts();
-  }, [currentProductId, categoryId]);
+  /* Nothing to relate to without a category. */
+  const { products, loading } = useProductList({
+    enabled: Boolean(categoryId),
+    categoryId: categoryId ?? undefined,
+    excludeId: currentProductId,
+    limit: 4,
+    label: "related products",
+  });
 
   if (loading) {
     return (
       <section className="py-12">
         <h2 className="mb-8 text-2xl font-bold">Related Products</h2>
-        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-          {Array(4)
-            .fill(null)
-            .map((_, i) => (
-              <div key={i} className="animate-pulse rounded-lg bg-gray-200 p-4">
-                <div className="mb-4 aspect-square rounded bg-gray-300"></div>
-                <div className="mb-2 h-4 w-3/4 rounded bg-gray-300"></div>
-                <div className="h-4 w-1/2 rounded bg-gray-300"></div>
-              </div>
-            ))}
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="space-y-3">
+              <Skeleton className="aspect-[3/4] w-full rounded-xl" />
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-1/3" />
+            </div>
+          ))}
         </div>
       </section>
     );
   }
 
+  /* An empty related list is better hidden than shown empty. */
+  if (products.length === 0) {
+    return null;
+  }
+
   return (
     <section className="py-12">
       <h2 className="mb-8 text-2xl font-bold">Related Products</h2>
-      <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 md:grid-cols-4">
         {products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}

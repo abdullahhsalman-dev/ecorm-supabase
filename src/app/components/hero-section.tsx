@@ -1,48 +1,120 @@
 import { Button } from "@/src/app/components/ui/button";
+import { Container } from "@/src/app/components/ui/container";
+import { ArrowRight } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+
+/*
+ * Editorial hero. The copy is evergreen rather than tied to a
+ * fixed campaign date, so it doesn't go stale on the shelf.
+ */
+
+const HERO_IMAGE = "/assets/kids.webp";
+
+const highlights = [
+  { value: "Free", label: "Shipping over Rs. 5,000" },
+  { value: "30-day", label: "Easy returns" },
+  { value: "100%", label: "Authentic products" },
+];
 
 export function HeroSection() {
   return (
-    <div className="relative mb-12 overflow-hidden rounded-lg">
-      <div className="bg-red-700 text-white">
-        <div className="grid grid-cols-1 md:grid-cols-2">
-          <div className="flex flex-col items-center justify-center p-8 text-center md:items-start md:p-12 md:text-left">
-            <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-6xl">
-              GRAND FESTIVE
+    <section className="relative overflow-hidden bg-neutral-950 text-white">
+      {/* Soft light bloom behind the copy */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-32 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#FF3D6E]/20 blur-3xl"
+      />
+
+      <Container className="relative">
+        <div className="grid items-center gap-10 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
+          {/* Copy */}
+          <div className="max-w-xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 backdrop-blur">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF3D6E]" />
+              New season, now live
+            </span>
+
+            <h1 className="mt-6 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+              Everyday essentials,
               <br />
-              <span className="font-light italic">Celebrations</span>
+              <span className="font-light italic text-white/70">
+                thoughtfully made.
+              </span>
             </h1>
-            <div className="mb-6 flex items-center justify-center gap-4 md:justify-start">
-              <div className="text-center">
-                <div className="text-7xl font-bold md:text-9xl">25</div>
-                <div className="text-xl font-semibold md:text-2xl">%OFF</div>
-              </div>
-              <div className="text-6xl font-bold md:text-8xl">|</div>
-              <div className="text-center">
-                <div className="text-7xl font-bold md:text-9xl">50</div>
-                <div className="text-xl font-semibold md:text-2xl">%OFF</div>
-              </div>
-            </div>
-            <p className="mb-8 text-lg md:text-xl">
-              STARTING FROM 14th MAY TILL EID
+
+            <p className="mt-6 max-w-md text-base leading-7 text-white/60">
+              Clothing and accessories for men, women and kids — considered
+              fabrics, honest prices, and pieces built to stay in rotation.
             </p>
-            <Button
-              size="lg"
-              asChild
-              className="bg-white text-red-700 hover:bg-gray-100"
-            >
-              <Link href="/sale">SHOP NOW</Link>
-            </Button>
+
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Button
+                asChild
+                size="lg"
+                className="group h-12 rounded-full bg-white px-7 text-neutral-950 hover:bg-white/90"
+              >
+                <Link href="/products">
+                  Shop the collection
+                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </Button>
+
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="h-12 rounded-full border-white/25 bg-transparent px-7 text-white hover:bg-white/10 hover:text-white"
+              >
+                <Link href="/sale">View offers</Link>
+              </Button>
+            </div>
+
+            {/* Trust strip */}
+            <dl className="mt-12 grid max-w-lg grid-cols-3 gap-6 border-t border-white/10 pt-7">
+              {highlights.map((item) => (
+                <div key={item.label}>
+                  <dt className="text-lg font-semibold tracking-tight">
+                    {item.value}
+                  </dt>
+                  <dd className="mt-1 text-xs leading-5 text-white/50">
+                    {item.label}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
-          <div className="flex items-center justify-center p-8">
-            <img
-              src="/public/assets/kids.webp"
-              alt="Grand Festive Sale"
-              className="max-h-[400px] w-auto"
-            />
+
+          {/* Image */}
+          <div className="relative">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-white/5 sm:aspect-[5/4] lg:aspect-[4/5]">
+              <Image
+                src={HERO_IMAGE}
+                alt="Lamees new season collection"
+                fill
+                priority
+                sizes="(min-width: 1024px) 45vw, 100vw"
+                className="object-cover"
+              />
+
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-gradient-to-t from-neutral-950/60 via-transparent to-transparent"
+              />
+            </div>
+
+            {/* Floating price card */}
+            <div className="absolute -bottom-5 left-5 rounded-xl border border-white/10 bg-neutral-900/90 px-5 py-3.5 shadow-xl backdrop-blur sm:left-8">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                Starting from
+              </p>
+              <p className="mt-1 text-xl font-semibold tracking-tight">
+                Rs. 1,290
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Container>
+    </section>
   );
 }

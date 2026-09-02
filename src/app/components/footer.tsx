@@ -1,3 +1,9 @@
+import {
+  mailtoHref,
+  STORE_EMAIL,
+  STORE_PHONE,
+  telHref,
+} from "@/src/app/lib/store-contact";
 import { Button } from "@/src/app/components/ui/button";
 import {
   ArrowUpRight,
@@ -204,10 +210,10 @@ export default function Footer() {
                     Call us
                   </p>
                   <a
-                    href="tel:+923001234567"
+                    href={telHref}
                     className="mt-1 block text-sm transition-colors hover:text-muted-foreground"
                   >
-                    +92 300 123 4567
+                    {STORE_PHONE}
                   </a>
                 </div>
               </li>
@@ -222,10 +228,10 @@ export default function Footer() {
                     Email us
                   </p>
                   <a
-                    href="mailto:info@lamees.com.pk"
+                    href={mailtoHref}
                     className="mt-1 block text-sm transition-colors hover:text-muted-foreground"
                   >
-                    info@lamees.com.pk
+                    {STORE_EMAIL}
                   </a>
                 </div>
               </li>

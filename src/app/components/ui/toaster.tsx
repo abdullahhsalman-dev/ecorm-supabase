@@ -1,6 +1,12 @@
 "use client";
 
-import { useToast } from "@/src/app/hooks/use-toast";
+/*
+ * use-toast keeps its queue in module scope, so the renderer has to import
+ * the exact module the callers dispatch into. A second copy lived under
+ * src/app/hooks and this file was the only thing reading it - every toast in
+ * the app went into the other copy's queue and was never displayed.
+ */
+import { useToast } from "@/hooks/use-toast";
 import {
   Toast,
   ToastClose,

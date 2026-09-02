@@ -1,100 +1,168 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Slider } from "@/src/app/components/ui/slider";
-import { Checkbox } from "@/src/app/components/ui/checkbox";
-import { Button } from "@/src/app/components/ui/button";
-import { Input } from "@/src/app/components/ui/input";
-import { Label } from "@/src/app/components/ui/label";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/src/app/components/ui/accordion";
+import { Button } from "@/src/app/components/ui/button";
+import { Checkbox } from "@/src/app/components/ui/checkbox";
+import { Input } from "@/src/app/components/ui/input";
+import { Label } from "@/src/app/components/ui/label";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { Slider } from "@/src/app/components/ui/slider";
+import {
+  fetchVariantOptions,
+  type VariantGroup,
+} from "@/src/app/lib/products";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 interface ProductFiltersProps {
+  /* Accepted for call-site compatibility; not used to scope options yet. */
   categoryId?: string;
 }
+
+const MIN_PRICE = 0;
+const MAX_PRICE = 10000;
+
+/* Values are carried in the URL as ?variants=m,black */
+const VARIANTS_PARAM = "variants";
+
+const CSS_COLORS = new Set([
+  "black",
+  "white",
+  "red",
+  "blue",
+  "green",
+  "yellow",
+  "navy",
+  "grey",
+  "gray",
+  "brown",
+  "beige",
+  "pink",
+  "purple",
+  "orange",
+  "maroon",
+  "teal",
+]);
 
 export function ProductFilters({}: ProductFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Price range
-  const [priceRange, setPriceRange] = useState([
-    Number.parseInt(searchParams.get("minPrice") || "0"),
-    Number.parseInt(searchParams.get("maxPrice") || "10000"),
+  const [priceRange, setPriceRange] = useState<number[]>([
+    Number.parseInt(searchParams.get("minPrice") || String(MIN_PRICE), 10),
+    Number.parseInt(searchParams.get("maxPrice") || String(MAX_PRICE), 10),
   ]);
 
-  // Size filters
-  const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
-  const [selectedSizes, setSelectedSizes] = useState<string[]>(
-    searchParams.get("sizes")?.split(",") || []
+  const [variantGroups, setVariantGroups] = useState<VariantGroup[]>([]);
+  const [loadingVariants, setLoadingVariants] = useState(true);
+
+  const [selectedValues, setSelectedValues] = useState<string[]>(
+    searchParams.get(VARIANTS_PARAM)?.split(",").filter(Boolean) ?? [],
   );
 
-  // Color filters
-  const colors = [
-    { name: "Black", value: "black" },
-    { name: "White", value: "white" },
-    { name: "Red", value: "red" },
-    { name: "Blue", value: "blue" },
-    { name: "Green", value: "green" },
-    { name: "Yellow", value: "yellow" },
-  ];
-  const [selectedColors, setSelectedColors] = useState<string[]>(
-    searchParams.get("colors")?.split(",") || []
-  );
+  /*
+   * The available options come from product_variants, so the
+   * filter can only offer sizes and colours that exist.
+   */
+  useEffect(() => {
+    let active = true;
 
-  const handleSizeChange = (size: string) => {
-    setSelectedSizes((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
+    async function loadVariantOptions() {
+      try {
+        const groups = await fetchVariantOptions();
+
+        if (!active) {
+          return;
+        }
+
+        setVariantGroups(groups);
+      } catch (error) {
+        console.error("Could not load filter options:", error);
+
+        if (active) {
+          setVariantGroups([]);
+        }
+      } finally {
+        if (active) {
+          setLoadingVariants(false);
+        }
+      }
+    }
+
+    void loadVariantOptions();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const toggleValue = (value: string) => {
+    setSelectedValues((current) =>
+      current.includes(value)
+        ? current.filter((entry) => entry !== value)
+        : [...current, value],
     );
   };
 
-  const handleColorChange = (color: string) => {
-    setSelectedColors((prev) =>
-      prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]
-    );
-  };
+  const accordionSections = useMemo(
+    () => ["price", ...variantGroups.map((group) => group.name)],
+    [variantGroups],
+  );
 
   const applyFilters = () => {
     const params = new URLSearchParams(searchParams.toString());
 
-    // Update price range
-    params.set("minPrice", priceRange[0].toString());
-    params.set("maxPrice", priceRange[1].toString());
-
-    // Update sizes
-    if (selectedSizes.length > 0) {
-      params.set("sizes", selectedSizes.join(","));
+    if (priceRange[0] > MIN_PRICE) {
+      params.set("minPrice", String(priceRange[0]));
     } else {
-      params.delete("sizes");
+      params.delete("minPrice");
     }
 
-    // Update colors
-    if (selectedColors.length > 0) {
-      params.set("colors", selectedColors.join(","));
+    if (priceRange[1] < MAX_PRICE) {
+      params.set("maxPrice", String(priceRange[1]));
     } else {
-      params.delete("colors");
+      params.delete("maxPrice");
     }
 
-    router.push(`${pathname}?${params.toString()}`);
+    if (selectedValues.length > 0) {
+      params.set(VARIANTS_PARAM, selectedValues.join(","));
+    } else {
+      params.delete(VARIANTS_PARAM);
+    }
+
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
   };
 
   const resetFilters = () => {
-    setPriceRange([0, 10000]);
-    setSelectedSizes([]);
-    setSelectedColors([]);
+    setPriceRange([MIN_PRICE, MAX_PRICE]);
+    setSelectedValues([]);
     router.push(pathname);
+  };
+
+  /* Keep the two number inputs inside the slider bounds. */
+  const setBound = (index: 0 | 1, raw: string) => {
+    const parsed = Number.parseInt(raw, 10);
+    const value = Number.isFinite(parsed) ? parsed : index === 0 ? MIN_PRICE : MAX_PRICE;
+
+    setPriceRange((current) =>
+      index === 0
+        ? [Math.min(Math.max(value, MIN_PRICE), current[1]), current[1]]
+        : [current[0], Math.max(Math.min(value, MAX_PRICE), current[0])],
+    );
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Filters</h3>
+
         <Button variant="ghost" size="sm" onClick={resetFilters}>
           Reset
         </Button>
@@ -102,48 +170,44 @@ export function ProductFilters({}: ProductFiltersProps) {
 
       <Accordion
         type="multiple"
-        defaultValue={["price", "size", "color"]}
+        defaultValue={accordionSections}
         className="w-full"
       >
         <AccordionItem value="price">
           <AccordionTrigger>Price Range</AccordionTrigger>
+
           <AccordionContent>
             <div className="space-y-4">
               <Slider
                 value={priceRange}
-                min={0}
-                max={10000}
+                min={MIN_PRICE}
+                max={MAX_PRICE}
                 step={100}
                 onValueChange={setPriceRange}
               />
-              <div className="flex items-center justify-between">
-                <div className="w-20">
+
+              <div className="flex items-center justify-between gap-2">
+                <div className="w-24">
                   <Input
                     type="number"
+                    aria-label="Minimum price"
                     value={priceRange[0]}
-                    onChange={(e) =>
-                      setPriceRange([
-                        Number.parseInt(e.target.value),
-                        priceRange[1],
-                      ])
-                    }
-                    min={0}
+                    onChange={(e) => setBound(0, e.target.value)}
+                    min={MIN_PRICE}
                     max={priceRange[1]}
                   />
                 </div>
-                <span>to</span>
-                <div className="w-20">
+
+                <span className="text-sm text-muted-foreground">to</span>
+
+                <div className="w-24">
                   <Input
                     type="number"
+                    aria-label="Maximum price"
                     value={priceRange[1]}
-                    onChange={(e) =>
-                      setPriceRange([
-                        priceRange[0],
-                        Number.parseInt(e.target.value),
-                      ])
-                    }
+                    onChange={(e) => setBound(1, e.target.value)}
                     min={priceRange[0]}
-                    max={10000}
+                    max={MAX_PRICE}
                   />
                 </div>
               </div>
@@ -151,53 +215,66 @@ export function ProductFilters({}: ProductFiltersProps) {
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="size">
-          <AccordionTrigger>Size</AccordionTrigger>
-          <AccordionContent>
-            <div className="grid grid-cols-2 gap-2">
-              {sizes.map((size) => (
-                <div key={size} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`size-${size}`}
-                    checked={selectedSizes.includes(size)}
-                    onCheckedChange={() => handleSizeChange(size)}
-                  />
-                  <Label htmlFor={`size-${size}`} className="cursor-pointer">
-                    {size}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+        {loadingVariants ? (
+          <div className="space-y-3 py-4">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        ) : (
+          variantGroups.map((group) => (
+            <AccordionItem key={group.name} value={group.name}>
+              <AccordionTrigger>{group.name}</AccordionTrigger>
 
-        <AccordionItem value="color">
-          <AccordionTrigger>Color</AccordionTrigger>
-          <AccordionContent>
-            <div className="grid grid-cols-2 gap-2">
-              {colors.map((color) => (
-                <div key={color.value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`color-${color.value}`}
-                    checked={selectedColors.includes(color.value)}
-                    onCheckedChange={() => handleColorChange(color.value)}
-                  />
-                  <Label
-                    htmlFor={`color-${color.value}`}
-                    className="flex cursor-pointer items-center"
-                  >
-                    <span
-                      className="mr-2 inline-block h-4 w-4 rounded-full border"
-                      style={{ backgroundColor: color.value }}
-                    ></span>
-                    {color.name}
-                  </Label>
+              <AccordionContent>
+                <div className="grid grid-cols-2 gap-2">
+                  {group.values.map((variant) => {
+                    const swatch = CSS_COLORS.has(variant.value.toLowerCase())
+                      ? variant.value.toLowerCase()
+                      : null;
+
+                    const inputId = `filter-${group.name}-${variant.value}`;
+
+                    return (
+                      <div
+                        key={inputId}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={inputId}
+                          checked={selectedValues.includes(variant.value)}
+                          onCheckedChange={() => toggleValue(variant.value)}
+                        />
+
+                        <Label
+                          htmlFor={inputId}
+                          className="flex cursor-pointer items-center"
+                        >
+                          {swatch && (
+                            <span
+                              aria-hidden="true"
+                              className="mr-2 inline-block h-4 w-4 rounded-full border"
+                              style={{ backgroundColor: swatch }}
+                            />
+                          )}
+                          {variant.value}
+                        </Label>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+              </AccordionContent>
+            </AccordionItem>
+          ))
+        )}
       </Accordion>
+
+      {!loadingVariants && variantGroups.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          No product options are defined yet, so only the price filter is
+          available.
+        </p>
+      )}
 
       <Button onClick={applyFilters} className="w-full">
         Apply Filters

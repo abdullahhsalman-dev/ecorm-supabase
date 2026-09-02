@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const saleCategories = [
@@ -41,10 +42,12 @@ export function SaleCategories() {
           className="group overflow-hidden rounded-lg"
         >
           <div className="relative aspect-square overflow-hidden">
-            <img
-              src={category.image || undefined}
+            <Image
+              src={category.image || "/placeholder.svg"}
               alt={category.name}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              fill
+              sizes="(min-width: 768px) 25vw, 50vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-black bg-opacity-40 transition-opacity group-hover:bg-opacity-30"></div>
             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-white">

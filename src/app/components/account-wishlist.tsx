@@ -1,115 +1,53 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Trash2 } from "lucide-react";
+import { AlertCircle, Heart, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/src/app/components/ui/button";
-import { createClient } from "@/src/app/lib/supabase/client";
+import { EmptyState } from "@/src/app/components/ui/empty-state";
+import { useAsyncData } from "@/src/app/lib/use-async-data";
+import {
+  fetchWishlistItems,
+  removeWishlistItem,
+  type WishlistItem,
+  type WishlistProduct,
+} from "@/src/app/lib/wishlist";
 import { useAuth } from "@/src/app/context/auth-context";
 import { useCart } from "@/src/app/components/cart-provider";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/src/app/lib/utils";
-import { getDummyWishlistItems } from "@/src/app/lib/dummy-data";
+import { formatCurrency, safeImageSrc } from "@/src/app/lib/utils";
 
-interface ProductImage {
-  image_url: string;
-  is_primary: boolean;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  price: number;
-  sale_price?: number | null;
-  product_images: ProductImage[];
-}
-
-interface WishlistItem {
-  id: string;
-  product_id: string;
-  products: Product;
-}
+const NO_ITEMS: WishlistItem[] = [];
 
 export function AccountWishlist() {
   const { user } = useAuth();
   const { addItem } = useCart();
   const { toast } = useToast();
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchWishlist() {
-      if (!user) {
-        setWishlistItems(getDummyWishlistItems());
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const supabase = createClient();
-        const { data: wishlist, error: wishlistError } = await supabase
-          .from("wishlists")
-          .select("id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (wishlistError && wishlistError.code !== "PGRST116") {
-          console.error("Error fetching wishlist:", wishlistError);
-          setWishlistItems(getDummyWishlistItems());
-          setLoading(false);
-          return;
-        }
-
-        if (!wishlist) {
-          setWishlistItems(getDummyWishlistItems());
-          setLoading(false);
-          return;
-        }
-
-        const { data: items, error: itemsError } = await supabase
-          .from("wishlist_items")
-          .select(
-            `
-            id,
-            product_id,
-            products:product_id (
-              id,
-              name,
-              slug,
-              price,
-              sale_price,
-              product_images (
-                image_url,
-                is_primary
-              )
-            )
-          `
-          )
-          .eq("wishlist_id", wishlist.id);
-
-        if (itemsError) {
-          console.error("Error fetching wishlist items:", itemsError);
-          setWishlistItems(getDummyWishlistItems());
-          setLoading(false);
-          return;
-        }
-
-        if (items && items.length > 0) {
-          setWishlistItems(items as WishlistItem[]);
-        } else {
-          setWishlistItems(getDummyWishlistItems());
-        }
-      } catch (error) {
-        console.error("Error in fetchWishlist:", error);
-        setWishlistItems(getDummyWishlistItems());
-      } finally {
-        setLoading(false);
-      }
+  const fetchItems = useCallback(async (): Promise<WishlistItem[]> => {
+    if (!user) {
+      return NO_ITEMS;
     }
 
-    fetchWishlist();
+    return fetchWishlistItems(user.id);
   }, [user]);
+
+  const onError = useCallback((error: unknown) => {
+    console.error("Error fetching wishlist:", error);
+  }, []);
+
+  const {
+    data: wishlistItems,
+    loading,
+    error,
+    reload,
+    setData: setWishlistItems,
+  } = useAsyncData(fetchItems, {
+    fallback: NO_ITEMS,
+    enabled: Boolean(user),
+    onError,
+  });
 
   const handleRemoveFromWishlist = async (
     itemId: string,
@@ -122,25 +60,28 @@ export function AccountWishlist() {
       description: `${productName} has been removed from your wishlist.`,
     });
 
-    if (user) {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("wishlist_items")
-        .delete()
-        .eq("id", itemId);
+    if (!user) {
+      return;
+    }
 
-      if (error) {
-        console.error("Error removing item from wishlist:", error);
-        toast({
-          title: "Error",
-          description: "Failed to remove item from wishlist.",
-          variant: "destructive",
-        });
-      }
+    try {
+      await removeWishlistItem(itemId);
+    } catch (error: unknown) {
+      console.error("Error removing item from wishlist:", error);
+
+      /* Put the row back, since the optimistic removal was wrong. */
+      reload();
+
+      toast({
+        title: "Couldn't remove that item",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: WishlistProduct) => {
     const primaryImage =
       product.product_images.find((img) => img.is_primary)?.image_url ||
       product.product_images[0]?.image_url ||
@@ -148,6 +89,8 @@ export function AccountWishlist() {
 
     addItem({
       id: product.id,
+      productId: product.id,
+      variantIds: [],
       name: product.name,
       price: product.sale_price || product.price,
       image: primaryImage,
@@ -179,6 +122,37 @@ export function AccountWishlist() {
     );
   }
 
+  /* A failed load is not an empty wishlist, and must not read like one. */
+  if (error) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Couldn't load your wishlist"
+        description="Something went wrong reaching the store. Nothing has been lost — try again in a moment."
+        action={
+          <Button variant="outline" onClick={reload}>
+            Try again
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (wishlistItems.length === 0) {
+    return (
+      <EmptyState
+        icon={Heart}
+        title="Your wishlist is empty"
+        description="Save products you like and they'll be waiting for you here."
+        action={
+          <Button asChild>
+            <Link href="/products">Browse products</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Your Wishlist</h3>
@@ -198,10 +172,12 @@ export function AccountWishlist() {
             >
               <div className="relative aspect-square overflow-hidden">
                 <Link href={`/products/${product.slug}`}>
-                  <img
-                    src={primaryImage}
+                  <Image
+                    src={safeImageSrc(primaryImage)}
                     alt={product.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    fill
+                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 </Link>
                 {product.sale_price && (

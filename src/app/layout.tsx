@@ -21,14 +21,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log("RootLayout rendering with AuthProvider"); // Debug log
   return (
     <html lang="en">
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
-          enableSystem
           disableTransitionOnChange
         >
           <AuthProvider>

@@ -377,6 +377,7 @@ export type Database = {
           password_hash: string
           phone: string | null
           updated_at: string | null
+          user_type: string
         }
         Insert: {
           created_at?: string | null
@@ -386,6 +387,7 @@ export type Database = {
           password_hash: string
           phone?: string | null
           updated_at?: string | null
+          user_type?: string
         }
         Update: {
           created_at?: string | null
@@ -395,6 +397,7 @@ export type Database = {
           password_hash?: string
           phone?: string | null
           updated_at?: string | null
+          user_type?: string
         }
         Relationships: []
       }

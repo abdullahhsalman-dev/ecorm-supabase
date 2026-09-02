@@ -10,11 +10,19 @@ import {
   ShieldCheck,
   Truck,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/src/app/components/cart-provider";
+import { useAuth } from "@/src/app/context/auth-context";
+import { useAsyncData } from "@/src/app/lib/use-async-data";
+import {
+  addToWishlist,
+  fetchWishlistProductIds,
+  removeFromWishlist,
+} from "@/src/app/lib/wishlist";
 import { Button } from "@/src/app/components/ui/button";
 import { Label } from "@/src/app/components/ui/label";
 import {
@@ -27,73 +35,180 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/src/app/components/ui/tabs";
-import { formatCurrency } from "@/src/app/lib/utils";
-
-interface ProductImage {
-  image_url?: string | null;
-}
-
-interface ProductCategory {
-  slug?: string | null;
-  name?: string | null;
-}
-
-interface Product {
-  id: string | number;
-  name?: string | null;
-  description?: string | null;
-  price?: number | null;
-  sale_price?: number | null;
-  product_images?: ProductImage[] | null;
-  categories?: ProductCategory | null;
-}
+import {
+  getDiscountPercent,
+  getEffectivePrice,
+  groupVariants,
+  hasDiscount,
+  type ProductVariant,
+  type StorefrontProduct,
+} from "@/src/app/lib/products";
+import { formatCurrency, safeImageSrc } from "@/src/app/lib/utils";
 
 interface ProductDetailsProps {
-  product: Product;
+  product: StorefrontProduct;
 }
-
-const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
-
-const COLORS = [
-  { name: "Black", value: "black", className: "bg-black" },
-  { name: "White", value: "white", className: "bg-white" },
-  { name: "Navy", value: "navy", className: "bg-[#172554]" },
-  { name: "Red", value: "red", className: "bg-red-600" },
-];
 
 const FALLBACK_IMAGE = "/placeholder.svg";
 
+/*
+ * Colour swatches are only drawn when the variant value names
+ * a colour CSS understands; anything else renders as a plain
+ * option chip.
+ */
+const CSS_COLORS = new Set([
+  "black",
+  "white",
+  "red",
+  "blue",
+  "green",
+  "yellow",
+  "navy",
+  "grey",
+  "gray",
+  "brown",
+  "beige",
+  "pink",
+  "purple",
+  "orange",
+  "maroon",
+  "teal",
+]);
+
 export function ProductDetails({ product }: ProductDetailsProps) {
-  const [selectedSize, setSelectedSize] = useState("");
-  const [selectedColor, setSelectedColor] = useState("");
+  /* One selected variant id per group name, e.g. { Size: "uuid" }. */
+  const [selectedVariants, setSelectedVariants] = useState<
+    Record<string, string>
+  >({});
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [brokenImages, setBrokenImages] = useState<string[]>([]);
+  const [savingFavorite, setSavingFavorite] = useState(false);
 
   const { addItem } = useCart();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  /*
+   * The heart used to be local state, so it forgot itself the
+   * moment you navigated away. It now reflects wishlist_items.
+   */
+  const loadFavorite = useCallback(async () => {
+    if (!user) {
+      return false;
+    }
+
+    return (await fetchWishlistProductIds(user.id)).has(product.id);
+  }, [user, product.id]);
+
+  const onFavoriteError = useCallback((error: unknown) => {
+    console.error("Could not read wishlist:", error);
+  }, []);
+
+  const { data: isFavorite, setData: setIsFavorite } = useAsyncData(
+    loadFavorite,
+    { fallback: false, enabled: Boolean(user), onError: onFavoriteError },
+  );
+
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in to save items",
+        description: "Your wishlist is kept with your account.",
+      });
+      return;
+    }
+
+    if (savingFavorite) {
+      return;
+    }
+
+    const next = !isFavorite;
+
+    /* Optimistic: the heart fills instantly, and reverts if the write fails. */
+    setIsFavorite(next);
+    setSavingFavorite(true);
+
+    try {
+      if (next) {
+        await addToWishlist(user.id, product.id);
+      } else {
+        await removeFromWishlist(user.id, product.id);
+      }
+
+      toast({
+        title: next ? "Saved to wishlist" : "Removed from wishlist",
+        description: `${product.name} ${next ? "is in" : "is no longer in"} your wishlist.`,
+      });
+    } catch (error: unknown) {
+      console.error("Could not update wishlist:", error);
+
+      setIsFavorite(!next);
+
+      toast({
+        title: "Couldn't update your wishlist",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingFavorite(false);
+    }
+  };
 
   const productImages = useMemo(() => {
-    const images =
-      product.product_images
-        ?.map((image) => image?.image_url?.trim())
-        .filter((image): image is string => Boolean(image)) ?? [];
+    const images = product.product_images
+      .map((image) => image.image_url?.trim())
+      .filter((image): image is string => Boolean(image));
 
     return images.length > 0 ? images : [FALLBACK_IMAGE];
   }, [product.product_images]);
 
-  const basePrice = Number(product.price ?? 0);
-  const salePrice =
-    product.sale_price != null ? Number(product.sale_price) : null;
-  const currentPrice =
-    salePrice != null && salePrice > 0 && salePrice < basePrice
-      ? salePrice
-      : basePrice;
+  /*
+   * Pickers come from product_variants, so a product only
+   * shows the options it actually has.
+   */
+  const variantGroups = useMemo(
+    () => groupVariants(product.product_variants),
+    [product.product_variants],
+  );
 
-  const discountPercentage =
-    salePrice != null && basePrice > 0 && salePrice < basePrice
-      ? Math.round(((basePrice - salePrice) / basePrice) * 100)
-      : 0;
+  const chosenVariants = useMemo<ProductVariant[]>(
+    () =>
+      variantGroups
+        .map((group) =>
+          group.values.find(
+            (variant) => variant.id === selectedVariants[group.name],
+          ),
+        )
+        .filter((variant): variant is ProductVariant => Boolean(variant)),
+    [variantGroups, selectedVariants],
+  );
+
+  const basePrice = product.price;
+
+  /* Each selected variant can nudge the price. */
+  const priceAdjustment = chosenVariants.reduce(
+    (total, variant) => total + variant.price_adjustment,
+    0,
+  );
+
+  const currentPrice = getEffectivePrice(product) + priceAdjustment;
+  const listPrice = basePrice + priceAdjustment;
+  const discountPercentage = getDiscountPercent(product);
+
+  /*
+   * Stock is the tightest of the selected variants, falling
+   * back to the product-level quantity.
+   */
+  const availableStock =
+    chosenVariants.length > 0
+      ? Math.min(...chosenVariants.map((variant) => variant.stock_quantity))
+      : product.stock_quantity;
+
+  const allGroupsChosen = variantGroups.every((group) =>
+    Boolean(selectedVariants[group.name]),
+  );
 
   const categoryName = product.categories?.name;
   const categorySlug = product.categories?.slug;
@@ -113,34 +228,58 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   };
 
   const handleAddToCart = () => {
-    if (!selectedSize || !selectedColor) {
+    if (!allGroupsChosen) {
+      const missing = variantGroups
+        .filter((group) => !selectedVariants[group.name])
+        .map((group) => group.name.toLowerCase());
+
       showToast(
         "Select your options",
-        "Choose a size and color before adding this product to your cart.",
+        `Choose a ${missing.join(" and ")} before adding this product to your cart.`,
         "destructive",
       );
       return;
     }
 
+    if (availableStock <= 0) {
+      showToast(
+        "Out of stock",
+        "This combination is not available right now.",
+        "destructive",
+      );
+      return;
+    }
+
+    /*
+     * The cart keys on id, so the chosen variants are part of
+     * it - otherwise two sizes would collapse into one line.
+     */
+    const variantSuffix = chosenVariants
+      .map((variant) => variant.id)
+      .join("-");
+
+    const variantLabel = chosenVariants
+      .map((variant) => `${variant.name}: ${variant.value}`)
+      .join(", ");
+
     addItem({
-      id: `${product.id}-${selectedSize}-${selectedColor}`,
-      name: product.name || "Product",
+      id: variantSuffix ? `${product.id}-${variantSuffix}` : product.id,
+      productId: product.id,
+      variantIds: chosenVariants.map((variant) => variant.id),
+      name: variantLabel ? `${product.name} (${variantLabel})` : product.name,
       price: currentPrice,
       image: productImages[0] || FALLBACK_IMAGE,
       quantity,
     });
 
-    showToast(
-      "Added to cart",
-      `${product.name || "Product"} has been added to your cart.`,
-    );
+    showToast("Added to cart", `${product.name} has been added to your cart.`);
   };
 
   const handleShare = async () => {
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({
-          title: product.name || "Product",
+          title: product.name,
           text: product.description || "Check out this product.",
           url: window.location.href,
         });
@@ -168,9 +307,18 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     }
   };
 
-  const handleImageError = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    if (event.currentTarget.src.endsWith(FALLBACK_IMAGE)) return;
-    event.currentTarget.src = FALLBACK_IMAGE;
+  /*
+   * next/image rewrites src through the optimizer and re-renders on state
+   * changes, so a broken shot is remembered here rather than patched onto
+   * the DOM node.
+   */
+  const resolveImage = (src: string) =>
+    brokenImages.includes(src) ? FALLBACK_IMAGE : safeImageSrc(src, FALLBACK_IMAGE);
+
+  const handleImageError = (src: string) => {
+    setBrokenImages((current) =>
+      current.includes(src) ? current : [...current, src],
+    );
   };
 
   const goToPreviousImage = () => {
@@ -189,11 +337,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         {/* Gallery */}
         <div className="lg:sticky lg:top-6">
           <div className="group relative aspect-square overflow-hidden rounded-3xl border bg-muted/30 shadow-sm">
-            <img
-              src={productImages[activeImage] || FALLBACK_IMAGE}
-              alt={product.name || "Product"}
-              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
-              onError={handleImageError}
+            <Image
+              src={resolveImage(productImages[activeImage] || FALLBACK_IMAGE)}
+              alt={product.name}
+              fill
+              priority
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
+              onError={() =>
+                handleImageError(productImages[activeImage] || FALLBACK_IMAGE)
+              }
             />
 
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
@@ -245,11 +398,13 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                       : "border-transparent opacity-70 hover:border-border hover:opacity-100"
                   }`}
                 >
-                  <img
-                    src={image || FALLBACK_IMAGE}
+                  <Image
+                    src={resolveImage(image || FALLBACK_IMAGE)}
                     alt=""
-                    className="h-full w-full object-cover"
-                    onError={handleImageError}
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                    onError={() => handleImageError(image || FALLBACK_IMAGE)}
                   />
                 </button>
               ))}
@@ -276,7 +431,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            {product.name || "Untitled product"}
+            {product.name}
           </h1>
 
           <div className="mt-5 flex flex-wrap items-end gap-x-3 gap-y-1">
@@ -284,10 +439,10 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               {formatCurrency(currentPrice)}
             </span>
 
-            {discountPercentage > 0 && (
+            {hasDiscount(product) && (
               <>
                 <span className="mb-0.5 text-base text-muted-foreground line-through">
-                  {formatCurrency(basePrice)}
+                  {formatCurrency(listPrice)}
                 </span>
                 <span className="mb-0.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                   {discountPercentage}% off
@@ -304,80 +459,74 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
           <div className="my-7 h-px bg-border" />
 
-          {/* Size */}
-          <div className="mb-7">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Size</h2>
-              <span className="text-xs text-muted-foreground">
-                {selectedSize ? `Selected: ${selectedSize}` : "Choose a size"}
-              </span>
-            </div>
+          {/* Variant pickers, one per product_variants group */}
+          {variantGroups.map((group) => {
+            const selectedId = selectedVariants[group.name];
+            const selected = group.values.find(
+              (variant) => variant.id === selectedId,
+            );
 
-            <RadioGroup
-              value={selectedSize}
-              onValueChange={setSelectedSize}
-              className="flex flex-wrap gap-2"
-              aria-label="Select size"
-            >
-              {SIZES.map((size) => (
-                <div key={size}>
-                  <RadioGroupItem
-                    value={size}
-                    id={`size-${product.id}-${size}`}
-                    className="peer sr-only"
-                  />
-                  <Label
-                    htmlFor={`size-${product.id}-${size}`}
-                    className="flex h-11 min-w-12 cursor-pointer items-center justify-center rounded-xl border px-4 text-sm font-medium transition-all hover:border-foreground/50 peer-data-[state=checked]:border-foreground peer-data-[state=checked]:bg-foreground peer-data-[state=checked]:text-background"
-                  >
-                    {size}
-                  </Label>
+            return (
+              <div key={group.name} className="mb-7">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">{group.name}</h2>
+                  <span className="text-xs text-muted-foreground">
+                    {selected
+                      ? `Selected: ${selected.value}`
+                      : `Choose a ${group.name.toLowerCase()}`}
+                  </span>
                 </div>
-              ))}
-            </RadioGroup>
-          </div>
 
-          {/* Color */}
-          <div className="mb-7">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Color</h2>
-              <span className="text-xs text-muted-foreground">
-                {selectedColor
-                  ? `Selected: ${
-                      COLORS.find((color) => color.value === selectedColor)
-                        ?.name
-                    }`
-                  : "Choose a color"}
-              </span>
-            </div>
+                <RadioGroup
+                  value={selectedId ?? ""}
+                  onValueChange={(value) =>
+                    setSelectedVariants((current) => ({
+                      ...current,
+                      [group.name]: value,
+                    }))
+                  }
+                  className="flex flex-wrap gap-2"
+                  aria-label={`Select ${group.name.toLowerCase()}`}
+                >
+                  {group.values.map((variant) => {
+                    const soldOut = variant.stock_quantity <= 0;
+                    const swatch = CSS_COLORS.has(variant.value.toLowerCase())
+                      ? variant.value.toLowerCase()
+                      : null;
 
-            <RadioGroup
-              value={selectedColor}
-              onValueChange={setSelectedColor}
-              className="flex flex-wrap gap-3"
-              aria-label="Select color"
-            >
-              {COLORS.map((color) => (
-                <div key={color.value}>
-                  <RadioGroupItem
-                    value={color.value}
-                    id={`color-${product.id}-${color.value}`}
-                    className="peer sr-only"
-                  />
-                  <Label
-                    htmlFor={`color-${product.id}-${color.value}`}
-                    className="flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 text-sm transition-all hover:border-foreground/50 peer-data-[state=checked]:border-foreground peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-foreground"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`h-5 w-5 rounded-full border border-black/10 shadow-sm ${color.className}`}
-                    />
-                    <span>{color.name}</span>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
+                    return (
+                      <div key={variant.id}>
+                        <RadioGroupItem
+                          value={variant.id}
+                          id={`variant-${variant.id}`}
+                          disabled={soldOut}
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor={`variant-${variant.id}`}
+                          title={soldOut ? "Out of stock" : undefined}
+                          className={`flex h-11 min-w-12 items-center justify-center gap-2.5 rounded-xl border px-4 text-sm font-medium transition-all peer-data-[state=checked]:border-foreground peer-data-[state=checked]:bg-foreground peer-data-[state=checked]:text-background ${
+                            soldOut
+                              ? "cursor-not-allowed text-muted-foreground line-through opacity-50"
+                              : "cursor-pointer hover:border-foreground/50"
+                          }`}
+                        >
+                          {swatch && (
+                            <span
+                              aria-hidden="true"
+                              className="h-5 w-5 rounded-full border border-black/10 shadow-sm"
+                              style={{ backgroundColor: swatch }}
+                            />
+                          )}
+                          {variant.value}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+            );
+          })}
 
           {/* Quantity + actions */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row">
@@ -402,9 +551,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               <button
                 type="button"
                 onClick={() =>
-                  setQuantity((current) => Math.min(99, current + 1))
+                  setQuantity((current) =>
+                    Math.min(Math.max(availableStock, 1), current + 1),
+                  )
                 }
-                disabled={quantity >= 99}
+                disabled={quantity >= Math.max(availableStock, 1)}
                 aria-label="Increase quantity"
                 className="flex h-full w-12 items-center justify-center rounded-r-xl text-lg transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -414,16 +565,18 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
             <Button
               onClick={handleAddToCart}
-              className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5"
+              disabled={availableStock <= 0}
+              className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 disabled:translate-y-0"
             >
-              Add to cart
+              {availableStock <= 0 ? "Out of stock" : "Add to cart"}
             </Button>
 
             <Button
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => setIsFavorite((current) => !current)}
+              onClick={handleToggleFavorite}
+              disabled={savingFavorite}
               aria-label={
                 isFavorite ? "Remove from wishlist" : "Add to wishlist"
               }
@@ -450,7 +603,15 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           <p className="mb-7 text-xs text-muted-foreground">
-            Select a size and color to add this product to your cart.
+            {availableStock <= 0
+              ? "This product is currently unavailable."
+              : variantGroups.length > 0 && !allGroupsChosen
+                ? `Select a ${variantGroups
+                    .map((group) => group.name.toLowerCase())
+                    .join(" and ")} to add this product to your cart.`
+                : availableStock <= 5
+                  ? `Only ${availableStock} left in stock.`
+                  : "In stock and ready to ship."}
           </p>
 
           {/* Service highlights */}
@@ -525,18 +686,27 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             <TabsContent value="details" className="mt-5">
               <ul className="space-y-3 text-sm text-muted-foreground">
                 {[
-                  "Material: 100% Cotton",
-                  "Fit: Regular fit",
-                  "Care: Machine wash cold",
-                  "Imported",
-                ].map((detail) => (
-                  <li key={detail} className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
-                      <Check className="h-3.5 w-3.5" />
-                    </span>
-                    {detail}
-                  </li>
-                ))}
+                  categoryName ? `Category: ${categoryName}` : null,
+                  `SKU: ${product.slug}`,
+                  ...variantGroups.map(
+                    (group) =>
+                      `${group.name}: ${group.values
+                        .map((variant) => variant.value)
+                        .join(", ")}`,
+                  ),
+                  availableStock > 0
+                    ? `Availability: ${availableStock} in stock`
+                    : "Availability: Out of stock",
+                ]
+                  .filter((detail): detail is string => Boolean(detail))
+                  .map((detail) => (
+                    <li key={detail} className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                      {detail}
+                    </li>
+                  ))}
               </ul>
             </TabsContent>
 

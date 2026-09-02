@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ProductCard } from "@/src/app/components/product-card";
-import { createClient } from "@/src/app/lib/supabase/client";
-import { generateDummyProducts } from "@/src/app/lib/dummy-data";
+import { ProductSorting } from "@/src/app/components/product-sorting";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { useProductList } from "@/src/app/lib/use-product-list";
+import { PackageOpen } from "lucide-react";
 
 interface ProductGridProps {
   categorySlug?: string;
@@ -13,6 +14,10 @@ interface ProductGridProps {
   minPrice?: number;
   maxPrice?: number;
   limit?: number;
+  /* Variant values to narrow by, e.g. ["M","L"] / ["black"]. */
+  variantValues?: string[];
+  /* Renders the result count and the sort control above the grid. */
+  showToolbar?: boolean;
 }
 
 export function ProductGrid({
@@ -23,156 +28,118 @@ export function ProductGrid({
   minPrice,
   maxPrice,
   limit = 24,
+  variantValues,
+  showToolbar = false,
 }: ProductGridProps) {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { products, loading, error, reload } = useProductList({
+    categorySlug,
+    categoryId,
+    sale,
+    /* No sort prop still means the featured-first default. */
+    sort: sort ?? "featured",
+    minPrice,
+    maxPrice,
+    limit,
+    variantValues,
+  });
 
-  useEffect(() => {
-    async function fetchProducts() {
-      setLoading(true);
-      const supabase = createClient();
+  const errorMessage =
+    error === null
+      ? null
+      : error instanceof Error
+        ? error.message
+        : "Products could not be loaded.";
 
-      try {
-        let query = supabase.from("products").select(`
-            id, 
-            name, 
-            slug, 
-            price, 
-            sale_price,
-            product_images(image_url, is_primary),
-            categories:category_id(slug)
-          `);
-
-        // Apply filters
-        if (categorySlug) {
-          // For main categories (men, women, kids, etc.)
-          if (
-            [
-              "men",
-              "women",
-              "kids",
-              "footwear",
-              "fragrance",
-              "winter-wear",
-            ].includes(categorySlug)
-          ) {
-            // Filter by parent category
-            query = query.eq("categories.slug", categorySlug);
-          }
-          // For subcategories
-          else {
-            // Just filter by the subcategory slug
-            query = query.eq("categories.slug", categorySlug);
-          }
-        }
-
-        // If categoryId is provided (not undefined), use it for filtering
-        if (categoryId) {
-          query = query.eq("category_id", categoryId);
-        }
-
-        if (sale) {
-          query = query.not("sale_price", "is", null);
-        }
-
-        if (minPrice !== undefined) {
-          query = query.gte("price", minPrice);
-        }
-
-        if (maxPrice !== undefined) {
-          query = query.lte("price", maxPrice);
-        }
-
-        // Apply sorting
-        if (sort) {
-          switch (sort) {
-            case "price-asc":
-              query = query.order("price", { ascending: true });
-              break;
-            case "price-desc":
-              query = query.order("price", { ascending: false });
-              break;
-            case "newest":
-              query = query.order("created_at", { ascending: false });
-              break;
-            case "discount-desc":
-              query = query
-                .not("sale_price", "is", null)
-                .order("sale_price", { ascending: true });
-              break;
-            case "best-selling":
-              query = query.order("id", { ascending: false });
-              break;
-            case "trending":
-              query = query.order("id", { ascending: true });
-              break;
-            default:
-              query = query.order("name", { ascending: true });
-          }
-        } else {
-          query = query.order("name", { ascending: true });
-        }
-
-        const { data, error } = await query.limit(limit);
-
-        if (error) {
-          console.error("Error fetching products:", error);
-          // Use dummy data on error
-          const dummyData = generateDummyProducts(
-            categorySlug || "products",
-            limit
-          );
-          setProducts(dummyData);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          setProducts(data);
-        } else {
-          // No data found, use dummy data
-          const dummyData = generateDummyProducts(
-            categorySlug || "products",
-            limit
-          );
-          setProducts(dummyData);
-        }
-      } catch (error) {
-        console.error("Error in fetchProducts:", error);
-        // Use dummy data on error
-        const dummyData = generateDummyProducts(
-          categorySlug || "products",
-          limit
-        );
-        setProducts(dummyData);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProducts();
-  }, [categorySlug, categoryId, sale, sort, minPrice, maxPrice, limit]);
+  const gridClass =
+    "grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-3 xl:grid-cols-4";
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {Array(limit > 4 ? 4 : limit)
-          .fill(null)
-          .map((_, i) => (
-            <div key={i} className="animate-pulse rounded-lg bg-gray-200 p-4">
-              <div className="mb-4 aspect-square rounded bg-gray-300"></div>
-              <div className="mb-2 h-4 w-3/4 rounded bg-gray-300"></div>
-              <div className="h-4 w-1/2 rounded bg-gray-300"></div>
+      <div className="space-y-6">
+        {showToolbar && (
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-10 w-[220px]" />
+          </div>
+        )}
+
+        <div className={gridClass}>
+          {Array.from({ length: Math.min(limit, 8) }).map((_, index) => (
+            <div key={index} className="space-y-3">
+              <Skeleton className="aspect-[3/4] w-full rounded-xl" />
+              <Skeleton className="h-3 w-1/3" />
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-9 w-full rounded-full" />
             </div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  const toolbar = showToolbar ? (
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <p className="text-sm text-muted-foreground">
+        Showing{" "}
+        <span className="font-medium text-foreground">{products.length}</span>{" "}
+        {products.length === 1 ? "product" : "products"}
+      </p>
+
+      <ProductSorting />
+    </div>
+  ) : null;
+
+  if (errorMessage) {
+    return (
+      <div className="space-y-6">
+        {toolbar}
+
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-8 text-center">
+          <p className="text-sm font-medium text-destructive">
+            We couldn&apos;t load products right now.
+          </p>
+
+          <p className="mt-1 text-xs text-muted-foreground">{errorMessage}</p>
+
+          <button
+            type="button"
+            onClick={reload}
+            className="mt-4 text-sm font-medium underline underline-offset-4"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="space-y-6">
+        {toolbar}
+
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+          <PackageOpen className="mb-3 h-10 w-10 text-muted-foreground/50" />
+
+          <p className="text-sm font-medium">No products found.</p>
+
+          <p className="mt-1 text-xs text-muted-foreground">
+            Try widening your filters, or check back soon.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-      {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
-      ))}
+    <div className="space-y-6">
+      {toolbar}
+
+      <div className={gridClass}>
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
     </div>
   );
 }

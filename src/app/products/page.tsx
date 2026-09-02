@@ -1,75 +1,94 @@
 import { ProductFilters } from "@/src/app/components/product-filters";
 import { ProductGrid } from "@/src/app/components/product-grid";
-import { ProductSorting } from "@/src/app/components/product-sorting";
-import { Skeleton } from "@/src/app/components/ui/skeleton";
-import { Suspense } from "react";
+import { Container } from "@/src/app/components/ui/container";
+import Link from "next/link";
 
 export const metadata = {
   title: "Products | Lamees",
   description: "Browse our collection of products",
 };
 
-export default function ProductsPage({
+/* Next 15 hands route props in as promises. */
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+const readString = (
+  value: string | string[] | undefined,
+): string | undefined => (typeof value === "string" && value ? value : undefined);
+
+const readNumber = (
+  value: string | string[] | undefined,
+): number | undefined => {
+  const raw = readString(value);
+
+  if (raw === undefined) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: SearchParams;
 }) {
-  const category =
-    typeof searchParams.category === "string"
-      ? searchParams.category
-      : undefined;
-  const sort =
-    typeof searchParams.sort === "string" ? searchParams.sort : undefined;
-  const minPrice =
-    typeof searchParams.minPrice === "string"
-      ? Number.parseInt(searchParams.minPrice)
-      : undefined;
-  const maxPrice =
-    typeof searchParams.maxPrice === "string"
-      ? Number.parseInt(searchParams.maxPrice)
-      : undefined;
+  const params = await searchParams;
+
+  const category = readString(params.category);
+  const sort = readString(params.sort);
+  const minPrice = readNumber(params.minPrice);
+  const maxPrice = readNumber(params.maxPrice);
+
+  /* ?variants=m,black - matched against product_variants.value */
+  const variantValues = readString(params.variants)?.split(",").filter(Boolean);
 
   return (
-    <div className=" px-4 py-8 md:py-12">
-      <h1 className="mb-8 text-3xl font-bold">All Products</h1>
+    <Container className="py-10 lg:py-14">
+      <header className="mb-10 border-b pb-8">
+        <nav aria-label="Breadcrumb" className="mb-3">
+          <ol className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <li>
+              <Link href="/" className="transition-colors hover:text-foreground">
+                Home
+              </Link>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li className="font-medium text-foreground">Products</li>
+          </ol>
+        </nav>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-        <div className="lg:col-span-1">
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          All products
+        </h1>
+
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Browse the full catalogue. Narrow it down by price and product
+          options, or sort to find what you need faster.
+        </p>
+      </header>
+
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] lg:gap-12">
+        {/* Filters travel with the shopper on long lists. */}
+        <aside className="lg:sticky lg:top-24 lg:self-start">
           <ProductFilters />
-        </div>
-        <div className="lg:col-span-3">
-          <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <p className="text-muted-foreground">
-              Showing <span className="font-medium text-foreground">24</span> of{" "}
-              <span className="font-medium text-foreground">100</span> products
-            </p>
-            <ProductSorting />
-          </div>
+        </aside>
 
-          <Suspense
-            fallback={
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
-                {Array(9)
-                  .fill(null)
-                  .map((_, i) => (
-                    <div key={i} className="space-y-4">
-                      <Skeleton className="aspect-square w-full rounded-lg" />
-                      <Skeleton className="h-4 w-2/3" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  ))}
-              </div>
-            }
-          >
-            <ProductGrid
-              categorySlug={category}
-              sort={sort}
-              minPrice={minPrice}
-              maxPrice={maxPrice}
-            />
-          </Suspense>
+        <div className="min-w-0">
+          {/*
+            The grid owns the toolbar because only it knows how
+            many products the query actually returned.
+          */}
+          <ProductGrid
+            showToolbar
+            categorySlug={category}
+            sort={sort}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            variantValues={variantValues}
+          />
         </div>
       </div>
-    </div>
+    </Container>
   );
 }

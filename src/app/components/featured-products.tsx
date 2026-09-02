@@ -2,103 +2,79 @@
 
 import { ProductCard } from "@/src/app/components/product-card";
 import { Button } from "@/src/app/components/ui/button";
-import { generateDummyProducts } from "@/src/app/lib/dummy-data";
-import { createClient } from "@/src/app/lib/supabase/client";
+import {
+  Container,
+  Section,
+  SectionHeading,
+} from "@/src/app/components/ui/container";
+import { Skeleton } from "@/src/app/components/ui/skeleton";
+import { useProductList } from "@/src/app/lib/use-product-list";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export function FeaturedProducts() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchProducts() {
-      const supabase = createClient();
-
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select(
-            `
-            id, 
-            name, 
-            slug, 
-            price, 
-            sale_price,
-            product_images(image_url, is_primary)
-          `,
-          )
-          .eq("featured", true)
-          .limit(8);
-
-        if (error) {
-          console.error("Error fetching featured products:", error);
-          // Use dummy data on error
-          const dummyData = generateDummyProducts("featured", 8);
-          setProducts(dummyData as never);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          setProducts(data as never);
-        } else {
-          // No data found, use dummy data
-          const dummyData = generateDummyProducts("featured", 8);
-          setProducts(dummyData as never);
-        }
-      } catch (error) {
-        console.error("Error in fetchProducts:", error);
-        // Use dummy data on error
-        const dummyData = generateDummyProducts("featured", 8);
-        setProducts(dummyData as never);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProducts();
-  }, []);
+  const { products, loading } = useProductList({
+    featured: true,
+    sort: "newest",
+    limit: 8,
+    label: "featured products",
+  });
 
   if (loading) {
     return (
-      <section className="py-12">
-        <h2 className="mb-8 text-center text-3xl font-bold tracking-tight">
-          Featured Products
-        </h2>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="animate-pulse rounded-lg bg-gray-200 p-4">
-              <div className="mb-4 aspect-square rounded bg-gray-300"></div>
-              <div className="mb-2 h-4 w-3/4 rounded bg-gray-300"></div>
-              <div className="h-4 w-1/2 rounded bg-gray-300"></div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <Section className="bg-muted/30">
+        <Container>
+          <SectionHeading
+            eyebrow="Handpicked"
+            title="Featured products"
+            description="A rotating edit of pieces worth a closer look."
+          />
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="space-y-3">
+                <Skeleton className="aspect-[3/4] w-full rounded-xl" />
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-9 w-full rounded-full" />
+              </div>
+            ))}
+          </div>
+        </Container>
+      </Section>
     );
   }
 
+  /*
+   * Nothing is featured yet - hide the section rather than
+   * leaving a heading over an empty grid.
+   */
+  if (products.length === 0) {
+    return null;
+  }
+
   return (
-    <section className="py-12">
-      <div className="mb-8 flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Featured Products</h2>
-        <Link
-          href="/products"
-          className="text-sm font-medium text-primary hover:underline"
-        >
-          View all products
-        </Link>
-      </div>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {products.map((product) => (
-          <ProductCard key={product} product={product} />
-        ))}
-      </div>
-      <div className="mt-10 text-center">
-        <Button asChild variant="outline">
-          <Link href="/products">View All Products</Link>
-        </Button>
-      </div>
-    </section>
+    <Section className="bg-muted/30">
+      <Container>
+        <SectionHeading
+          eyebrow="Handpicked"
+          title="Featured products"
+          description="A rotating edit of pieces worth a closer look."
+          actionHref="/products"
+          actionLabel="View all products"
+        />
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+
+        <div className="mt-10 text-center sm:hidden">
+          <Button asChild variant="outline" className="rounded-full px-6">
+            <Link href="/products">View all products</Link>
+          </Button>
+        </div>
+      </Container>
+    </Section>
   );
 }

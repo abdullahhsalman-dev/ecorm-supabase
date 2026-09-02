@@ -1,118 +1,59 @@
-import { ProductFilters } from "@/src/app/components/product-filters";
-import { ProductGrid } from "@/src/app/components/product-grid";
-import { ProductSorting } from "@/src/app/components/product-sorting";
-import { Skeleton } from "@/src/app/components/ui/skeleton";
+import {
+  fetchCategoriesBySlugs,
+  fetchCategoryById,
+} from "@/src/app/lib/categories";
+import { childSegment, sectionHref } from "@/src/app/lib/navigation";
 import { createClient } from "@/src/app/lib/supabase/server";
-import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { notFound, permanentRedirect } from "next/navigation";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const category = await getCategory(params.slug);
+/*
+ * ---------------------------------------------------------
+ * CATEGORY URL CANONICALISER
+ * ---------------------------------------------------------
+ *
+ * Every category now has exactly one address: /men for a
+ * department, /men/t-shirts for one of its children. This
+ * route used to render a second, parallel listing at
+ * /categories/men - the same content on a different URL, which
+ * splits search ranking between them and leaves no obvious
+ * answer to "which one do I link to".
+ *
+ * It survives as a redirect so the older links keep working.
+ */
 
-  if (!category) {
-    return {
-      title: "Category Not Found | Lamees",
-      description: "The requested category could not be found.",
-    };
-  }
+type PageProps = {
+  /* Next 15 delivers route props as promises. */
+  params: Promise<{ slug: string }>;
+};
 
-  return {
-    title: `${category.name} | Lamees`,
-    description:
-      category.description ||
-      `Browse our collection of ${category.name} products.`,
-  };
-}
+export const revalidate = 300;
 
-async function getCategory(slug: string) {
-  const supabase = createClient();
+export default async function CategoryRedirect({ params }: PageProps) {
+  const { slug } = await params;
 
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("slug", slug)
-    .single();
-
-  if (error || !data) {
-    console.error("Error fetching category:", error);
-    return null;
-  }
-
-  return data;
-}
-
-export default async function CategoryPage({
-  params,
-  searchParams,
-}: {
-  params: { slug: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  const category = await getCategory(params.slug);
+  const client = createClient();
+  const [category] = await fetchCategoriesBySlugs([slug], client);
 
   if (!category) {
     notFound();
   }
 
-  const sort =
-    typeof searchParams.sort === "string" ? searchParams.sort : undefined;
-  const minPrice =
-    typeof searchParams.minPrice === "string"
-      ? Number.parseInt(searchParams.minPrice)
-      : undefined;
-  const maxPrice =
-    typeof searchParams.maxPrice === "string"
-      ? Number.parseInt(searchParams.maxPrice)
-      : undefined;
+  /* A department is addressed by its slug alone. */
+  if (!category.parent_id) {
+    permanentRedirect(sectionHref(category.slug));
+  }
 
-  return (
-    <div className=" px-4 py-8 md:py-12">
-      <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
-      {category.description && (
-        <p className="mb-8 text-muted-foreground">{category.description}</p>
-      )}
+  const parent = await fetchCategoryById(category.parent_id, client);
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-        <div className="lg:col-span-1">
-          <ProductFilters categoryId={category.id} />
-        </div>
-        <div className="lg:col-span-3">
-          <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <p className="text-muted-foreground">
-              Showing <span className="font-medium text-foreground">24</span> of{" "}
-              <span className="font-medium text-foreground">100</span> products
-            </p>
-            <ProductSorting />
-          </div>
+  /*
+   * A child whose parent has since been deleted has no route to
+   * point at, so it is genuinely gone rather than redirected.
+   */
+  if (!parent) {
+    notFound();
+  }
 
-          <Suspense
-            fallback={
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
-                {Array(9)
-                  .fill(null)
-                  .map((_, i) => (
-                    <div key={i} className="space-y-4">
-                      <Skeleton className="aspect-square w-full rounded-lg" />
-                      <Skeleton className="h-4 w-2/3" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  ))}
-              </div>
-            }
-          >
-            <ProductGrid
-              categoryId={category.id}
-              sort={sort}
-              minPrice={minPrice}
-              maxPrice={maxPrice}
-            />
-          </Suspense>
-        </div>
-      </div>
-    </div>
+  permanentRedirect(
+    `${sectionHref(parent.slug)}/${childSegment(category.slug, parent.slug)}`,
   );
 }
