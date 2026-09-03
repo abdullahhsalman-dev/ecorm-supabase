@@ -35,11 +35,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  getErrorMessage,
-  LABEL_CLASS,
-  PRIMARY_BUTTON_CLASS,
-} from "../components/admin-ui";
+import { getErrorMessage, LABEL_CLASS, PRIMARY_BUTTON_CLASS } from "../components/admin-ui";
 import {
   buildTemplateCsv,
   IMPORT_COLUMNS,
@@ -53,6 +49,7 @@ import {
   type ImportExistingProduct,
   type ImportRow,
   type ImportRowAction,
+  type ImportVariant,
   type ParsedSheet,
 } from "./import-parser";
 
@@ -122,7 +119,7 @@ export function ProductImportSheet({
 
   const plan = useMemo(
     () => (parsed ? summarisePlan(parsed.rows, duplicateMode) : null),
-    [parsed, duplicateMode],
+    [parsed, duplicateMode]
   );
 
   const writeCount = plan ? plan.create + plan.update : 0;
@@ -165,13 +162,11 @@ export function ProductImportSheet({
 
   const handleFile = useCallback(
     async (file: File): Promise<void> => {
-      const extension = file.name
-        .slice(file.name.lastIndexOf("."))
-        .toLowerCase();
+      const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
 
       if (!ACCEPTED_EXTENSIONS.includes(extension)) {
         setParseError(
-          `"${file.name}" is not a spreadsheet. Upload a ${ACCEPTED_EXTENSIONS.join(", ")} file.`,
+          `"${file.name}" is not a spreadsheet. Upload a ${ACCEPTED_EXTENSIONS.join(", ")} file.`
         );
         return;
       }
@@ -192,9 +187,7 @@ export function ProductImportSheet({
 
         const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
         const firstSheetName = workbook.SheetNames[0];
-        const sheet = firstSheetName
-          ? workbook.Sheets[firstSheetName]
-          : undefined;
+        const sheet = firstSheetName ? workbook.Sheets[firstSheetName] : undefined;
 
         if (!sheet) {
           throw new ImportParseError("The workbook has no sheets.");
@@ -219,14 +212,14 @@ export function ProductImportSheet({
         setParseError(
           error instanceof ImportParseError
             ? error.message
-            : `Could not read the file. ${getErrorMessage(error)}`,
+            : `Could not read the file. ${getErrorMessage(error)}`
         );
         setFileName("");
       } finally {
         setReading(false);
       }
     },
-    [categories, existingProducts],
+    [categories, existingProducts]
   );
 
   /*
@@ -275,12 +268,8 @@ export function ProductImportSheet({
       setProgress(Math.round((processed / total) * 100));
     };
 
-    const toCreate = parsed.rows.filter(
-      (row) => rowAction(row, duplicateMode) === "create",
-    );
-    const toUpdate = parsed.rows.filter(
-      (row) => rowAction(row, duplicateMode) === "update",
-    );
+    const toCreate = parsed.rows.filter((row) => rowAction(row, duplicateMode) === "create");
+    const toUpdate = parsed.rows.filter((row) => rowAction(row, duplicateMode) === "update");
 
     try {
       /*
@@ -317,7 +306,8 @@ export function ProductImportSheet({
             }
 
             created += 1;
-            await insertPrimaryImage(single.data.id, row.imageUrl);
+            await insertImages(single.data.id, row.imageUrls);
+            await insertVariants(single.data.id, row.variants);
           }
 
           advance(batch.length);
@@ -330,26 +320,16 @@ export function ProductImportSheet({
          * Match the returned ids back to their rows by slug -
          * insert() does not promise to preserve input order.
          */
-        const idsBySlug = new Map(
-          (data ?? []).map((product) => [product.slug, product.id]),
-        );
+        const idsBySlug = new Map((data ?? []).map((product) => [product.slug, product.id]));
 
-        const imageRows = batch
-          .map((row) => ({ id: idsBySlug.get(row.slug), url: row.imageUrl }))
-          .filter(
-            (entry): entry is { id: string; url: string } =>
-              Boolean(entry.id) && Boolean(entry.url),
-          )
-          .map((entry) => ({
-            product_id: entry.id,
-            image_url: entry.url,
-            is_primary: true,
-          }));
+        const saved = batch
+          .map((row) => ({ id: idsBySlug.get(row.slug), row }))
+          .filter((entry): entry is { id: string; row: ImportRow } => Boolean(entry.id));
+
+        const imageRows = saved.flatMap((entry) => imageRowsFor(entry.id, entry.row.imageUrls));
 
         if (imageRows.length > 0) {
-          const { error: imageError } = await supabase
-            .from("product_images")
-            .insert(imageRows);
+          const { error: imageError } = await supabase.from("product_images").insert(imageRows);
 
           /*
            * The products themselves are already saved, so a
@@ -360,6 +340,22 @@ export function ProductImportSheet({
               rowNumber: batch[0]?.rowNumber ?? 0,
               name: `${imageRows.length} image(s)`,
               message: `Products saved but images failed: ${getErrorMessage(imageError)}`,
+            });
+          }
+        }
+
+        const variantRows = saved.flatMap((entry) => variantRowsFor(entry.id, entry.row.variants));
+
+        if (variantRows.length > 0) {
+          const { error: variantError } = await supabase
+            .from("product_variants")
+            .insert(variantRows);
+
+          if (variantError) {
+            failures.push({
+              rowNumber: batch[0]?.rowNumber ?? 0,
+              name: `${variantRows.length} variant(s)`,
+              message: `Products saved but variants failed: ${getErrorMessage(variantError)}`,
             });
           }
         }
@@ -390,25 +386,33 @@ export function ProductImportSheet({
             }
 
             /*
-             * A blank image cell leaves the existing picture
-             * alone; clearing one stays a job for the form.
+             * A blank cell leaves what is already there alone; clearing a
+             * gallery or a variant set stays a job for the form.
              */
-            if (row.imageUrl) {
-              const imageError = await replacePrimaryImage(
-                row.existingId!,
-                row.imageUrl,
-              );
+            if (row.imageUrls.length > 0) {
+              const imageError = await replaceImages(row.existingId!, row.imageUrls);
 
               if (imageError) {
                 return {
                   row,
-                  message: `Product updated but image failed: ${imageError}`,
+                  message: `Product updated but images failed: ${imageError}`,
+                };
+              }
+            }
+
+            if (row.variants.length > 0) {
+              const variantError = await replaceVariants(row.existingId!, row.variants);
+
+              if (variantError) {
+                return {
+                  row,
+                  message: `Product updated but variants failed: ${variantError}`,
                 };
               }
             }
 
             return null;
-          }),
+          })
         );
 
         for (const outcome of outcomes) {
@@ -463,44 +467,87 @@ export function ProductImportSheet({
    * -------------------------------------------------------
    */
 
-  const insertPrimaryImage = async (
-    productId: string,
-    imageUrl: string,
-  ): Promise<void> => {
-    if (!imageUrl) return;
-
-    await supabase.from("product_images").insert({
+  /* The product_images rows for one sheet cell: first url is the primary. */
+  const imageRowsFor = (productId: string, imageUrls: string[]) =>
+    imageUrls.map((url, index) => ({
       product_id: productId,
-      image_url: imageUrl,
-      is_primary: true,
-    });
+      image_url: url,
+      is_primary: index === 0,
+      display_order: index,
+    }));
+
+  const insertImages = async (productId: string, imageUrls: string[]): Promise<void> => {
+    if (imageUrls.length === 0) return;
+
+    await supabase.from("product_images").insert(imageRowsFor(productId, imageUrls));
   };
 
-  /* Returns an error message, or null when the write succeeded. */
-  const replacePrimaryImage = async (
-    productId: string,
-    imageUrl: string,
-  ): Promise<string | null> => {
-    const { data: existing, error: selectError } = await supabase
+  /*
+   * Returns an error message, or null when the write succeeded.
+   *
+   * The whole gallery is replaced rather than patched: the sheet cell is the
+   * complete list, so reconciling it row by row would leave images the sheet
+   * no longer mentions behind.
+   */
+  const replaceImages = async (productId: string, imageUrls: string[]): Promise<string | null> => {
+    const { error: deleteError } = await supabase
       .from("product_images")
-      .select("id")
-      .eq("product_id", productId)
-      .eq("is_primary", true)
-      .limit(1)
-      .maybeSingle();
+      .delete()
+      .eq("product_id", productId);
 
-    if (selectError) return getErrorMessage(selectError);
+    if (deleteError) return getErrorMessage(deleteError);
 
-    const { error } = existing
-      ? await supabase
-          .from("product_images")
-          .update({ image_url: imageUrl, is_primary: true })
-          .eq("id", existing.id)
-      : await supabase.from("product_images").insert({
-          product_id: productId,
-          image_url: imageUrl,
-          is_primary: true,
-        });
+    const { error } = await supabase
+      .from("product_images")
+      .insert(imageRowsFor(productId, imageUrls));
+
+    return error ? getErrorMessage(error) : null;
+  };
+
+  /*
+   * -------------------------------------------------------
+   * VARIANT HELPERS
+   * -------------------------------------------------------
+   */
+
+  const variantRowsFor = (productId: string, variants: ImportVariant[]) =>
+    variants.map((variant) => ({
+      product_id: productId,
+      name: variant.name,
+      value: variant.value,
+      price_adjustment: variant.price_adjustment,
+      stock_quantity: variant.stock_quantity,
+    }));
+
+  const insertVariants = async (productId: string, variants: ImportVariant[]): Promise<void> => {
+    if (variants.length === 0) return;
+
+    await supabase.from("product_variants").insert(variantRowsFor(productId, variants));
+  };
+
+  /*
+   * Same replace-wholesale rule as the gallery. A variant an order line
+   * already points at cannot be deleted, so that is reported rather than
+   * left to surface as a raw foreign key error.
+   */
+  const replaceVariants = async (
+    productId: string,
+    variants: ImportVariant[]
+  ): Promise<string | null> => {
+    const { error: deleteError } = await supabase
+      .from("product_variants")
+      .delete()
+      .eq("product_id", productId);
+
+    if (deleteError) {
+      return (deleteError as { code?: string }).code === "23503"
+        ? "its existing variants appear on an order and cannot be replaced"
+        : getErrorMessage(deleteError);
+    }
+
+    const { error } = await supabase
+      .from("product_variants")
+      .insert(variantRowsFor(productId, variants));
 
     return error ? getErrorMessage(error) : null;
   };
@@ -520,8 +567,7 @@ export function ProductImportSheet({
           </SheetTitle>
 
           <SheetDescription className="text-xs text-neutral-400">
-            Upload a CSV or Excel file to create or update many products at
-            once.
+            Upload a CSV or Excel file to create or update many products at once.
           </SheetDescription>
         </SheetHeader>
 
@@ -558,9 +604,9 @@ export function ProductImportSheet({
                   </Label>
 
                   <p className="text-[11px] leading-relaxed text-neutral-500">
-                    Rows are matched on slug. Leave this off and existing
-                    products are left untouched - which is what you want unless
-                    the sheet is deliberately a price or stock update.
+                    Rows are matched on slug. Leave this off and existing products are left
+                    untouched - which is what you want unless the sheet is deliberately a price or
+                    stock update.
                   </p>
                 </div>
               </div>
@@ -668,8 +714,8 @@ function UploadStep({
     <div className="space-y-5">
       {noCategories && (
         <Notice tone="bad" icon={AlertTriangle}>
-          There are no categories yet. Every product needs one, so create your
-          categories before importing.
+          There are no categories yet. Every product needs one, so create your categories before
+          importing.
         </Notice>
       )}
 
@@ -688,25 +734,19 @@ function UploadStep({
         }}
         className={cn(
           "flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center transition-colors",
-          dragging
-            ? "border-[#FF3D6E] bg-[#FF3D6E]/5"
-            : "border-neutral-200 bg-neutral-50",
+          dragging ? "border-[#FF3D6E] bg-[#FF3D6E]/5" : "border-neutral-200 bg-neutral-50"
         )}
       >
         {reading ? (
           <>
             <Loader2 className="mb-3 h-8 w-8 animate-spin text-neutral-400" />
-            <p className="text-sm font-semibold text-neutral-700">
-              Reading file...
-            </p>
+            <p className="text-sm font-semibold text-neutral-700">Reading file...</p>
           </>
         ) : (
           <>
             <FileSpreadsheet className="mb-3 h-8 w-8 text-neutral-300" />
 
-            <p className="text-sm font-bold text-neutral-800">
-              Drop a spreadsheet here
-            </p>
+            <p className="text-sm font-bold text-neutral-800">Drop a spreadsheet here</p>
 
             <p className="mt-1 text-xs text-neutral-500">
               {ACCEPTED_EXTENSIONS.join(", ")} - up to {MAX_IMPORT_ROWS} rows
@@ -762,10 +802,7 @@ function UploadStep({
 
         <ul className="divide-y divide-neutral-50">
           {IMPORT_COLUMNS.map((column) => (
-            <li
-              key={column.field}
-              className="flex items-baseline gap-3 px-4 py-2 text-xs"
-            >
+            <li key={column.field} className="flex items-baseline gap-3 px-4 py-2 text-xs">
               <code className="w-36 shrink-0 font-mono text-[11px] text-neutral-700">
                 {column.label}
               </code>
@@ -773,7 +810,7 @@ function UploadStep({
               <span
                 className={cn(
                   "w-16 shrink-0 text-[10px] font-bold uppercase",
-                  column.required ? "text-[#FF3D6E]" : "text-neutral-300",
+                  column.required ? "text-[#FF3D6E]" : "text-neutral-300"
                 )}
               >
                 {column.required ? "Required" : "Optional"}
@@ -785,10 +822,9 @@ function UploadStep({
         </ul>
 
         <p className="border-t border-neutral-100 px-4 py-3 text-[11px] leading-relaxed text-neutral-500">
-          The first row must be the headings. <code>category</code> accepts
-          either a category name or its slug, <code>slug</code> is generated
-          from the name when left blank, and <code>featured</code> takes
-          yes/no or true/false. Unknown columns are ignored.
+          The first row must be the headings. <code>category</code> accepts either a category name
+          or its slug, <code>slug</code> is generated from the name when left blank, and{" "}
+          <code>featured</code> takes yes/no or true/false. Unknown columns are ignored.
         </p>
       </div>
     </div>
@@ -801,20 +837,12 @@ function UploadStep({
  * ---------------------------------------------------------
  */
 
-function FileBadge({
-  fileName,
-  onChange,
-}: {
-  fileName: string;
-  onChange: () => void;
-}) {
+function FileBadge({ fileName, onChange }: { fileName: string; onChange: () => void }) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-neutral-200 px-4 py-2.5">
       <div className="flex min-w-0 items-center gap-2.5">
         <FileSpreadsheet className="h-4 w-4 shrink-0 text-neutral-400" />
-        <span className="truncate text-xs font-semibold text-neutral-700">
-          {fileName}
-        </span>
+        <span className="truncate text-xs font-semibold text-neutral-700">{fileName}</span>
       </div>
 
       <button
@@ -829,31 +857,28 @@ function FileBadge({
 }
 
 function PreviewNotices({ parsed }: { parsed: ParsedSheet }) {
-  const warningCount = parsed.rows.filter(
-    (row) => row.warnings.length > 0,
-  ).length;
+  const warningCount = parsed.rows.filter((row) => row.warnings.length > 0).length;
 
   return (
     <div className="space-y-2">
       {parsed.truncated && (
         <Notice tone="warn" icon={AlertTriangle}>
-          Only the first {MAX_IMPORT_ROWS} rows were read. Split the rest into
-          another file and import it after this one.
+          Only the first {MAX_IMPORT_ROWS} rows were read. Split the rest into another file and
+          import it after this one.
         </Notice>
       )}
 
       {parsed.ignoredColumns.length > 0 && (
         <Notice tone="muted" icon={AlertTriangle}>
           Ignored {parsed.ignoredColumns.length} unrecognised column
-          {parsed.ignoredColumns.length === 1 ? "" : "s"}:{" "}
-          {parsed.ignoredColumns.join(", ")}
+          {parsed.ignoredColumns.length === 1 ? "" : "s"}: {parsed.ignoredColumns.join(", ")}
         </Notice>
       )}
 
       {warningCount > 0 && (
         <Notice tone="warn" icon={AlertTriangle}>
-          {warningCount} row{warningCount === 1 ? " has" : "s have"} a warning.
-          These still import - hover the row to read the detail.
+          {warningCount} row{warningCount === 1 ? " has" : "s have"} a warning. These still import -
+          hover the row to read the detail.
         </Notice>
       )}
     </div>
@@ -879,9 +904,7 @@ function PlanTile({
   return (
     <div className={cn("rounded-lg border px-3 py-2.5", tones[tone])}>
       <div className="text-lg font-bold leading-none">{value}</div>
-      <div className="mt-1 text-[10px] font-bold uppercase tracking-wide opacity-70">
-        {label}
-      </div>
+      <div className="mt-1 text-[10px] font-bold uppercase tracking-wide opacity-70">{label}</div>
     </div>
   );
 }
@@ -893,13 +916,7 @@ const ACTION_STYLES: Record<ImportRowAction, string> = {
   error: "bg-red-50 text-red-700",
 };
 
-function PreviewTable({
-  rows,
-  mode,
-}: {
-  rows: ImportRow[];
-  mode: DuplicateMode;
-}) {
+function PreviewTable({ rows, mode }: { rows: ImportRow[]; mode: DuplicateMode }) {
   /*
    * Problem rows sort to the top - with a few hundred rows the
    * three that need fixing are the only ones worth scrolling to.
@@ -946,8 +963,20 @@ function PreviewTable({
                     </div>
 
                     {row.slug && (
-                      <div className="font-mono text-[10px] text-neutral-400">
-                        {row.slug}
+                      <div className="font-mono text-[10px] text-neutral-400">{row.slug}</div>
+                    )}
+
+                    {/* What the multi-value cells actually parsed to. */}
+                    {row.imageUrls.length + row.variants.length > 0 && (
+                      <div className="text-[10px] text-neutral-400">
+                        {[
+                          row.imageUrls.length > 0 &&
+                            `${row.imageUrls.length} image${row.imageUrls.length === 1 ? "" : "s"}`,
+                          row.variants.length > 0 &&
+                            `${row.variants.length} variant${row.variants.length === 1 ? "" : "s"}`,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
                       </div>
                     )}
                   </td>
@@ -956,7 +985,7 @@ function PreviewTable({
                     <span
                       className={cn(
                         "inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
-                        ACTION_STYLES[action],
+                        ACTION_STYLES[action]
                       )}
                     >
                       {action}
@@ -975,8 +1004,7 @@ function PreviewTable({
 
       {rows.length > PREVIEW_LIMIT && (
         <p className="border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-[11px] text-neutral-500">
-          Showing {PREVIEW_LIMIT} of {rows.length} rows. All {rows.length} will
-          be imported.
+          Showing {PREVIEW_LIMIT} of {rows.length} rows. All {rows.length} will be imported.
         </p>
       )}
     </div>
@@ -1014,8 +1042,8 @@ function ImportSummary({
         </p>
 
         <p className="mt-1 text-xs text-neutral-500">
-          {result.created} created, {result.updated} updated,{" "}
-          {result.skipped} skipped, {result.invalid} invalid.
+          {result.created} created, {result.updated} updated, {result.skipped} skipped,{" "}
+          {result.invalid} invalid.
         </p>
       </div>
 
@@ -1053,11 +1081,7 @@ function ImportSummary({
           Import another file
         </Button>
 
-        <Button
-          type="button"
-          onClick={onClose}
-          className={cn("flex-1", PRIMARY_BUTTON_CLASS)}
-        >
+        <Button type="button" onClick={onClose} className={cn("flex-1", PRIMARY_BUTTON_CLASS)}>
           Done
         </Button>
       </div>
@@ -1090,7 +1114,7 @@ function Notice({
     <div
       className={cn(
         "flex items-start gap-2.5 rounded-lg border px-4 py-3 text-xs leading-relaxed",
-        tones[tone],
+        tones[tone]
       )}
     >
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />

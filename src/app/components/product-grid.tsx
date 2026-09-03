@@ -18,6 +18,8 @@ interface ProductGridProps {
   limit?: number;
   /* Variant values to narrow by, e.g. ["M","L"] / ["black"]. */
   variantValues?: string[];
+  /* Free text from the header search. */
+  search?: string;
   /* Renders the result count and the sort control above the grid. */
   showToolbar?: boolean;
 }
@@ -31,6 +33,7 @@ export function ProductGrid({
   maxPrice,
   limit = 24,
   variantValues,
+  search,
   showToolbar = false,
 }: ProductGridProps) {
   const { products, loading, error, reload } = useProductList({
@@ -43,6 +46,7 @@ export function ProductGrid({
     maxPrice,
     limit,
     variantValues,
+    search,
   });
 
   /* One stats query for the whole grid, not one per card. */
@@ -125,10 +129,14 @@ export function ProductGrid({
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
           <PackageOpen className="mb-3 h-10 w-10 text-muted-foreground/50" />
 
-          <p className="text-sm font-medium">No products found.</p>
+          <p className="text-sm font-medium">
+            {search ? `Nothing matched "${search}".` : "No products found."}
+          </p>
 
           <p className="mt-1 text-xs text-muted-foreground">
-            Try widening your filters, or check back soon.
+            {search
+              ? "Try a different word, or browse the full catalogue."
+              : "Try widening your filters, or check back soon."}
           </p>
         </div>
       </div>

@@ -2,7 +2,8 @@
 
 import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 
 import { useCart } from "@/src/app/components/cart-provider";
 import { MegaMenu } from "@/src/app/components/mega-menu";
@@ -30,8 +31,38 @@ const topBarLinks = [
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const { cartCount } = useCart();
   const { user } = useAuth();
+  const router = useRouter();
+
+  /*
+   * Search is a page, not a live filter: it hands the term to /products, so
+   * results keep the sort and filter controls and the url can be shared.
+   */
+  const handleSearch = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+
+    const term = searchTerm.trim();
+
+    if (!term) {
+      return;
+    }
+
+    router.push(`/products?q=${encodeURIComponent(term)}`);
+    setIsSearchOpen(false);
+  };
+
+  /* Closing discards the term, so re-opening never shows a stale search. */
+  const toggleSearch = (): void => {
+    setIsSearchOpen((open) => {
+      if (open) {
+        setSearchTerm("");
+      }
+
+      return !open;
+    });
+  };
 
   return (
     <NavigationProvider>
@@ -74,10 +105,7 @@ export function Header() {
 
             {/* Logo */}
             <div className="flex-1 text-center lg:flex-none lg:text-left">
-              <Link
-                href="/"
-                className="inline-flex flex-col items-center lg:items-start"
-              >
+              <Link href="/" className="inline-flex flex-col items-center lg:items-start">
                 <span className="text-2xl font-bold uppercase tracking-[0.2em] text-neutral-900">
                   Lamees
                 </span>
@@ -87,30 +115,37 @@ export function Header() {
 
             {/* Search, account, wishlist, cart */}
             <div className="flex items-center gap-1">
-              <div
+              <form
+                onSubmit={handleSearch}
+                role="search"
                 className={cn(
                   "overflow-hidden transition-all duration-300 ease-out",
-                  isSearchOpen ? "w-40 sm:w-64" : "w-0",
+                  isSearchOpen ? "w-40 sm:w-64" : "w-0"
                 )}
               >
+                <label htmlFor="site-search" className="sr-only">
+                  Search products
+                </label>
                 <Input
+                  id="site-search"
                   type="search"
+                  name="q"
                   placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
                   autoFocus={isSearchOpen}
+                  /* Nothing to submit while it is closed, and nothing to tab to. */
+                  disabled={!isSearchOpen}
                   className="h-9 w-full border-neutral-200 focus-visible:ring-[#FF3D6E]"
                 />
-              </div>
+              </form>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsSearchOpen((open) => !open)}
+                onClick={toggleSearch}
                 aria-label={isSearchOpen ? "Close search" : "Open search"}
               >
-                {isSearchOpen ? (
-                  <X className="h-5 w-5" />
-                ) : (
-                  <Search className="h-5 w-5" />
-                )}
+                {isSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
               </Button>
               {user ? (
                 <Link href="/account">
@@ -146,12 +181,7 @@ export function Header() {
                 </Button>
               </Link>
               <Link href="/cart">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative"
-                  aria-label="Cart"
-                >
+                <Button variant="ghost" size="icon" className="relative" aria-label="Cart">
                   <ShoppingBag className="h-5 w-5" />
                   {cartCount > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#FF3D6E] text-[10px] font-semibold text-white">

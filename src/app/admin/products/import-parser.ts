@@ -29,7 +29,8 @@ export type ImportField =
   | "stock_quantity"
   | "category"
   | "featured"
-  | "image_url";
+  | "image_url"
+  | "variants";
 
 interface ColumnSpec {
   field: ImportField;
@@ -103,11 +104,29 @@ export const IMPORT_COLUMNS: readonly ColumnSpec[] = [
     example: "false",
   },
   {
+    /*
+     * Several images go in one cell, separated by "|". The first is the
+     * primary - the one listings show - and the rest become the gallery in
+     * the order written. A single url is still a valid cell, so sheets
+     * written for the old one-image importer keep working.
+     */
     field: "image_url",
     label: "image_url",
     required: false,
-    aliases: ["imageurl", "image", "primaryimage", "photo", "picture"],
-    example: "https://picsum.photos/seed/polo/800/1000",
+    aliases: ["imageurl", "image", "primaryimage", "photo", "picture", "images"],
+    example: "https://picsum.photos/seed/polo/800/1000|https://picsum.photos/seed/polo2/800/1000",
+  },
+  {
+    /*
+     * One "|"-separated entry per option value, written
+     * name:value:price_adjustment:stock - the same shape as a product_variants
+     * row. The last two default to 0 and may be left off.
+     */
+    field: "variants",
+    label: "variants",
+    required: false,
+    aliases: ["variants", "variant", "options", "attributes", "variantoptions"],
+    example: "Size:S:0:10|Size:M:0:5|Color:Black:250:8",
   },
 ] as const;
 
@@ -134,6 +153,14 @@ export interface ImportExistingProduct {
   slug: string;
 }
 
+/* One product_variants row, as written in the sheet's variants cell. */
+export interface ImportVariant {
+  name: string;
+  value: string;
+  price_adjustment: number;
+  stock_quantity: number;
+}
+
 /* Mirrors ProductPayload in page.tsx - the products table columns. */
 export interface ImportProductValues {
   name: string;
@@ -154,7 +181,9 @@ export interface ImportRow {
   name: string;
   slug: string;
   values: ImportProductValues | null;
-  imageUrl: string;
+  /* Primary first, then the gallery in sheet order. */
+  imageUrls: string[];
+  variants: ImportVariant[];
   /* Set when the slug already exists in the catalogue. */
   existingId: string | null;
   errors: string[];
@@ -179,8 +208,7 @@ export class ImportParseError extends Error {}
  * ---------------------------------------------------------
  */
 
-const normaliseHeading = (value: string): string =>
-  value.toLowerCase().replace(/[^a-z0-9]/g, "");
+const normaliseHeading = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /*
  * Spreadsheets carry money as "Rs. 2,500.00" or "2 500" just as
@@ -196,6 +224,13 @@ const parseNumber = (value: string): number | null => {
 
   return match ? Number(match[0]) : null;
 };
+
+/* Multi-value cells are "|"-separated; blanks between separators are dropped. */
+const splitList = (value: string): string[] =>
+  value
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
 
 const TRUTHY = new Set(["true", "yes", "y", "1", "featured"]);
 const FALSY = new Set(["false", "no", "n", "0", ""]);
@@ -232,9 +267,7 @@ function mapHeaders(headings: string[]): HeaderMap {
 
     if (normalised === "") return;
 
-    const column = IMPORT_COLUMNS.find((candidate) =>
-      candidate.aliases.includes(normalised),
-    );
+    const column = IMPORT_COLUMNS.find((candidate) => candidate.aliases.includes(normalised));
 
     /* First occurrence wins, so a duplicated heading is ignored. */
     if (!column || indexes[column.field] !== undefined) {
@@ -270,7 +303,7 @@ interface ValidateContext {
 function validateRow(
   cells: Partial<Record<ImportField, string>>,
   rowNumber: number,
-  context: ValidateContext,
+  context: ValidateContext
 ): ImportRow {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -313,9 +346,7 @@ function validateRow(
   const price = parseNumber(priceInput);
 
   if (price === null) {
-    errors.push(
-      priceInput ? `Price "${priceInput}" is not a number.` : "Price is required.",
-    );
+    errors.push(priceInput ? `Price "${priceInput}" is not a number.` : "Price is required.");
   } else if (price < 0) {
     errors.push("Price cannot be negative.");
   }
@@ -365,12 +396,83 @@ function validateRow(
    * swaps in the placeholder - but the admin should still know
    * the picture will not show, so it is a warning, not an error.
    */
-  const imageUrl = read("image_url");
+  const imageUrls = splitList(read("image_url"));
 
-  if (imageUrl && safeImageSrc(imageUrl) !== imageUrl) {
+  const blockedHosts = imageUrls.filter((url) => safeImageSrc(url) !== url);
+
+  if (blockedHosts.length > 0) {
     warnings.push(
-      "Image URL is not an allowed host, so the placeholder will show instead.",
+      blockedHosts.length === imageUrls.length
+        ? "Image URL is not an allowed host, so the placeholder will show instead."
+        : `${blockedHosts.length} of ${imageUrls.length} image URLs are not an allowed host, so the placeholder will show for those.`
     );
+  }
+
+  /*
+   * Variants are written name:value:price_adjustment:stock, one per "|".
+   * A malformed entry is an error rather than a warning: silently dropping
+   * an option would publish a product missing a size shoppers can pick.
+   */
+  const variants: ImportVariant[] = [];
+  const seenVariants = new Set<string>();
+
+  for (const entry of splitList(read("variants"))) {
+    const parts = entry.split(":").map((part) => part.trim());
+    const [variantName, variantValue, adjustmentInput, stockInput] = parts;
+
+    if (parts.length > 4) {
+      errors.push(
+        `Variant "${entry}" has too many parts - expected name:value:price_adjustment:stock.`
+      );
+      continue;
+    }
+
+    if (!variantName || !variantValue) {
+      errors.push(`Variant "${entry}" needs both an option name and a value, like Size:M.`);
+      continue;
+    }
+
+    const key = `${variantName.toLowerCase()}\u0000${variantValue.toLowerCase()}`;
+
+    if (seenVariants.has(key)) {
+      errors.push(`Variant "${variantName}: ${variantValue}" is listed twice.`);
+      continue;
+    }
+
+    seenVariants.add(key);
+
+    let adjustment = 0;
+
+    if (adjustmentInput) {
+      const parsedAdjustment = parseNumber(adjustmentInput);
+
+      if (parsedAdjustment === null) {
+        errors.push(`Variant "${entry}" has a price adjustment that is not a number.`);
+        continue;
+      }
+
+      adjustment = parsedAdjustment;
+    }
+
+    let variantStock = 0;
+
+    if (stockInput) {
+      const parsedStock = parseNumber(stockInput);
+
+      if (parsedStock === null || !Number.isInteger(parsedStock) || parsedStock < 0) {
+        errors.push(`Variant "${entry}" has a stock that is not a whole number of 0 or more.`);
+        continue;
+      }
+
+      variantStock = parsedStock;
+    }
+
+    variants.push({
+      name: variantName,
+      value: variantValue,
+      price_adjustment: adjustment,
+      stock_quantity: variantStock,
+    });
   }
 
   /* A slug repeated inside the file would fail the UNIQUE index. */
@@ -384,14 +486,14 @@ function validateRow(
 
   const existingId = slug ? (context.existingBySlug.get(slug) ?? null) : null;
 
-  const valid =
-    errors.length === 0 && price !== null && featured !== null && categoryId;
+  const valid = errors.length === 0 && price !== null && featured !== null && categoryId;
 
   return {
     rowNumber,
     name,
     slug,
-    imageUrl,
+    imageUrls,
+    variants,
     existingId,
     errors,
     warnings,
@@ -425,7 +527,7 @@ function validateRow(
 export function parseImportGrid(
   grid: string[][],
   categories: ImportCategory[],
-  existingProducts: ImportExistingProduct[],
+  existingProducts: ImportExistingProduct[]
 ): ParsedSheet {
   const headings = grid[0];
 
@@ -436,29 +538,26 @@ export function parseImportGrid(
   const { indexes, matched, ignored } = mapHeaders(headings);
 
   const missingRequired = IMPORT_COLUMNS.filter(
-    (column) => column.required && indexes[column.field] === undefined,
+    (column) => column.required && indexes[column.field] === undefined
   );
 
   if (missingRequired.length > 0) {
     throw new ImportParseError(
       `The first row must contain the headings ${missingRequired
         .map((column) => `"${column.label}"`)
-        .join(", ")}. Download the template to see the expected columns.`,
+        .join(", ")}. Download the template to see the expected columns.`
     );
   }
 
   const context: ValidateContext = {
     categoriesBySlug: new Map(
-      categories.map((category) => [category.slug.toLowerCase(), category]),
+      categories.map((category) => [category.slug.toLowerCase(), category])
     ),
     categoriesByName: new Map(
-      categories.map((category) => [category.name.toLowerCase(), category]),
+      categories.map((category) => [category.name.toLowerCase(), category])
     ),
     existingBySlug: new Map(
-      existingProducts.map((product) => [
-        product.slug.toLowerCase(),
-        product.id,
-      ]),
+      existingProducts.map((product) => [product.slug.toLowerCase(), product.id])
     ),
     seenSlugs: new Map(),
   };
@@ -518,10 +617,7 @@ export interface ImportPlan {
   error: number;
 }
 
-export function summarisePlan(
-  rows: ImportRow[],
-  mode: DuplicateMode,
-): ImportPlan {
+export function summarisePlan(rows: ImportRow[], mode: DuplicateMode): ImportPlan {
   const plan: ImportPlan = { create: 0, update: 0, skip: 0, error: 0 };
 
   for (const row of rows) {
@@ -550,7 +646,7 @@ export function buildTemplateCsv(categories: ImportCategory[]): string {
   const header = IMPORT_COLUMNS.map((column) => column.label);
 
   const fullRow = IMPORT_COLUMNS.map((column) =>
-    column.field === "category" ? sampleCategory : column.example,
+    column.field === "category" ? sampleCategory : column.example
   );
 
   const minimalRow = IMPORT_COLUMNS.map((column) => {
@@ -560,7 +656,5 @@ export function buildTemplateCsv(categories: ImportCategory[]): string {
     return "";
   });
 
-  return [header, fullRow, minimalRow]
-    .map((row) => row.map(escapeCsv).join(","))
-    .join("\r\n");
+  return [header, fullRow, minimalRow].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
 }

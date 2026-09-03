@@ -94,7 +94,7 @@ export const PRODUCT_LIST_SELECT = `
 
 export const PRODUCT_LIST_SELECT_INNER_CATEGORY = PRODUCT_LIST_SELECT.replace(
   "categories:category_id (",
-  "categories:category_id!inner (",
+  "categories:category_id!inner ("
 );
 
 /*
@@ -160,9 +160,7 @@ export function mapProduct(row: Row): StorefrontProduct {
     description: (row.description as string | null) ?? null,
     price: toNumber(row.price),
     sale_price:
-      row.sale_price === null || row.sale_price === undefined
-        ? null
-        : toNumber(row.sale_price),
+      row.sale_price === null || row.sale_price === undefined ? null : toNumber(row.sale_price),
     stock_quantity: toNumber(row.stock_quantity),
     featured: Boolean(row.featured),
     category_id: (row.category_id as string | null) ?? null,
@@ -185,9 +183,7 @@ export function mapProduct(row: Row): StorefrontProduct {
  */
 
 /* The primary image, else the first one, else null. */
-export const getPrimaryImage = (product: {
-  product_images: ProductImage[];
-}): string | null =>
+export const getPrimaryImage = (product: { product_images: ProductImage[] }): string | null =>
   product.product_images.find((image) => image.is_primary)?.image_url ??
   product.product_images[0]?.image_url ??
   null;
@@ -196,27 +192,18 @@ export const getPrimaryImage = (product: {
  * A sale_price only counts when it is actually cheaper than
  * the list price.
  */
-export const hasDiscount = (product: {
-  price: number;
-  sale_price: number | null;
-}): boolean =>
-  product.sale_price !== null &&
-  product.sale_price > 0 &&
-  product.sale_price < product.price;
+export const hasDiscount = (product: { price: number; sale_price: number | null }): boolean =>
+  product.sale_price !== null && product.sale_price > 0 && product.sale_price < product.price;
 
-export const getEffectivePrice = (product: {
-  price: number;
-  sale_price: number | null;
-}): number => (hasDiscount(product) ? (product.sale_price as number) : product.price);
+export const getEffectivePrice = (product: { price: number; sale_price: number | null }): number =>
+  hasDiscount(product) ? (product.sale_price as number) : product.price;
 
 export const getDiscountPercent = (product: {
   price: number;
   sale_price: number | null;
 }): number =>
   hasDiscount(product)
-    ? Math.round(
-        ((product.price - (product.sale_price as number)) / product.price) * 100,
-      )
+    ? Math.round(((product.price - (product.sale_price as number)) / product.price) * 100)
     : 0;
 
 /*
@@ -291,7 +278,20 @@ export interface ProductQuery {
   limit?: number;
   /* Values a product must carry across its variants, e.g. ["M","black"]. */
   variantValues?: string[];
+  /* Free text from the header search, matched on name and description. */
+  search?: string;
 }
+
+/*
+ * PostgREST reads , . : ( ) as syntax inside an or() filter, and a bare %
+ * would widen the pattern, so anything the shopper typed is stripped of them
+ * rather than passed through.
+ */
+const escapeSearchTerm = (term: string): string =>
+  term
+    .replace(/[,.:()%\\*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 /*
  * `!inner` on categories matters here: without it PostgREST
@@ -300,9 +300,7 @@ export interface ProductQuery {
 const selectProducts = (categorySlug?: string) =>
   createClient()
     .from("products")
-    .select(
-      categorySlug ? PRODUCT_LIST_SELECT_INNER_CATEGORY : PRODUCT_LIST_SELECT,
-    );
+    .select(categorySlug ? PRODUCT_LIST_SELECT_INNER_CATEGORY : PRODUCT_LIST_SELECT);
 
 type ProductQueryBuilder = ReturnType<typeof selectProducts>;
 
@@ -326,14 +324,12 @@ const applySort = (query: ProductQueryBuilder, sort: string): void => {
       query.not("sale_price", "is", null);
       break;
     default:
-      query
-        .order("featured", { ascending: false })
-        .order("created_at", { ascending: false });
+      query.order("featured", { ascending: false }).order("created_at", { ascending: false });
   }
 };
 
 export async function fetchStorefrontProducts(
-  options: ProductQuery = {},
+  options: ProductQuery = {}
 ): Promise<StorefrontProduct[]> {
   const query = selectProducts(options.categorySlug);
 
@@ -357,6 +353,17 @@ export async function fetchStorefrontProducts(
     query.not("sale_price", "is", null);
   }
 
+  /*
+   * A match on either the name or the description, case-insensitive. The
+   * term is escaped first: an unescaped comma would end up read as the
+   * separator between the two or() branches.
+   */
+  const term = escapeSearchTerm(options.search ?? "");
+
+  if (term) {
+    query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
+  }
+
   if (options.minPrice !== undefined) {
     query.gte("price", options.minPrice);
   }
@@ -369,9 +376,7 @@ export async function fetchStorefrontProducts(
     applySort(query, options.sort);
   }
 
-  const { data, error } = await (options.limit
-    ? query.limit(options.limit)
-    : query);
+  const { data, error } = await (options.limit ? query.limit(options.limit) : query);
 
   if (error) {
     throw error;
@@ -393,10 +398,8 @@ export async function fetchStorefrontProducts(
       ? products
       : products.filter((product) =>
           wanted.every((value) =>
-            product.product_variants.some(
-              (variant) => variant.value.toLowerCase() === value,
-            ),
-          ),
+            product.product_variants.some((variant) => variant.value.toLowerCase() === value)
+          )
         );
 
   /*
@@ -413,7 +416,7 @@ export async function fetchStorefrontProducts(
 /* One product with everything the detail page renders. */
 export async function fetchProductBySlug(
   slug: string,
-  client: Client = createClient(),
+  client: Client = createClient()
 ): Promise<StorefrontProduct | null> {
   const { data, error } = await client
     .from("products")

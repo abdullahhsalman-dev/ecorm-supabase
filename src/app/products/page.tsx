@@ -11,13 +11,10 @@ export const metadata = {
 /* Next 15 hands route props in as promises. */
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-const readString = (
-  value: string | string[] | undefined,
-): string | undefined => (typeof value === "string" && value ? value : undefined);
+const readString = (value: string | string[] | undefined): string | undefined =>
+  typeof value === "string" && value ? value : undefined;
 
-const readNumber = (
-  value: string | string[] | undefined,
-): number | undefined => {
+const readNumber = (value: string | string[] | undefined): number | undefined => {
   const raw = readString(value);
 
   if (raw === undefined) {
@@ -28,11 +25,7 @@ const readNumber = (
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-export default async function ProductsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
 
   const category = readString(params.category);
@@ -42,6 +35,9 @@ export default async function ProductsPage({
 
   /* ?variants=m,black - matched against product_variants.value */
   const variantValues = readString(params.variants)?.split(",").filter(Boolean);
+
+  /* ?q=polo - the header search box. */
+  const search = readString(params.q);
 
   return (
     <Container className="py-10 lg:py-14">
@@ -54,18 +50,40 @@ export default async function ProductsPage({
               </Link>
             </li>
             <li aria-hidden="true">/</li>
-            <li className="font-medium text-foreground">Products</li>
+            {search ? (
+              <>
+                <li>
+                  <Link href="/products" className="transition-colors hover:text-foreground">
+                    Products
+                  </Link>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li className="font-medium text-foreground">Search</li>
+              </>
+            ) : (
+              <li className="font-medium text-foreground">Products</li>
+            )}
           </ol>
         </nav>
 
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          All products
+          {search ? `Results for "${search}"` : "All products"}
         </h1>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Browse the full catalogue. Narrow it down by price and product
-          options, or sort to find what you need faster.
+          {search
+            ? "Matching products from the catalogue. Narrow them down further by price and product options."
+            : "Browse the full catalogue. Narrow it down by price and product options, or sort to find what you need faster."}
         </p>
+
+        {search && (
+          <Link
+            href="/products"
+            className="mt-3 inline-block text-xs underline underline-offset-4 hover:no-underline"
+          >
+            Clear search
+          </Link>
+        )}
       </header>
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] lg:gap-12">
@@ -86,6 +104,7 @@ export default async function ProductsPage({
             minPrice={minPrice}
             maxPrice={maxPrice}
             variantValues={variantValues}
+            search={search}
           />
         </div>
       </div>
