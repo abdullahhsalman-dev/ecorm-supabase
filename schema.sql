@@ -832,3 +832,6 @@ DROP POLICY IF EXISTS "lamees_images_admin_delete" ON storage.objects;
 CREATE POLICY "lamees_images_admin_delete" ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'Lamees-images' AND public.is_admin());
+
+
+select tgname from pg_trigger where tgname = 'on_auth_user_created';

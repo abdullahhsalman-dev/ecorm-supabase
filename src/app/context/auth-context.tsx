@@ -2,18 +2,9 @@
 "use client";
 
 import { createClient } from "@/src/app/lib/supabase/client";
-import {
-  fetchUserProfileByEmail,
-  type UserProfile,
-} from "@/src/app/lib/users";
+import { ensureUserProfile, fetchUserProfileByEmail, type UserProfile } from "@/src/app/lib/users";
 import type { AuthError, PostgrestError, User } from "@supabase/supabase-js";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 // Type definitions
 export type SignUpResult = {
@@ -29,15 +20,8 @@ export type AuthContextType = {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  signIn: (
-    email: string,
-    password: string,
-  ) => Promise<{ error: AuthError | null }>;
-  signUp: (
-    email: string,
-    password: string,
-    fullName: string,
-  ) => Promise<SignUpResult>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<SignUpResult>;
   signOut: () => Promise<{ error: AuthError | null }>;
   /* Sends the "set a new password" email. */
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
@@ -57,6 +41,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    /*
+     * Sign-up cannot write the profile row (no session, so RLS rejects it),
+     * and the server-side trigger that normally does is not guaranteed to be
+     * installed. Reconciling once a session exists means a missing profile
+     * repairs itself instead of surfacing as a broken account.
+     */
+    const syncProfile = (sessionUser: User) => {
+      ensureUserProfile(sessionUser).catch((error) => {
+        console.error("Profile sync error:", error);
+      });
+    };
+
     const getSession = async () => {
       try {
         const {
@@ -71,6 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         } else {
           setUser(session?.user ?? null);
+
+          if (session?.user) {
+            syncProfile(session.user);
+          }
         }
       } catch (error) {
         console.error("Unexpected error:", error);
@@ -85,9 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+
+      setUser(session?.user ?? null);
+
+      /*
+       * Only on a fresh sign-in - this fires on every token refresh too, and
+       * the profile does not need re-checking each time.
+       */
+      if (event === "SIGNED_IN" && session?.user) {
+        syncProfile(session.user);
       }
     });
 
@@ -113,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (
     email: string,
     password: string,
-    fullName: string,
+    fullName: string
   ): Promise<SignUpResult> => {
     try {
       const normalisedEmail = email.trim().toLowerCase();
@@ -138,6 +146,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authUser = data.user;
 
       if (!authUser) {
+        return { error: null, needsEmailConfirmation: true };
+      }
+
+      /*
+       * Without a session the client is still the anon role, so
+       * auth.uid() is NULL and users_insert_self (id = auth.uid())
+       * rejects the write with a 403. The account itself is fine -
+       * the on_auth_user_created trigger writes the profile
+       * server-side, and ensureUserProfile() backstops it on the
+       * first sign-in. Reporting an error here would fail a signup
+       * that actually succeeded.
+       */
+      if (needsEmailConfirmation) {
         return { error: null, needsEmailConfirmation: true };
       }
 
@@ -200,15 +221,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
-        {
-          redirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/reset-password`
-              : undefined,
-        },
-      );
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo:
+          typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined,
+      });
 
       return { error };
     } catch (error) {
@@ -249,9 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updatePassword,
   };
 
-  return (
-    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 export { AuthContext };
 
