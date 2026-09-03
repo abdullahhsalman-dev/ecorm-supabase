@@ -545,7 +545,19 @@ export type Database = {
       };
     };
     Functions: {
-      [_ in never]: never;
+      /* place-order.sql: writes an order, its lines and the stock decrements
+       * in one transaction. Hand-added - regenerating types will pick it up. */
+      place_order: {
+        Args: {
+          p_user_id: string | null;
+          p_shipping_address: string;
+          p_payment_method: string;
+          p_notes: string | null;
+          p_total_amount: number;
+          p_items: Json;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never;

@@ -49,10 +49,7 @@ export function AccountWishlist() {
     onError,
   });
 
-  const handleRemoveFromWishlist = async (
-    itemId: string,
-    productName: string
-  ) => {
+  const handleRemoveFromWishlist = async (itemId: string, productName: string) => {
     setWishlistItems((prev) => prev.filter((item) => item.id !== itemId));
 
     toast({
@@ -74,8 +71,7 @@ export function AccountWishlist() {
 
       toast({
         title: "Couldn't remove that item",
-        description:
-          error instanceof Error ? error.message : "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     }
@@ -87,7 +83,16 @@ export function AccountWishlist() {
       product.product_images[0]?.image_url ||
       "/placeholder.svg";
 
-    addItem({
+    if (product.stock_quantity <= 0) {
+      toast({
+        title: "Out of stock",
+        description: `${product.name} is not available right now.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { added } = addItem({
       id: product.id,
       productId: product.id,
       variantIds: [],
@@ -95,7 +100,17 @@ export function AccountWishlist() {
       price: product.sale_price || product.price,
       image: primaryImage,
       quantity: 1,
+      maxQuantity: product.stock_quantity,
     });
+
+    if (added === 0) {
+      toast({
+        title: "No more available",
+        description: `Your cart already holds all ${product.stock_quantity} in stock.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     toast({
       title: "Added to cart",
@@ -109,10 +124,7 @@ export function AccountWishlist() {
         {Array(3)
           .fill(null)
           .map((_, i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-lg border bg-card p-4"
-            >
+            <div key={i} className="animate-pulse rounded-lg border bg-card p-4">
               <div className="mb-4 aspect-square rounded bg-muted"></div>
               <div className="mb-2 h-4 w-3/4 rounded bg-muted"></div>
               <div className="h-4 w-1/2 rounded bg-muted"></div>
@@ -166,10 +178,7 @@ export function AccountWishlist() {
             "/placeholder.svg";
 
           return (
-            <div
-              key={item.id}
-              className="group relative overflow-hidden rounded-lg border bg-card"
-            >
+            <div key={item.id} className="group relative overflow-hidden rounded-lg border bg-card">
               <div className="relative aspect-square overflow-hidden">
                 <Link href={`/products/${product.slug}`}>
                   <Image
@@ -182,11 +191,7 @@ export function AccountWishlist() {
                 </Link>
                 {product.sale_price && (
                   <div className="absolute left-2 top-2 rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white">
-                    {Math.round(
-                      ((product.price - product.sale_price) / product.price) *
-                        100
-                    )}
-                    % OFF
+                    {Math.round(((product.price - product.sale_price) / product.price) * 100)}% OFF
                   </div>
                 )}
               </div>
@@ -197,17 +202,13 @@ export function AccountWishlist() {
                 <div className="mb-4 flex items-center">
                   {product.sale_price ? (
                     <>
-                      <span className="font-semibold">
-                        {formatCurrency(product.sale_price)}
-                      </span>
+                      <span className="font-semibold">{formatCurrency(product.sale_price)}</span>
                       <span className="ml-2 text-sm text-muted-foreground line-through">
                         {formatCurrency(product.price)}
                       </span>
                     </>
                   ) : (
-                    <span className="font-semibold">
-                      {formatCurrency(product.price)}
-                    </span>
+                    <span className="font-semibold">{formatCurrency(product.price)}</span>
                   )}
                 </div>
                 <div className="flex space-x-2">
@@ -223,9 +224,7 @@ export function AccountWishlist() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      handleRemoveFromWishlist(item.id, product.name)
-                    }
+                    onClick={() => handleRemoveFromWishlist(item.id, product.name)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

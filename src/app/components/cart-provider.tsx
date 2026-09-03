@@ -23,13 +23,31 @@ export type CartItem = {
   price: number;
   image: string;
   quantity: number;
+  /*
+   * How many of this line the shop had when it was added: the variant stock
+   * when one is configured, otherwise products.stock_quantity. null means a
+   * cart saved before the field existed, where the ceiling is unknown.
+   *
+   * This is a convenience for the UI, never the authority - it is a snapshot
+   * taken client-side, so checkout re-reads the real figure before writing
+   * the order.
+   */
+  maxQuantity: number | null;
+};
+
+/* What addItem could take versus what it actually took. */
+export type AddItemResult = {
+  requested: number;
+  added: number;
+  /* True when stock is what stopped the rest going in. */
+  capped: boolean;
 };
 
 type CartContextType = {
   items: CartItem[];
   cartCount: number;
   cartTotal: number;
-  addItem: (item: CartItem) => void;
+  addItem: (item: CartItem) => AddItemResult;
   updateItemQuantity: (id: string, quantity: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
@@ -80,37 +98,40 @@ function normaliseStoredItem(raw: unknown): CartItem | null {
   return {
     id: item.id,
     productId:
-      typeof item.productId === "string" && item.productId
-        ? item.productId
-        : recovered.productId,
+      typeof item.productId === "string" && item.productId ? item.productId : recovered.productId,
     variantIds: Array.isArray(item.variantIds)
-      ? item.variantIds.filter(
-          (variantId): variantId is string => typeof variantId === "string",
-        )
+      ? item.variantIds.filter((variantId): variantId is string => typeof variantId === "string")
       : recovered.variantIds,
     name: typeof item.name === "string" ? item.name : "",
     price: Number(item.price) || 0,
     image: typeof item.image === "string" ? item.image : "",
     quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
+    maxQuantity:
+      typeof item.maxQuantity === "number" && Number.isFinite(item.maxQuantity)
+        ? Math.max(0, Math.floor(item.maxQuantity))
+        : null,
   };
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  // Load cart from localStorage on client side
+  /*
+   * Hydrate from localStorage on mount. This has to be an effect: the store
+   * does not exist during the server render, so the first client render must
+   * match the server's empty cart and adopt the saved one immediately after.
+   */
   useEffect(() => {
     try {
       const storedCart = localStorage.getItem("cart");
       if (storedCart) {
         const parsed: unknown = JSON.parse(storedCart);
 
+        /* eslint-disable-next-line react-hooks/set-state-in-effect */
         setItems(
           Array.isArray(parsed)
-            ? parsed
-                .map(normaliseStoredItem)
-                .filter((item): item is CartItem => item !== null)
-            : [],
+            ? parsed.map(normaliseStoredItem).filter((item): item is CartItem => item !== null)
+            : []
         );
       }
     } catch (error) {
@@ -130,37 +151,69 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const cartCount = items.reduce((total, item) => total + item.quantity, 0);
 
-  const cartTotal = items.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const cartTotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
 
-  const addItem = (newItem: CartItem) => {
-    setItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex(
-        (item) => item.id === newItem.id
-      );
+  /*
+   * Adds up to what stock allows and reports what happened, so the caller can
+   * say "only 2 left" rather than silently banking a quantity that cannot be
+   * fulfilled. The ceiling counts what is already in the cart: adding 3 twice
+   * to a line with 4 in stock lands on 4, not 6.
+   */
+  const addItem = (newItem: CartItem): AddItemResult => {
+    const requested = Math.max(1, Math.floor(newItem.quantity));
+    const existing = items.find((item) => item.id === newItem.id);
+    const inCart = existing?.quantity ?? 0;
 
-      if (existingItemIndex > -1) {
-        // Item exists, update quantity
-        const updatedItems = [...prevItems];
-        updatedItems[existingItemIndex] = {
-          ...updatedItems[existingItemIndex],
-          quantity:
-            updatedItems[existingItemIndex].quantity + newItem.quantity,
-        };
-        return updatedItems;
-      } else {
-        // Item doesn't exist, add it
-        return [...prevItems, newItem];
-      }
-    });
+    const limit = newItem.maxQuantity;
+    const room = limit === null ? requested : Math.max(0, limit - inCart);
+    const added = Math.min(requested, room);
+
+    if (added > 0) {
+      setItems((prevItems) => {
+        const existingItemIndex = prevItems.findIndex((item) => item.id === newItem.id);
+
+        if (existingItemIndex > -1) {
+          const updatedItems = [...prevItems];
+          const current = updatedItems[existingItemIndex];
+
+          /*
+           * Clamped again against the state being updated, not the render
+           * this handler closed over: two clicks in one tick both compute
+           * their headroom from the same stale `items`.
+           */
+          const total = current.quantity + added;
+
+          updatedItems[existingItemIndex] = {
+            ...current,
+            quantity: limit === null ? total : Math.min(total, limit),
+            /* The fresher reading of stock wins. */
+            maxQuantity: limit,
+          };
+
+          return updatedItems;
+        }
+
+        return [...prevItems, { ...newItem, quantity: added }];
+      });
+    }
+
+    return { requested, added, capped: added < requested };
   };
 
   const updateItemQuantity = (id: string, quantity: number) => {
     setItems((prevItems) =>
       prevItems
-        .map((item) => (item.id === id ? { ...item, quantity } : item))
+        .map((item) => {
+          if (item.id !== id) {
+            return item;
+          }
+
+          /* Never let the line exceed the stock it was added against. */
+          const capped =
+            item.maxQuantity === null ? quantity : Math.min(quantity, item.maxQuantity);
+
+          return { ...item, quantity: capped };
+        })
         .filter((item) => item.quantity > 0)
     );
   };

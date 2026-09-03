@@ -16,7 +16,7 @@ import { Banknote } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { PAYMENT_METHOD, placeOrder } from "./queries";
+import { PAYMENT_METHOD, placeOrder, StockError } from "./queries";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -42,9 +42,7 @@ export default function CheckoutPage() {
     notes: "",
   });
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -68,8 +66,7 @@ export default function CheckoutPage() {
 
       toast({
         title: "Order placed successfully!",
-        description:
-          "Thank you for your purchase. Your order has been received.",
+        description: "Thank you for your purchase. Your order has been received.",
       });
 
       clearCart();
@@ -78,11 +75,24 @@ export default function CheckoutPage() {
        * The id travels in the URL because a guest cannot read their own order
        * back — the confirmation page has no other way to name it.
        */
-      router.push(
-        `/checkout/success?order=${orderId}`,
-      );
+      router.push(`/checkout/success?order=${orderId}`);
     } catch (error: unknown) {
       console.error("Failed to place order:", error);
+
+      /*
+       * Stock ran out between filling the cart and paying. The cart is left
+       * alone so the shopper can adjust the lines themselves.
+       */
+      if (error instanceof StockError) {
+        toast({
+          title: "Some items are no longer available",
+          description: `${error.message.replace(/\.$/, "")}. Please update your cart and try again.`,
+          variant: "destructive",
+        });
+
+        setIsSubmitting(false);
+        return;
+      }
 
       toast({
         title: "Order could not be placed",
@@ -99,20 +109,18 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <div className=" mx-auto px-4 py-16 text-center">
+      <div className="mx-auto px-4 py-16 text-center">
         <h1 className="mb-6 text-3xl font-bold">Checkout</h1>
         <p className="mb-8 text-gray-600">
           Your cart is empty. Please add items to your cart before checking out.
         </p>
-        <Button onClick={() => router.push("/products")}>
-          Browse Products
-        </Button>
+        <Button onClick={() => router.push("/products")}>Browse Products</Button>
       </div>
     );
   }
 
   return (
-    <div className=" px-4 py-8 md:py-12">
+    <div className="px-4 py-8 md:py-12">
       <h1 className="mb-8 text-3xl font-bold">Checkout</h1>
 
       <form onSubmit={handleSubmit}>
@@ -121,9 +129,7 @@ export default function CheckoutPage() {
             <div className="space-y-8">
               {/* Contact Information */}
               <div>
-                <h2 className="mb-4 text-xl font-semibold">
-                  Contact Information
-                </h2>
+                <h2 className="mb-4 text-xl font-semibold">Contact Information</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
@@ -251,8 +257,8 @@ export default function CheckoutPage() {
                     <p className="font-medium">Cash on Delivery</p>
 
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Pay the courier in cash when your order arrives. Please
-                      have the exact amount ready.
+                      Pay the courier in cash when your order arrives. Please have the exact amount
+                      ready.
                     </p>
                   </div>
                 </div>
@@ -282,10 +288,7 @@ export default function CheckoutPage() {
 
               <div className="max-h-[300px] overflow-y-auto">
                 {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between py-3"
-                  >
+                  <div key={item.id} className="flex items-center justify-between py-3">
                     <div className="flex items-center">
                       <div className="relative h-16 w-16 overflow-hidden rounded-md bg-muted">
                         <Image
@@ -298,14 +301,10 @@ export default function CheckoutPage() {
                       </div>
                       <div className="ml-4">
                         <p className="font-medium">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Qty: {item.quantity}
-                        </p>
+                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                       </div>
                     </div>
-                    <p className="font-medium">
-                      {formatCurrency(item.price * item.quantity)}
-                    </p>
+                    <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
                   </div>
                 ))}
               </div>
@@ -328,17 +327,12 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="mt-6 w-full"
-                disabled={isSubmitting}
-              >
+              <Button type="submit" className="mt-6 w-full" disabled={isSubmitting}>
                 {isSubmitting ? "Processing..." : "Place Order"}
               </Button>
 
               <p className="mt-4 text-center text-xs text-muted-foreground">
-                By placing your order, you agree to our Terms of Service and
-                Privacy Policy.
+                By placing your order, you agree to our Terms of Service and Privacy Policy.
               </p>
             </div>
           </div>

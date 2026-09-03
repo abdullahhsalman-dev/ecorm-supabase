@@ -53,7 +53,7 @@ export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCard
   const needsVariantSelection = product.product_variants.length > 0;
 
   const handleAddToCart = () => {
-    addItem({
+    const { added } = addItem({
       id: product.id,
       productId: product.id,
       variantIds: [],
@@ -61,7 +61,21 @@ export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCard
       price,
       image: primaryImage ?? "",
       quantity: 1,
+      maxQuantity: product.stock_quantity,
     });
+
+    /*
+     * The button stays enabled while stock lasts, so repeated clicks are what
+     * run into the ceiling rather than the initial one.
+     */
+    if (added === 0) {
+      toast({
+        title: "No more available",
+        description: `Your cart already holds all ${product.stock_quantity} in stock.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     toast({
       title: "Added to cart",

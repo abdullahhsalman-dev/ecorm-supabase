@@ -19,7 +19,7 @@ import {
 } from "@/src/app/components/ui/select";
 import { Textarea } from "@/src/app/components/ui/textarea";
 import { cn, safeImageSrc } from "@/src/app/lib/utils";
-import { ImageIcon, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronUp, ImageIcon, Plus, Star, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FormActions,
@@ -37,14 +37,18 @@ import {
   validateImageFile,
 } from "../lib/storage";
 import {
+  emptyFormImage,
+  emptyFormVariant,
   emptyProductForm,
   generateSlug,
   productFormValues,
   validateProductForm,
+  type ProductFormImage,
   type ProductFormValues,
+  type ProductFormVariant,
 } from "./product-form";
 import { createProduct, updateProduct } from "./queries";
-import { primaryImageOf, type Category, type Product } from "./types";
+import type { Category, Product } from "./types";
 
 interface ProductFormSheetProps {
   open: boolean;
@@ -79,7 +83,10 @@ export function ProductFormSheet({
    * list cannot wipe fields the admin is part-way through.
    */
   const categoriesRef = useRef(categories);
-  categoriesRef.current = categories;
+
+  useEffect(() => {
+    categoriesRef.current = categories;
+  }, [categories]);
 
   /* Seed the fields each time the sheet opens. */
   useEffect(() => {
@@ -97,27 +104,36 @@ export function ProductFormSheet({
   }, [open, product]);
 
   /*
-   * A picked file is previewed from an object URL, which has to
-   * be revoked or the blob is held until the tab closes.
+   * A picked file is previewed from an object URL, which has to be revoked or
+   * the blob is held until the tab closes. One entry per gallery row, so the
+   * list can mix saved urls with files that have not been uploaded yet.
    */
-  const filePreview = useMemo(
-    () => (values.imageFile ? URL.createObjectURL(values.imageFile) : null),
-    [values.imageFile]
+  const previews = useMemo(
+    () =>
+      values.images.map((image) =>
+        image.file ? URL.createObjectURL(image.file) : image.url ? safeImageSrc(image.url) : null
+      ),
+    [values.images]
   );
 
   useEffect(() => {
-    if (!filePreview) {
+    const objectUrls = previews.filter(
+      (preview): preview is string => preview !== null && preview.startsWith("blob:")
+    );
+
+    if (objectUrls.length === 0) {
       return;
     }
 
-    return () => URL.revokeObjectURL(filePreview);
-  }, [filePreview]);
+    return () => {
+      for (const objectUrl of objectUrls) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [previews]);
 
   /* Both save paths are blocking, so the whole form locks. */
   const busy = saving || uploading;
-
-  /* A pending file wins over whatever is already saved. */
-  const previewSrc = filePreview ?? (values.imageUrl ? safeImageSrc(values.imageUrl) : null);
 
   const setValue = <K extends keyof ProductFormValues>(
     key: K,
@@ -136,39 +152,114 @@ export function ProductFormSheet({
   };
 
   /*
-   * The file is only held in state here; it is uploaded on
-   * submit so an abandoned sheet leaves nothing in the bucket.
+   * Files are only held in state here; they are uploaded on submit so an
+   * abandoned sheet leaves nothing in the bucket. Several can be picked at
+   * once - each becomes one gallery row.
    */
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const file = event.target.files?.[0] ?? null;
+    const picked = Array.from(event.target.files ?? []);
 
-    if (!file) {
+    if (picked.length === 0) {
       return;
     }
 
-    const reason = validateImageFile(file);
+    const accepted: ProductFormImage[] = [];
 
-    if (reason) {
-      toast({
-        title: "Invalid image",
-        description: reason,
-        variant: "destructive",
-      });
+    for (const file of picked) {
+      const reason = validateImageFile(file);
 
-      event.target.value = "";
-      return;
+      if (reason) {
+        toast({
+          title: `Skipped ${file.name}`,
+          description: reason,
+          variant: "destructive",
+        });
+
+        continue;
+      }
+
+      accepted.push({ ...emptyFormImage(), file });
     }
 
-    setValue("imageFile", file);
+    if (accepted.length > 0) {
+      setValues((current) => ({
+        ...current,
+        images: [...current.images, ...accepted].map((image, index) => ({
+          ...image,
+          /* First image in becomes the primary when none is set yet. */
+          isPrimary: current.images.some((existing) => existing.isPrimary)
+            ? image.isPrimary
+            : index === 0,
+        })),
+      }));
+    }
+
+    /* Clearing by hand is what lets the same file be re-picked. */
+    event.target.value = "";
   };
 
-  /* Drops both the pending file and the image already saved. */
-  const handleClearImage = (): void => {
-    setValues((current) => ({ ...current, imageFile: null, imageUrl: "" }));
+  const handleRemoveImage = (key: string): void => {
+    setValues((current) => {
+      const images = current.images.filter((image) => image.key !== key);
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+      /* Removing the primary promotes whatever is now first. */
+      return {
+        ...current,
+        images: images.some((image) => image.isPrimary)
+          ? images
+          : images.map((image, index) => ({ ...image, isPrimary: index === 0 })),
+      };
+    });
+  };
+
+  const handleSetPrimary = (key: string): void => {
+    setValues((current) => ({
+      ...current,
+      images: current.images.map((image) => ({ ...image, isPrimary: image.key === key })),
+    }));
+  };
+
+  /* Position in the list is display_order, so moving a row reorders the gallery. */
+  const handleMoveImage = (index: number, direction: -1 | 1): void => {
+    setValues((current) => {
+      const target = index + direction;
+
+      if (target < 0 || target >= current.images.length) {
+        return current;
+      }
+
+      const images = [...current.images];
+      [images[index], images[target]] = [images[target], images[index]];
+
+      return { ...current, images };
+    });
+  };
+
+  const handleAddVariant = (): void => {
+    setValues((current) => ({
+      ...current,
+      variants: [...current.variants, emptyFormVariant()],
+    }));
+  };
+
+  const handleVariantChange = <K extends keyof ProductFormVariant>(
+    key: string,
+    field: K,
+    value: ProductFormVariant[K]
+  ): void => {
+    setValues((current) => ({
+      ...current,
+      variants: current.variants.map((variant) =>
+        variant.key === key ? { ...variant, [field]: value } : variant
+      ),
+    }));
+  };
+
+  const handleRemoveVariant = (key: string): void => {
+    setValues((current) => ({
+      ...current,
+      variants: current.variants.filter((variant) => variant.key !== key),
+    }));
   };
 
   const handleOpenChange = (nextOpen: boolean): void => {
@@ -186,30 +277,48 @@ export function ProductFormSheet({
       return;
     }
 
-    const { payload, error } = validateProductForm(values, existingProducts, product?.id ?? null);
+    const { payload, images, variants, error } = validateProductForm(
+      values,
+      existingProducts,
+      product?.id ?? null
+    );
 
     if (error) {
       toast({ ...error, variant: "destructive" });
       return;
     }
 
-    /* The picture the product points at before this save. */
-    const previousImageUrl = product ? (primaryImageOf(product)?.image_url ?? "") : "";
+    /* Resolved gallery: every pending file replaced by its uploaded url. */
+    let uploaded = images;
 
-    let imageUrl = values.imageUrl;
-
-    if (values.imageFile) {
+    if (images.some((image) => image.file)) {
       setUploading(true);
 
       try {
-        imageUrl = await uploadImage(values.imageFile, "products", payload.slug);
+        uploaded = await Promise.all(
+          images.map(async (image) =>
+            image.file
+              ? {
+                  ...image,
+                  image_url: await uploadImage(image.file, "products", payload.slug),
+                  file: null,
+                }
+              : image
+          )
+        );
 
         /*
-         * The file is in the bucket now. Folding it into the
-         * form means a failed save can be retried without
-         * uploading a second copy.
+         * The files are in the bucket now. Folding them back into the form
+         * means a failed save can be retried without uploading a second copy.
          */
-        setValues((current) => ({ ...current, imageUrl, imageFile: null }));
+        setValues((current) => ({
+          ...current,
+          images: current.images.map((image, index) => ({
+            ...image,
+            url: uploaded[index]?.image_url ?? image.url,
+            file: null,
+          })),
+        }));
 
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
@@ -232,18 +341,21 @@ export function ProductFormSheet({
     setSaving(true);
 
     try {
+      /* Rows the admin dropped, so their files can leave the bucket too. */
+      let orphanedUrls: string[] = [];
+
       if (product) {
-        await updateProduct(product.id, payload, imageUrl);
+        orphanedUrls = await updateProduct(product.id, payload, uploaded, variants);
       } else {
-        await createProduct(payload, imageUrl);
+        await createProduct(payload, uploaded, variants);
       }
 
       /*
-       * The row points elsewhere now, so the file it replaced is
-       * dead weight. Cleanup never fails the save.
+       * Nothing points at these files now, so they are dead weight. Cleanup
+       * never fails the save.
        */
-      if (previousImageUrl && previousImageUrl !== imageUrl) {
-        await removeImage(previousImageUrl);
+      for (const orphanedUrl of orphanedUrls) {
+        await removeImage(orphanedUrl);
       }
 
       toast({
@@ -369,60 +481,213 @@ export function ProductFormSheet({
           />
         </FormField>
 
-        <FormField id="form-image" label="Primary Image">
-          <div className="flex items-start gap-4">
-            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50">
-              {previewSrc ? (
-                /*
-                 * A pending file is previewed from a blob: URL,
-                 * which next/image cannot take, so both the saved
-                 * and the pending state render through plain img.
-                 */
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={previewSrc}
-                  alt="Product image preview"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <ImageIcon className="h-7 w-7 text-neutral-300" />
-              )}
-            </div>
+        <FormField id="form-image" label="Images">
+          <div className="space-y-2">
+            {values.images.length > 0 ? (
+              <ul className="space-y-2">
+                {values.images.map((image, index) => (
+                  <li
+                    key={image.key}
+                    className="flex items-center gap-3 rounded-lg border border-neutral-200 p-2"
+                  >
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-neutral-200 bg-neutral-50">
+                      {previews[index] ? (
+                        /*
+                         * A pending file is previewed from a blob: URL, which
+                         * next/image cannot take, so both the saved and the
+                         * pending state render through plain img.
+                         */
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={previews[index]}
+                          alt={`Product image ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="h-6 w-6 text-neutral-300" />
+                      )}
+                    </div>
 
-            <div className="min-w-0 flex-1 space-y-2">
-              <input
-                ref={fileInputRef}
-                id="form-image"
-                type="file"
-                accept={IMAGE_ACCEPT}
-                onChange={handleFileChange}
-                disabled={busy}
-                className="block w-full cursor-pointer text-xs text-neutral-500 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-neutral-200 file:bg-neutral-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-neutral-700 hover:file:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
-              />
+                    <div className="min-w-0 flex-1">
+                      {image.file ? (
+                        <p className="flex items-center gap-1 truncate text-[11px] text-neutral-600">
+                          <Upload className="h-3 w-3 shrink-0" />
+                          {image.file.name} ({formatBytes(image.file.size)}) — uploads on save
+                        </p>
+                      ) : (
+                        <p className="truncate font-mono text-[11px] text-neutral-500">
+                          {image.url}
+                        </p>
+                      )}
 
-              {values.imageFile ? (
-                <p className="flex items-center gap-1 truncate text-[11px] text-neutral-600">
-                  <Upload className="h-3 w-3 shrink-0" />
-                  {values.imageFile.name} ({formatBytes(values.imageFile.size)}) — uploads on save
-                </p>
-              ) : (
-                <p className="text-[11px] text-neutral-400">
-                  JPEG, PNG, WebP, AVIF or GIF — up to {formatBytes(MAX_IMAGE_BYTES)}.
-                </p>
-              )}
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrimary(image.key)}
+                        disabled={busy || image.isPrimary}
+                        className={cn(
+                          "mt-1 flex items-center gap-1 text-[11px] font-semibold disabled:cursor-default",
+                          image.isPrimary
+                            ? "text-[#FF3D6E] disabled:opacity-100"
+                            : "text-neutral-500 hover:text-neutral-800 disabled:opacity-60"
+                        )}
+                      >
+                        <Star
+                          className={cn("h-3 w-3", image.isPrimary && "fill-current")}
+                          aria-hidden
+                        />
+                        {image.isPrimary ? "Primary image" : "Make primary"}
+                      </button>
+                    </div>
 
-              {previewSrc ? (
-                <button
-                  type="button"
-                  onClick={handleClearImage}
-                  disabled={busy}
-                  className="flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-700 disabled:opacity-60"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Remove image
-                </button>
-              ) : null}
-            </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleMoveImage(index, -1)}
+                        disabled={busy || index === 0}
+                        aria-label="Move image up"
+                        className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleMoveImage(index, 1)}
+                        disabled={busy || index === values.images.length - 1}
+                        aria-label="Move image down"
+                        className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(image.key)}
+                        disabled={busy}
+                        aria-label="Remove image"
+                        className="rounded p-1 text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <input
+              ref={fileInputRef}
+              id="form-image"
+              type="file"
+              multiple
+              accept={IMAGE_ACCEPT}
+              onChange={handleFileChange}
+              disabled={busy}
+              className="block w-full cursor-pointer text-xs text-neutral-500 file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-neutral-200 file:bg-neutral-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-neutral-700 hover:file:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+
+            <p className="text-[11px] text-neutral-400">
+              JPEG, PNG, WebP, AVIF or GIF — up to {formatBytes(MAX_IMAGE_BYTES)} each. The primary
+              image is what listings show; the rest become the gallery, in this order.
+            </p>
+          </div>
+        </FormField>
+
+        <FormField id="form-variants" label="Variants">
+          <div className="space-y-2">
+            {values.variants.length > 0 ? (
+              <>
+                <div className="grid grid-cols-[1fr_1fr_5rem_5rem_2rem] gap-2 px-1">
+                  <span className="text-[11px] font-semibold text-neutral-500">Option</span>
+                  <span className="text-[11px] font-semibold text-neutral-500">Value</span>
+                  <span className="text-[11px] font-semibold text-neutral-500">+/- Rs.</span>
+                  <span className="text-[11px] font-semibold text-neutral-500">Stock</span>
+                  <span />
+                </div>
+
+                <ul className="space-y-2">
+                  {values.variants.map((variant) => (
+                    <li
+                      key={variant.key}
+                      className="grid grid-cols-[1fr_1fr_5rem_5rem_2rem] items-center gap-2"
+                    >
+                      <Input
+                        value={variant.name}
+                        onChange={(event) =>
+                          handleVariantChange(variant.key, "name", event.target.value)
+                        }
+                        placeholder="Size"
+                        aria-label="Option name"
+                        disabled={busy}
+                        className={INPUT_CLASS}
+                      />
+
+                      <Input
+                        value={variant.value}
+                        onChange={(event) =>
+                          handleVariantChange(variant.key, "value", event.target.value)
+                        }
+                        placeholder="Medium"
+                        aria-label="Option value"
+                        disabled={busy}
+                        className={INPUT_CLASS}
+                      />
+
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={variant.priceAdjustment}
+                        onChange={(event) =>
+                          handleVariantChange(variant.key, "priceAdjustment", event.target.value)
+                        }
+                        aria-label="Price adjustment"
+                        disabled={busy}
+                        className={INPUT_CLASS}
+                      />
+
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={variant.stock}
+                        onChange={(event) =>
+                          handleVariantChange(variant.key, "stock", event.target.value)
+                        }
+                        aria-label="Variant stock"
+                        disabled={busy}
+                        className={INPUT_CLASS}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveVariant(variant.key)}
+                        disabled={busy}
+                        aria-label="Remove variant"
+                        className="rounded p-1 text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={handleAddVariant}
+              disabled={busy}
+              className="flex items-center gap-1 text-[11px] font-semibold text-neutral-700 hover:text-black disabled:opacity-60"
+            >
+              <Plus className="h-3 w-3" />
+              Add variant
+            </button>
+
+            <p className="text-[11px] text-neutral-400">
+              One row per choice — &ldquo;Size: S&rdquo;, &ldquo;Size: M&rdquo;. Rows sharing an
+              option name become one picker on the product page. Leave empty for a product sold as a
+              single option.
+            </p>
           </div>
         </FormField>
 

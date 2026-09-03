@@ -26,6 +26,8 @@ export interface WishlistProduct {
   slug: string;
   price: number;
   sale_price: number | null;
+  /* Read so the wishlist can cap what it adds to the cart. */
+  stock_quantity: number;
   product_images: WishlistProductImage[];
 }
 
@@ -44,6 +46,7 @@ const WISHLIST_ITEM_SELECT = `
     slug,
     price,
     sale_price,
+    stock_quantity,
     product_images (
       image_url,
       is_primary
@@ -94,9 +97,7 @@ async function ensureWishlist(userId: string): Promise<string> {
   return data.id as string;
 }
 
-export async function fetchWishlistItems(
-  userId: string,
-): Promise<WishlistItem[]> {
+export async function fetchWishlistItems(userId: string): Promise<WishlistItem[]> {
   const wishlistId = await fetchWishlistId(userId);
 
   if (!wishlistId) {
@@ -122,9 +123,7 @@ export async function fetchWishlistItems(
  * for the set costs the same round trip and lets a listing ask
  * about many.
  */
-export async function fetchWishlistProductIds(
-  userId: string,
-): Promise<Set<string>> {
+export async function fetchWishlistProductIds(userId: string): Promise<Set<string>> {
   const wishlistId = await fetchWishlistId(userId);
 
   if (!wishlistId) {
@@ -143,7 +142,7 @@ export async function fetchWishlistProductIds(
   return new Set(
     (data ?? [])
       .map((row) => row.product_id as string | null)
-      .filter((id): id is string => Boolean(id)),
+      .filter((id): id is string => Boolean(id))
   );
 }
 
@@ -154,10 +153,7 @@ export async function fetchWishlistProductIds(
  * constraint on (wishlist_id, product_id) in the shipped
  * schema, so this check is what keeps the list clean.
  */
-export async function addToWishlist(
-  userId: string,
-  productId: string,
-): Promise<void> {
+export async function addToWishlist(userId: string, productId: string): Promise<void> {
   const wishlistId = await ensureWishlist(userId);
 
   const { data: existing, error: existingError } = await createClient()
@@ -185,10 +181,7 @@ export async function addToWishlist(
 }
 
 /** Removes by product, for the toggle on the product page. */
-export async function removeFromWishlist(
-  userId: string,
-  productId: string,
-): Promise<void> {
+export async function removeFromWishlist(userId: string, productId: string): Promise<void> {
   const wishlistId = await fetchWishlistId(userId);
 
   if (!wishlistId) {
@@ -208,10 +201,7 @@ export async function removeFromWishlist(
 
 /** Removes by row id, for the delete button on the account tab. */
 export async function removeWishlistItem(itemId: string): Promise<void> {
-  const { error } = await createClient()
-    .from("wishlist_items")
-    .delete()
-    .eq("id", itemId);
+  const { error } = await createClient().from("wishlist_items").delete().eq("id", itemId);
 
   if (error) {
     throw error;

@@ -23,6 +23,24 @@ export default function CartPage() {
 
   const handleQuantityChange = (id: string, quantity: number) => {
     if (quantity < 1) return;
+
+    const item = items.find((line) => line.id === id);
+
+    /*
+     * The provider caps this anyway; saying so here is what stops the click
+     * looking like it did nothing.
+     */
+    if (item && item.maxQuantity !== null && quantity > item.maxQuantity) {
+      toast({
+        title: "Limited stock",
+        description: `Only ${item.maxQuantity} of ${item.name} ${
+          item.maxQuantity === 1 ? "is" : "are"
+        } available.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     updateItemQuantity(id, quantity);
   };
 
@@ -52,7 +70,7 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className=" mx-auto px-4 py-16 text-center">
+      <div className="mx-auto px-4 py-16 text-center">
         <h1 className="mb-6 text-3xl font-bold">Your Cart</h1>
         <p className="mb-8 text-gray-600">Your cart is currently empty.</p>
         <Button asChild>
@@ -63,7 +81,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className=" mx-auto px-4 py-8">
+    <div className="mx-auto px-4 py-8">
       <h1 className="mb-8 text-3xl font-bold">Your Cart</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
@@ -73,9 +91,7 @@ export default function CartPage() {
               <div className="hidden border-b pb-4 md:grid md:grid-cols-12">
                 <div className="col-span-6 font-medium">Product</div>
                 <div className="col-span-2 text-center font-medium">Price</div>
-                <div className="col-span-2 text-center font-medium">
-                  Quantity
-                </div>
+                <div className="col-span-2 text-center font-medium">Quantity</div>
                 <div className="col-span-2 text-right font-medium">Total</div>
               </div>
 
@@ -110,14 +126,14 @@ export default function CartPage() {
                     </div>
 
                     <div className="col-span-2 mt-4 text-center md:mt-0">
-                      <div className="md:hidden text-sm font-medium text-muted-foreground">
+                      <div className="text-sm font-medium text-muted-foreground md:hidden">
                         Price:
                       </div>
                       {formatCurrency(item.price)}
                     </div>
 
                     <div className="col-span-2 mt-4 flex items-center justify-center md:mt-0">
-                      <div className="md:hidden mr-2 text-sm font-medium text-muted-foreground">
+                      <div className="mr-2 text-sm font-medium text-muted-foreground md:hidden">
                         Quantity:
                       </div>
                       <div className="flex items-center">
@@ -125,9 +141,7 @@ export default function CartPage() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 rounded-r-none"
-                          onClick={() =>
-                            handleQuantityChange(item.id, item.quantity - 1)
-                          }
+                          onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
                           disabled={item.quantity <= 1}
                         >
                           <Minus className="h-3 w-3" />
@@ -140,18 +154,23 @@ export default function CartPage() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 rounded-l-none"
-                          onClick={() =>
-                            handleQuantityChange(item.id, item.quantity + 1)
-                          }
+                          onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                          disabled={item.maxQuantity !== null && item.quantity >= item.maxQuantity}
                         >
                           <Plus className="h-3 w-3" />
                           <span className="sr-only">Increase quantity</span>
                         </Button>
                       </div>
+
+                      {item.maxQuantity !== null && item.quantity >= item.maxQuantity ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Max {item.maxQuantity} available
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="col-span-2 mt-4 text-right md:mt-0">
-                      <div className="md:hidden text-sm font-medium text-muted-foreground">
+                      <div className="text-sm font-medium text-muted-foreground md:hidden">
                         Total:
                       </div>
                       {formatCurrency(item.price * item.quantity)}
@@ -197,11 +216,7 @@ export default function CartPage() {
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
                   />
-                  <Button
-                    variant="outline"
-                    onClick={handleApplyCoupon}
-                    disabled={isApplyingCoupon}
-                  >
+                  <Button variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon}>
                     {isApplyingCoupon ? "Applying..." : "Apply"}
                   </Button>
                 </div>

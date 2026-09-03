@@ -76,7 +76,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   /* One selected variant id per group name, e.g. { Size: "uuid" }. */
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
-  const [activeImage, setActiveImage] = useState(0);
+  const [selectedImage, setSelectedImage] = useState(0);
   const [brokenImages, setBrokenImages] = useState<string[]>([]);
   const [savingFavorite, setSavingFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
@@ -169,6 +169,12 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   }, [product.id]);
 
   useEffect(() => {
+    /*
+     * Fetching from the server is exactly the external-system sync an effect
+     * is for; the rule cannot see that the setState happens in the awaited
+     * continuation rather than during this render.
+     */
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     loadReviewStats();
   }, [loadReviewStats]);
 
@@ -223,9 +229,12 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   const categoryName = product.categories?.name;
   const categorySlug = product.categories?.slug;
 
-  useEffect(() => {
-    setActiveImage((current) => Math.min(current, Math.max(productImages.length - 1, 0)));
-  }, [productImages.length]);
+  /*
+   * Derived rather than corrected in an effect: if the gallery shrinks under
+   * the selected index, the clamp has to apply on the very render that shows
+   * the shorter list, not one render later.
+   */
+  const activeImage = Math.min(selectedImage, Math.max(productImages.length - 1, 0));
 
   const showToast = (title: string, description: string, variant?: "default" | "destructive") => {
     toast({ title, description, variant });
@@ -260,7 +269,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       .map((variant) => `${variant.name}: ${variant.value}`)
       .join(", ");
 
-    addItem({
+    const { added, capped } = addItem({
       id: variantSuffix ? `${product.id}-${variantSuffix}` : product.id,
       productId: product.id,
       variantIds: chosenVariants.map((variant) => variant.id),
@@ -268,7 +277,30 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       price: currentPrice,
       image: productImages[0] || FALLBACK_IMAGE,
       quantity,
+      maxQuantity: availableStock,
     });
+
+    /*
+     * The cart may already hold some of this line, so a request within the
+     * stock figure shown on the page can still exceed what is left.
+     */
+    if (added === 0) {
+      showToast(
+        "Already in your cart",
+        `Only ${availableStock} of this item ${availableStock === 1 ? "is" : "are"} available, and your cart holds them all.`,
+        "destructive"
+      );
+      return;
+    }
+
+    if (capped) {
+      showToast(
+        "Limited stock",
+        `Only ${added} more could be added — ${availableStock} available in total.`,
+        "destructive"
+      );
+      return;
+    }
 
     showToast("Added to cart", `${product.name} has been added to your cart.`);
   };
@@ -317,12 +349,13 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     setBrokenImages((current) => (current.includes(src) ? current : [...current, src]));
   };
 
+  /* Stepping from the clamped index, so a shrunken gallery cannot strand it. */
   const goToPreviousImage = () => {
-    setActiveImage((current) => (current === 0 ? productImages.length - 1 : current - 1));
+    setSelectedImage(activeImage === 0 ? productImages.length - 1 : activeImage - 1);
   };
 
   const goToNextImage = () => {
-    setActiveImage((current) => (current + 1) % productImages.length);
+    setSelectedImage((activeImage + 1) % productImages.length);
   };
 
   return (
@@ -381,7 +414,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                 <button
                   key={`${image}-${index}`}
                   type="button"
-                  onClick={() => setActiveImage(index)}
+                  onClick={() => setSelectedImage(index)}
                   aria-label={`View product image ${index + 1}`}
                   aria-current={activeImage === index}
                   className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 bg-muted/30 transition-all duration-200 ${
