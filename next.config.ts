@@ -1,6 +1,17 @@
+import path from "node:path";
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /*
+   * Turbopack infers the workspace root from the nearest lockfile, and a
+   * stray package-lock.json in a parent directory makes it guess wrong (and
+   * then ignore ours). This directory is the root.
+   */
+  turbopack: {
+    root: path.join(__dirname),
+  },
+
   images: {
     /*
      * Product and category art is served from Supabase storage; the seed
