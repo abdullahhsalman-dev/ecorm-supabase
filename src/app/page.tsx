@@ -2,6 +2,17 @@ import { CategoryShowcase } from "@/src/app/components/category-showcase";
 import { FeaturedProducts } from "@/src/app/components/featured-products";
 import { HeroSection } from "@/src/app/components/hero-section";
 import { PromoSection } from "@/src/app/components/promo-section";
+import type { Metadata } from "next";
+
+/*
+ * The title and description come from the layout's defaults;
+ * only the canonical is set here, because a canonical on the
+ * layout would be inherited by every other route.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: { url: "/" },
+};
 
 /*
  * CategoryShowcase reads the categories table, so this page goes

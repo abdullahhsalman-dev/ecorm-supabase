@@ -3,7 +3,7 @@ import { CheckCircle } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Order Confirmation | Lamees",
+  title: "Order Confirmation",
   description: "Your order has been successfully placed",
 };
 
@@ -24,15 +24,14 @@ export default async function OrderSuccessPage({
   const orderNumber = order ? order.split("-")[0].toUpperCase() : null;
 
   return (
-    <div className=" flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
+    <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
       <div className="mb-6 rounded-full bg-green-100 p-3">
         <CheckCircle className="h-12 w-12 text-green-600" />
       </div>
       <h1 className="mb-4 text-3xl font-bold">Order Placed Successfully!</h1>
       <p className="mb-8 max-w-md text-muted-foreground">
-        Thank you for your order. We&apos;ve received it and will begin
-        processing right away. Please have the cash ready for the courier when
-        it arrives.
+        Thank you for your order. We&apos;ve received it and will begin processing right away.
+        Please have the cash ready for the courier when it arrives.
       </p>
       <div className="mb-8 w-full max-w-md rounded-lg border bg-card p-6 text-left">
         <h2 className="mb-4 text-xl font-semibold">Order Details</h2>
@@ -45,9 +44,7 @@ export default async function OrderSuccessPage({
           )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Date:</span>
-            <span className="font-medium">
-              {new Date().toLocaleDateString()}
-            </span>
+            <span className="font-medium">{new Date().toLocaleDateString()}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Payment Method:</span>

@@ -2,6 +2,7 @@ import { ProductFilters } from "@/src/app/components/product-filters";
 import { ProductGrid } from "@/src/app/components/product-grid";
 import { Container } from "@/src/app/components/ui/container";
 import { fetchCategoriesBySlugs } from "@/src/app/lib/categories";
+import { childSegment } from "@/src/app/lib/navigation";
 import { createClient } from "@/src/app/lib/supabase/server";
 import Link from "next/link";
 
@@ -15,10 +16,7 @@ import Link from "next/link";
  * They now all render this component, so a fix lands once.
  */
 
-export type ListingSearchParams = Record<
-  string,
-  string | string[] | undefined
->;
+export type ListingSearchParams = Record<string, string | string[] | undefined>;
 
 interface CategoryListingProps {
   /* The [subcategory] / [slug] segment from the URL. */
@@ -45,14 +43,10 @@ interface CategoryRecord {
   slug: string;
 }
 
-const readString = (
-  value: string | string[] | undefined,
-): string | undefined =>
+const readString = (value: string | string[] | undefined): string | undefined =>
   typeof value === "string" && value ? value : undefined;
 
-const readNumber = (
-  value: string | string[] | undefined,
-): number | undefined => {
+const readNumber = (value: string | string[] | undefined): number | undefined => {
   const raw = readString(value);
 
   if (raw === undefined) {
@@ -88,7 +82,7 @@ const titleFromSlug = (slug: string): string =>
  */
 async function getCategory(
   slug: string,
-  parentSlug?: string,
+  parentSlug?: string
 ): Promise<CategoryRecord | null | undefined> {
   try {
     const prefixed = parentSlug ? `${parentSlug}-${slug}` : null;
@@ -148,9 +142,7 @@ export async function CategoryListing({
   const sort = readString(searchParams.sort);
   const minPrice = readNumber(searchParams.minPrice);
   const maxPrice = readNumber(searchParams.maxPrice);
-  const variantValues = readString(searchParams.variants)
-    ?.split(",")
-    .filter(Boolean);
+  const variantValues = readString(searchParams.variants)?.split(",").filter(Boolean);
 
   return (
     <Container className="py-10 lg:py-14">
@@ -167,10 +159,7 @@ export async function CategoryListing({
               <>
                 <li aria-hidden="true">/</li>
                 <li>
-                  <Link
-                    href={parent.href}
-                    className="transition-colors hover:text-foreground"
-                  >
+                  <Link href={parent.href} className="transition-colors hover:text-foreground">
                     {parent.name}
                   </Link>
                 </li>
@@ -182,9 +171,7 @@ export async function CategoryListing({
           </ol>
         </nav>
 
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          {heading}
-        </h1>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{heading}</h1>
 
         {category?.description && (
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -220,19 +207,58 @@ export async function CategoryListing({
  */
 export async function buildCategoryMetadata(
   slug: string,
-  context: { titlePrefix?: string; parentSlug?: string },
+  context: {
+    parentSlug?: string;
+    /* The section this page sits under, e.g. "/women" or "/sale". */
+    basePath: string;
+    /* A /sale/[subcategory] page reads as "Women Sale", not
+     * "Stitched Women", so the two shapes are named apart. */
+    variant?: "category" | "sale";
+  }
 ) {
   const category = await getCategory(slug, context.parentSlug);
   const name = category?.name ?? titleFromSlug(slug);
 
-  const title = context.titlePrefix
-    ? `${context.titlePrefix} ${name}`
-    : name;
+  /*
+   * Both /men/t-shirts and /men/men-t-shirts resolve, because a
+   * child slug stores the parent as a prefix and getCategory
+   * accepts either. The short form is the one the navigation
+   * links to, so it is the one every page here declares as
+   * canonical - otherwise the two spellings compete.
+   */
+  const segment = context.parentSlug
+    ? childSegment(category?.slug ?? slug, context.parentSlug)
+    : (category?.slug ?? slug);
+
+  const canonical = `${context.basePath}/${segment}`;
+
+  /*
+   * "Stitched" and "ready to wear" are what a Pakistani shopper
+   * types; "pret" is trade jargon that autocompletes to a
+   * sandwich chain. Saying "stitched" out loud is also what
+   * keeps unstitched-fabric traffic away, so it belongs in the
+   * title rather than only in the body copy.
+   */
+  const title =
+    context.variant === "sale"
+      ? `${name} Sale - Stitched Dresses on Sale in Pakistan`
+      : `Stitched ${name} - Ready to Wear in Pakistan`;
+
+  const description =
+    category?.description ||
+    `Shop stitched, ready to wear ${name.toLowerCase()} in Pakistan. ` +
+      `Sold fully stitched with prices shown - never unstitched fabric.`;
 
   return {
-    title: `${title} | Lamees`,
-    description:
-      category?.description ||
-      `Shop ${title.toLowerCase()} at Lamees.`,
+    title,
+    description,
+    /* Without its own, it inherits the homepage's canonical. */
+    alternates: { canonical },
+    openGraph: {
+      type: "website" as const,
+      title,
+      description,
+      url: canonical,
+    },
   };
 }

@@ -54,9 +54,7 @@ export const revalidate = 300;
  * without this an arbitrary URL would render an empty page
  * that looks like a real department.
  */
-async function getDepartmentCategory(
-  slug: string,
-): Promise<CategoryRecord | null> {
+async function getDepartmentCategory(slug: string): Promise<CategoryRecord | null> {
   if (RESERVED_SLUGS.has(slug)) {
     return null;
   }
@@ -78,8 +76,16 @@ export async function generateMetadata({ params }: PageProps) {
   const department = buildDepartment(category);
 
   return {
-    title: `${department.metaTitle} | Lamees`,
+    title: department.metaTitle,
     description: department.metaDescription,
+    /* Its own, or it inherits one and drops out of the index. */
+    alternates: { canonical: `/${slug}` },
+    openGraph: {
+      type: "website",
+      title: department.metaTitle,
+      description: department.metaDescription,
+      url: `/${slug}`,
+    },
   };
 }
 

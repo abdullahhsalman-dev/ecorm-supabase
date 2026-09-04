@@ -165,7 +165,7 @@ const newInCategory: NavCategory = { name: "New In", href: "/new-arrivals" };
  * the discounted view of each one.
  */
 const saleCategory = (departments: CategoryRecord[]): NavCategory => ({
-  name: "Grand Festive Sale",
+  name: "Sale",
   href: "/sale",
   accent: true,
   groups: toColumns(
@@ -176,7 +176,7 @@ const saleCategory = (departments: CategoryRecord[]): NavCategory => ({
   ),
   feature: {
     eyebrow: "Ends soon",
-    title: "Grand Festive Sale",
+    title: "Sale",
     description: "Reduced lines across every department, while stocks last.",
     href: "/sale",
     cta: "Shop all offers",

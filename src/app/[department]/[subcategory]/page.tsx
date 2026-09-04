@@ -43,13 +43,13 @@ async function getParentName(slug: string): Promise<string | null> {
 export async function generateMetadata({ params }: PageProps) {
   const { department, subcategory } = await params;
 
-  return buildCategoryMetadata(subcategory, { parentSlug: department });
+  return buildCategoryMetadata(subcategory, {
+    parentSlug: department,
+    basePath: `/${department}`,
+  });
 }
 
-export default async function SubcategoryRoute({
-  params,
-  searchParams,
-}: PageProps) {
+export default async function SubcategoryRoute({ params, searchParams }: PageProps) {
   const { department, subcategory } = await params;
 
   const parentName = await getParentName(department);

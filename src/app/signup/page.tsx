@@ -2,7 +2,7 @@ import { AuthForm, AuthLayout } from "@/src/app/components/auth-form";
 import { Suspense } from "react";
 
 export const metadata = {
-  title: "Create Account | Lamees",
+  title: "Create Account",
   description: "Create a Lamees account to track orders and save your wishlist.",
 };
 

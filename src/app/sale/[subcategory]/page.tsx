@@ -13,13 +13,14 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps) {
   const { subcategory } = await params;
 
-  return buildCategoryMetadata(subcategory, { parentSlug: "sale" });
+  return buildCategoryMetadata(subcategory, {
+    parentSlug: "sale",
+    basePath: "/sale",
+    variant: "sale",
+  });
 }
 
-export default async function SaleSubcategoryPage({
-  params,
-  searchParams,
-}: PageProps) {
+export default async function SaleSubcategoryPage({ params, searchParams }: PageProps) {
   const { subcategory } = await params;
   const resolvedSearchParams = await searchParams;
 
