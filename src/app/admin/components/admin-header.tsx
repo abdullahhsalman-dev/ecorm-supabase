@@ -12,7 +12,7 @@ import {
 import { useAuth } from "@/src/app/context/auth-context";
 import { countCategories } from "@/src/app/lib/categories";
 import { cn } from "@/src/app/lib/utils";
-import {  LogOut, Menu, User } from "lucide-react";
+import { LogOut, Menu, User } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAdminProfile } from "./admin-provider";
@@ -88,16 +88,13 @@ export function AdminHeader() {
     }
   };
 
-  const pageTitle =
-    PAGE_TITLES.find((entry) => entry.match(pathname))?.title ?? "Admin Portal";
+  const pageTitle = PAGE_TITLES.find((entry) => entry.match(pathname))?.title ?? "Admin Portal";
 
   const displayName =
     profile?.full_name?.trim() || profile?.email?.split("@")[0] || "Administrator";
 
   /* Role comes from users.user_type, not from the email string. */
-  const roleLabel = profile?.user_type
-    ? titleCase(profile.user_type)
-    : "Administrator";
+  const roleLabel = profile?.user_type ? titleCase(profile.user_type) : "Administrator";
 
   return (
     <header className="flex h-16 w-full items-center justify-between border-b border-neutral-200 bg-white px-4 shadow-sm md:px-6">
@@ -105,20 +102,13 @@ export function AdminHeader() {
       <div className="flex items-center gap-4">
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-neutral-600 md:hidden"
-            >
+            <Button variant="ghost" size="icon" className="text-neutral-600 md:hidden">
               <Menu className="h-6 w-6" />
               <span className="sr-only">Toggle navigation menu</span>
             </Button>
           </SheetTrigger>
 
-          <SheetContent
-            side="left"
-            className="w-[280px] border-none bg-neutral-900 p-0 text-white"
-          >
+          <SheetContent side="left" className="w-[280px] border-none bg-neutral-900 p-0 text-white">
             <SheetHeader className="sr-only">
               <SheetTitle>Admin Navigation</SheetTitle>
             </SheetHeader>
@@ -127,9 +117,7 @@ export function AdminHeader() {
           </SheetContent>
         </Sheet>
 
-        <h2 className="text-lg font-semibold text-neutral-800 md:text-xl">
-          {pageTitle}
-        </h2>
+        <h2 className="text-lg font-semibold text-neutral-800 md:text-xl">{pageTitle}</h2>
       </div>
 
       {/* Right Side: Status, Profile details, Logout */}
@@ -140,15 +128,13 @@ export function AdminHeader() {
             "hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium sm:flex",
             dbConnected === true && "border-green-200 bg-green-50 text-green-700",
             dbConnected === false && "border-amber-200 bg-amber-50 text-amber-700",
-            dbConnected === null && "border-neutral-200 bg-neutral-50 text-neutral-500",
+            dbConnected === null && "border-neutral-200 bg-neutral-50 text-neutral-500"
           )}
-        >
-         
-        </div>
+        ></div>
 
         {/* Admin Profile */}
         <div className="flex items-center gap-2 border-l border-neutral-200 pl-3 md:pl-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FF3D6E]/10 text-[#FF3D6E]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-brand-strong">
             <User className="h-5 w-5" />
           </div>
 

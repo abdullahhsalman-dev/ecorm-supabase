@@ -527,7 +527,7 @@ export function ProductFormSheet({
                         className={cn(
                           "mt-1 flex items-center gap-1 text-[11px] font-semibold disabled:cursor-default",
                           image.isPrimary
-                            ? "text-[#FF3D6E] disabled:opacity-100"
+                            ? "text-brand-strong disabled:opacity-100"
                             : "text-neutral-500 hover:text-neutral-800 disabled:opacity-60"
                         )}
                       >

@@ -5,10 +5,7 @@ import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Label } from "@/src/app/components/ui/label";
 import { useAuth } from "@/src/app/context/auth-context";
-import {
-  fetchUserProfileByEmail,
-  isAdminProfile,
-} from "@/src/app/lib/users";
+import { fetchUserProfileByEmail, isAdminProfile } from "@/src/app/lib/users";
 import { cn } from "@/src/app/lib/utils";
 import {
   ArrowRight,
@@ -86,11 +83,7 @@ function PasswordInput({
           aria-label={visible ? "Hide password" : "Show password"}
           className="absolute right-0 top-0 flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
         >
-          {visible ? (
-            <EyeOff className="h-4 w-4" />
-          ) : (
-            <Eye className="h-4 w-4" />
-          )}
+          {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
 
@@ -162,7 +155,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       { label: "Contains a number", passed: /\d/.test(password) },
       { label: "Contains a letter", passed: /[a-zA-Z]/.test(password) },
     ],
-    [password],
+    [password]
   );
 
   const passwordsMatch = password === confirmPassword;
@@ -179,7 +172,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     if (isSignup) {
       if (passwordChecks.some((check) => !check.passed)) {
         setFormError(
-          `Password must be at least ${MIN_PASSWORD_LENGTH} characters and include a letter and a number.`,
+          `Password must be at least ${MIN_PASSWORD_LENGTH} characters and include a letter and a number.`
         );
         return;
       }
@@ -194,11 +187,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
     try {
       if (isSignup) {
-        const { error, needsEmailConfirmation } = await signUp(
-          email,
-          password,
-          fullName.trim(),
-        );
+        const { error, needsEmailConfirmation } = await signUp(email, password, fullName.trim());
 
         if (error) {
           setFormError(error.message);
@@ -227,7 +216,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         setFormError(
           error.message === "Invalid login credentials"
             ? "That email and password combination doesn't match an account."
-            : error.message,
+            : error.message
         );
         return;
       }
@@ -250,18 +239,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
   if (confirmationSent) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[#FF3D6E]/10 text-[#FF3D6E]">
+        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-brand/10 text-brand-strong">
           <MailCheck className="h-6 w-6" />
         </div>
 
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Check your inbox
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Check your inbox</h1>
 
         <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
           We sent a confirmation link to{" "}
-          <span className="font-medium text-foreground">{email}</span>. Click it
-          to activate your account, then sign in.
+          <span className="font-medium text-foreground">{email}</span>. Click it to activate your
+          account, then sign in.
         </p>
 
         <Button asChild className="mt-8 h-11 w-full rounded-full">
@@ -359,14 +346,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 key={check.label}
                 className={cn(
                   "flex items-center gap-2 text-xs",
-                  check.passed ? "text-emerald-600" : "text-muted-foreground",
+                  check.passed ? "text-emerald-600" : "text-muted-foreground"
                 )}
               >
-                {check.passed ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <X className="h-3.5 w-3.5" />
-                )}
+                {check.passed ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
                 {check.label}
               </li>
             ))}
@@ -380,19 +363,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
             value={confirmPassword}
             onChange={setConfirmPassword}
             autoComplete="new-password"
-            hint={
-              confirmPassword && !passwordsMatch
-                ? "Passwords do not match."
-                : undefined
-            }
+            hint={confirmPassword && !passwordsMatch ? "Passwords do not match." : undefined}
           />
         )}
 
-        <Button
-          type="submit"
-          disabled={submitting}
-          className="group h-11 w-full rounded-full"
-        >
+        <Button type="submit" disabled={submitting} className="group h-11 w-full rounded-full">
           {submitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -436,13 +411,10 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
       <div className="relative hidden overflow-hidden bg-neutral-950 lg:flex lg:flex-col lg:justify-between lg:p-12">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-24 top-1/3 h-[420px] w-[420px] rounded-full bg-[#FF3D6E]/20 blur-3xl"
+          className="pointer-events-none absolute -right-24 top-1/3 h-[420px] w-[420px] rounded-full bg-brand/20 blur-3xl"
         />
 
-        <Link
-          href="/"
-          className="relative text-lg font-semibold tracking-[0.2em] text-white"
-        >
+        <Link href="/" className="relative text-lg font-semibold tracking-[0.2em] text-white">
           LAMEES
         </Link>
 
@@ -450,9 +422,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
           <h2 className="text-3xl font-semibold leading-tight tracking-tight text-white">
             Your wardrobe,
             <br />
-            <span className="font-light italic text-white/60">
-              always within reach.
-            </span>
+            <span className="font-light italic text-white/60">always within reach.</span>
           </h2>
 
           <ul className="mt-9 space-y-4">
@@ -465,9 +435,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
                     <Icon className="h-3.5 w-3.5" />
                   </span>
 
-                  <span className="text-sm leading-6 text-white/60">
-                    {benefit.text}
-                  </span>
+                  <span className="text-sm leading-6 text-white/60">{benefit.text}</span>
                 </li>
               );
             })}

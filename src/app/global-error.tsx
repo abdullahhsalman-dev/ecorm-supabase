@@ -29,8 +29,7 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily:
-            "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+          fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
           background: "#fafafa",
           color: "#171717",
         }}
@@ -48,8 +47,7 @@ export default function GlobalError({
               margin: "0 0 24px",
             }}
           >
-            We hit an unexpected problem loading the store. Please try again in
-            a moment.
+            We hit an unexpected problem loading the store. Please try again in a moment.
           </p>
 
           <button
@@ -62,7 +60,7 @@ export default function GlobalError({
               fontSize: 14,
               fontWeight: 600,
               color: "#ffffff",
-              background: "#FF3D6E",
+              background: "#F97316",
               cursor: "pointer",
             }}
           >

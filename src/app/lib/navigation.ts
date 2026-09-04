@@ -65,9 +65,7 @@ export const sectionHref = (slug: string): string => `/${slug}`;
  * while the routes do not (/men/t-shirts).
  */
 export const childSegment = (childSlug: string, parentSlug: string): string =>
-  childSlug.startsWith(`${parentSlug}-`)
-    ? childSlug.slice(parentSlug.length + 1)
-    : childSlug;
+  childSlug.startsWith(`${parentSlug}-`) ? childSlug.slice(parentSlug.length + 1) : childSlug;
 
 const childHref = (child: CategoryRecord, parent: CategoryRecord): string =>
   `${sectionHref(parent.slug)}/${childSegment(child.slug, parent.slug)}`;
@@ -89,10 +87,7 @@ const toColumns = (links: NavLink[]): NavGroup[] => {
     return [];
   }
 
-  const perColumn = Math.max(
-    LINKS_PER_COLUMN,
-    Math.ceil(links.length / MAX_COLUMNS),
-  );
+  const perColumn = Math.max(LINKS_PER_COLUMN, Math.ceil(links.length / MAX_COLUMNS));
 
   const columns: NavGroup[] = [];
 
@@ -141,10 +136,7 @@ const gradientFor = (slug: string): string => {
     return known;
   }
 
-  const hash = Array.from(slug).reduce(
-    (total, character) => total + character.charCodeAt(0),
-    0,
-  );
+  const hash = Array.from(slug).reduce((total, character) => total + character.charCodeAt(0), 0);
 
   return FALLBACK_GRADIENTS[hash % FALLBACK_GRADIENTS.length];
 };
@@ -152,8 +144,7 @@ const gradientFor = (slug: string): string => {
 const featureFor = (category: CategoryRecord): NavFeature => ({
   eyebrow: "Explore",
   title: category.name,
-  description:
-    category.description ?? `Browse everything in ${category.name}.`,
+  description: category.description ?? `Browse everything in ${category.name}.`,
   href: sectionHref(category.slug),
   cta: `Shop all ${category.name}`,
   gradient: gradientFor(category.slug),
@@ -181,7 +172,7 @@ const saleCategory = (departments: CategoryRecord[]): NavCategory => ({
     departments.map((department) => ({
       name: department.name,
       href: `/sale/${department.slug}`,
-    })),
+    }))
   ),
   feature: {
     eyebrow: "Ends soon",
@@ -189,7 +180,7 @@ const saleCategory = (departments: CategoryRecord[]): NavCategory => ({
     description: "Reduced lines across every department, while stocks last.",
     href: "/sale",
     cta: "Shop all offers",
-    gradient: "from-[#FF3D6E] to-[#7A1533]",
+    gradient: "from-brand to-[#7C2D12]",
   },
 });
 
@@ -200,9 +191,7 @@ const saleCategory = (departments: CategoryRecord[]): NavCategory => ({
  * them; their children become the panel underneath. A department with no
  * children is a plain link with no panel, exactly like New In.
  */
-export function buildNavCategories(
-  categories: CategoryRecord[],
-): NavCategory[] {
+export function buildNavCategories(categories: CategoryRecord[]): NavCategory[] {
   const departments = categories.filter((category) => !category.parent_id);
 
   const childrenByParent = new Map<string, CategoryRecord[]>();
@@ -228,16 +217,14 @@ export function buildNavCategories(
       children.map((child) => ({
         name: child.name,
         href: childHref(child, department),
-      })),
+      }))
     );
 
     return {
       name: department.name,
       href: sectionHref(department.slug),
       /* No children means no panel to open. */
-      ...(groups.length > 0
-        ? { groups, feature: featureFor(department) }
-        : {}),
+      ...(groups.length > 0 ? { groups, feature: featureFor(department) } : {}),
     };
   });
 

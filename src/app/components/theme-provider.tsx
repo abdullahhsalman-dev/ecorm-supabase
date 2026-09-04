@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 type Theme = "light" | "dark" | "system";
 
@@ -21,6 +28,66 @@ type ThemeContextType = {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const STORAGE_KEY = "theme";
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+const isTheme = (value: string | null): value is Theme =>
+  value === "light" || value === "dark" || value === "system";
+
+/*
+ * ---------------------------------------------------------
+ * THE STORED PREFERENCE
+ * ---------------------------------------------------------
+ *
+ * localStorage is external state: it exists only on the client, and a
+ * second tab can change it underneath us. Reading it through
+ * useSyncExternalStore is what lets the value arrive on mount without
+ * an effect writing state - the server snapshot is null, so hydration
+ * renders the default and React re-renders once with the real value.
+ */
+
+const listeners = new Set<() => void>();
+
+/* Same-tab writes don't raise a storage event, so announce them. */
+const announceThemeChange = (): void => {
+  for (const listener of listeners) {
+    listener();
+  }
+};
+
+const subscribeStoredTheme = (onChange: () => void): (() => void) => {
+  listeners.add(onChange);
+  window.addEventListener("storage", onChange);
+
+  return () => {
+    listeners.delete(onChange);
+    window.removeEventListener("storage", onChange);
+  };
+};
+
+/* Blocked storage (private mode, embedded webviews) reads as "unset". */
+const readStoredTheme = (): Theme | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return isTheme(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+};
+
+const noStoredTheme = (): Theme | null => null;
+
+const subscribeSystemTheme = (onChange: () => void): (() => void) => {
+  const query = window.matchMedia(DARK_QUERY);
+  query.addEventListener("change", onChange);
+
+  return () => query.removeEventListener("change", onChange);
+};
+
+const readSystemPrefersDark = (): boolean => window.matchMedia(DARK_QUERY).matches;
+
+const noSystemPreference = (): boolean => false;
+
 export function ThemeProvider({
   children,
   attribute = "class",
@@ -28,88 +95,67 @@ export function ThemeProvider({
   enableSystem = false,
   disableTransitionOnChange = false,
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(
-    defaultTheme === "dark" ? "dark" : "light"
+  const storedTheme = useSyncExternalStore(subscribeStoredTheme, readStoredTheme, noStoredTheme);
+
+  const systemPrefersDark = useSyncExternalStore(
+    subscribeSystemTheme,
+    enableSystem ? readSystemPrefersDark : noSystemPreference,
+    noSystemPreference
   );
 
+  /* A choice made this session outranks whatever was stored before it. */
+  const [chosenTheme, setChosenTheme] = useState<Theme | null>(null);
+
+  const theme: Theme = chosenTheme ?? storedTheme ?? defaultTheme;
+
+  const resolvedTheme: "light" | "dark" =
+    theme === "system" ? (enableSystem && systemPrefersDark ? "dark" : "light") : theme;
+
+  /*
+   * The class on <html> is the only real output here, and writing it is
+   * a DOM side effect, so it stays in an effect - one place, rather than
+   * the three the previous version kept in sync by hand.
+   */
   useEffect(() => {
-    const storedTheme = localStorage.getItem("theme") as Theme | null;
-    let initialTheme: Theme = storedTheme || defaultTheme;
-
-    if (enableSystem && (!storedTheme || initialTheme === "system")) {
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      initialTheme = prefersDark ? "dark" : "light";
+    if (attribute !== "class") {
+      return;
     }
 
-    setTheme(initialTheme);
+    const root = document.documentElement;
 
-    const resolved: "light" | "dark" =
-      initialTheme === "system"
-        ? window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light"
-        : (initialTheme as "light" | "dark");
-
-    setResolvedTheme(resolved);
-
-    if (attribute === "class") {
-      document.documentElement.classList.remove("light", "dark");
-      document.documentElement.classList.add(resolved);
+    if (disableTransitionOnChange) {
+      root.style.transition = "none";
     }
-  }, [attribute, defaultTheme, enableSystem]);
 
-  useEffect(() => {
-    if (!enableSystem || theme !== "system") return;
+    root.classList.remove("light", "dark");
+    root.classList.add(resolvedTheme);
 
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
-      const newResolvedTheme: "light" | "dark" = mediaQuery.matches
-        ? "dark"
-        : "light";
-      setResolvedTheme(newResolvedTheme);
-      if (attribute === "class") {
-        document.documentElement.classList.remove("light", "dark");
-        document.documentElement.classList.add(newResolvedTheme);
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme, enableSystem, attribute]);
-
-  const handleSetTheme = (newTheme: Theme) => {
-    const resolved: "light" | "dark" =
-      newTheme === "system" && enableSystem
-        ? window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light"
-        : (newTheme as "light" | "dark");
-
-    setTheme(newTheme);
-    setResolvedTheme(resolved);
-    localStorage.setItem("theme", newTheme);
-
-    if (attribute === "class") {
-      if (disableTransitionOnChange) {
-        document.documentElement.style.transition = "none";
-      }
-      document.documentElement.classList.remove("light", "dark");
-      document.documentElement.classList.add(resolved);
-      if (disableTransitionOnChange) {
-        setTimeout(() => {
-          document.documentElement.style.transition = "";
-        }, 0);
-      }
+    if (!disableTransitionOnChange) {
+      return;
     }
-  };
+
+    /* Let the class land before transitions are allowed back. */
+    const restore = window.setTimeout(() => {
+      root.style.transition = "";
+    }, 0);
+
+    return () => window.clearTimeout(restore);
+  }, [attribute, resolvedTheme, disableTransitionOnChange]);
+
+  const setTheme = useCallback((next: Theme) => {
+    setChosenTheme(next);
+
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      /* An unwritable store just means the choice lasts this session. */
+    }
+
+    announceThemeChange();
+  }, []);
 
   return (
-    <ThemeContext.Provider
-      value={{ theme, resolvedTheme, setTheme: handleSetTheme }}
-    >
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -117,6 +163,10 @@ export function ThemeProvider({
 
 export const useTheme = () => {
   const context = useContext(ThemeContext);
-  if (!context) throw new Error("useTheme must be used within ThemeProvider");
+
+  if (!context) {
+    throw new Error("useTheme must be used within ThemeProvider");
+  }
+
   return context;
 };

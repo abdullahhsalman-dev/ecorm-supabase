@@ -94,9 +94,56 @@ export function ProductReviews({
     }
   }, [productId, sort, user]);
 
+  /*
+   * Raise the spinner during render, before the effect below refetches.
+   * Effects run after paint, so changing the sort would otherwise show
+   * one frame of the old list under the new heading. Same trick as
+   * useAsyncData.
+   */
+  const [fetchedFor, setFetchedFor] = useState({ productId, sort, user });
+
+  if (fetchedFor.productId !== productId || fetchedFor.sort !== sort || fetchedFor.user !== user) {
+    setFetchedFor({ productId, sort, user });
+    setLoading(true);
+    setFailed(false);
+  }
+
+  /*
+   * Written out rather than calling load(): the first setState has to
+   * sit behind an await, or the effect cascades a render. The cancelled
+   * flag keeps a superseded sort from overwriting a newer one.
+   */
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const [list, own] = await Promise.all([
+          fetchProductReviews(productId, sort),
+          user ? fetchOwnReview(productId, user.id) : Promise.resolve(null),
+        ]);
+
+        if (!cancelled) {
+          setReviews(list);
+          setOwnReview(own);
+        }
+      } catch (error: unknown) {
+        console.error("Could not load reviews:", error);
+
+        if (!cancelled) {
+          setFailed(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [productId, sort, user]);
 
   const openForm = () => {
     setDraft(
@@ -428,7 +475,7 @@ export function ProductReviews({
                       )}
 
                       {review.admin_response && (
-                        <div className="mt-4 rounded-xl border-l-2 border-[#FF3D6E] bg-muted/40 p-3">
+                        <div className="mt-4 rounded-xl border-l-2 border-brand bg-muted/40 p-3">
                           <p className="text-xs font-semibold">
                             Response from Lamees
                             {review.admin_response_at && (

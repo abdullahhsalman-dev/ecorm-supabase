@@ -30,15 +30,11 @@ export function OrderRow({ order, onManage }: OrderRowProps) {
         {formatOrderId(order.id)}
       </td>
 
-      <td className={cn(TD_CLASS, "text-neutral-500")}>
-        {formatDateTime(order.created_at)}
-      </td>
+      <td className={cn(TD_CLASS, "text-neutral-500")}>{formatDateTime(order.created_at)}</td>
 
       <td className={TD_CLASS}>
         <div className="flex flex-col">
-          <span className="font-semibold text-neutral-700">
-            {order.customer_name}
-          </span>
+          <span className="font-semibold text-neutral-700">{order.customer_name}</span>
 
           <span className="mt-0.5 text-[10px] text-neutral-400">
             {order.customer_email ?? "No email on file"}
@@ -62,7 +58,7 @@ export function OrderRow({ order, onManage }: OrderRowProps) {
         <button
           type="button"
           onClick={() => onManage(order)}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-[#FF3D6E] transition-colors hover:bg-neutral-50 hover:text-[#E0345F]"
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-brand-strong transition-colors hover:bg-neutral-50 hover:text-brand-strong"
         >
           <Eye className="h-4 w-4" />
           Manage

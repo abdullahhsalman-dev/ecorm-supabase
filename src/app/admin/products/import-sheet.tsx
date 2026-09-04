@@ -628,7 +628,7 @@ export function ProductImportSheet({
               <div className="space-y-1.5">
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
                   <div
-                    className="h-full bg-[#FF3D6E] transition-all duration-300"
+                    className="h-full bg-brand transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -734,7 +734,7 @@ function UploadStep({
         }}
         className={cn(
           "flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center transition-colors",
-          dragging ? "border-[#FF3D6E] bg-[#FF3D6E]/5" : "border-neutral-200 bg-neutral-50"
+          dragging ? "border-brand bg-brand/5" : "border-neutral-200 bg-neutral-50"
         )}
       >
         {reading ? (
@@ -793,7 +793,7 @@ function UploadStep({
             variant="ghost"
             size="sm"
             onClick={onDownloadTemplate}
-            className="h-7 text-[11px] font-semibold text-[#FF3D6E] hover:bg-[#FF3D6E]/5 hover:text-[#E0345F]"
+            className="h-7 text-[11px] font-semibold text-brand-strong hover:bg-brand/5 hover:text-brand-strong"
           >
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Download template
@@ -810,7 +810,7 @@ function UploadStep({
               <span
                 className={cn(
                   "w-16 shrink-0 text-[10px] font-bold uppercase",
-                  column.required ? "text-[#FF3D6E]" : "text-neutral-300"
+                  column.required ? "text-brand-strong" : "text-neutral-300"
                 )}
               >
                 {column.required ? "Required" : "Optional"}

@@ -38,7 +38,7 @@ export function MegaMenu() {
       clearTimer();
       timer.current = setTimeout(() => setActiveName(name), OPEN_DELAY);
     },
-    [clearTimer],
+    [clearTimer]
   );
 
   const scheduleClose = useCallback(() => {
@@ -46,15 +46,28 @@ export function MegaMenu() {
     timer.current = setTimeout(() => setActiveName(null), CLOSE_DELAY);
   }, [clearTimer]);
 
-  /* Drop the panel once the route changes, and never leave a timer behind. */
+  /*
+   * Drop the panel once the route changes.
+   *
+   * Closing during render keeps the old panel from painting over the new
+   * page for a frame; clearing the timer is a ref write, so it has to
+   * stay in the effect below.
+   */
+  const [panelPath, setPanelPath] = useState(pathname);
+
+  if (panelPath !== pathname) {
+    setPanelPath(pathname);
+    setActiveName(null);
+  }
+
+  /* ...and never leave a timer behind. */
   useEffect(() => {
-    closeNow();
-  }, [pathname, closeNow]);
+    clearTimer();
+  }, [pathname, clearTimer]);
 
   useEffect(() => clearTimer, [clearTimer]);
 
-  const isCurrent = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <nav
@@ -88,34 +101,28 @@ export function MegaMenu() {
           return (
             <li
               key={category.name}
-              onMouseEnter={() =>
-                scheduleOpen(hasPanel ? category.name : null)
-              }
+              onMouseEnter={() => scheduleOpen(hasPanel ? category.name : null)}
             >
               <Link
                 href={category.href}
-                onFocus={() =>
-                  hasPanel ? setActiveName(category.name) : closeNow()
-                }
+                onFocus={() => (hasPanel ? setActiveName(category.name) : closeNow())}
                 onClick={closeNow}
                 aria-expanded={hasPanel ? isOpen : undefined}
                 className={cn(
                   "group relative block whitespace-nowrap py-3.5 text-[12.5px] font-semibold uppercase tracking-[0.08em] transition-colors xl:text-[13px]",
                   category.accent
-                    ? "text-[#FF3D6E]"
+                    ? "text-brand-strong"
                     : isOpen || isCurrent(category.href)
                       ? "text-neutral-900"
-                      : "text-neutral-700 hover:text-neutral-900",
+                      : "text-neutral-700 hover:text-neutral-900"
                 )}
               >
                 {category.name}
                 <span
                   className={cn(
                     "absolute bottom-2 left-0 h-[1.5px] transition-all duration-200",
-                    category.accent ? "bg-[#FF3D6E]" : "bg-neutral-900",
-                    isOpen || isCurrent(category.href)
-                      ? "w-full"
-                      : "w-0 group-hover:w-full",
+                    category.accent ? "bg-brand" : "bg-neutral-900",
+                    isOpen || isCurrent(category.href) ? "w-full" : "w-0 group-hover:w-full"
                   )}
                 />
               </Link>
@@ -128,7 +135,7 @@ export function MegaMenu() {
                   {/* Dims the page behind the panel — decorative, never eats a click. */}
                   <div
                     aria-hidden
-                    className="animate-in fade-in-0 pointer-events-none absolute inset-x-0 top-full z-30 h-screen bg-neutral-950/25 duration-200"
+                    className="pointer-events-none absolute inset-x-0 top-full z-30 h-screen bg-neutral-950/25 duration-200 animate-in fade-in-0"
                   />
                   <MegaMenuPanel
                     category={category}
@@ -153,22 +160,17 @@ type MegaMenuPanelProps = {
   onNavigate: () => void;
 };
 
-function MegaMenuPanel({
-  category,
-  onMouseEnter,
-  onMouseLeave,
-  onNavigate,
-}: MegaMenuPanelProps) {
+function MegaMenuPanel({ category, onMouseEnter, onMouseLeave, onNavigate }: MegaMenuPanelProps) {
   const feature = category.feature;
 
   return (
     <div
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="animate-in fade-in-0 slide-in-from-top-1 absolute inset-x-0 top-full z-40 border-t border-neutral-100 bg-white shadow-[0_28px_60px_-32px_rgba(0,0,0,0.45)] duration-200 ease-out"
+      className="absolute inset-x-0 top-full z-40 border-t border-neutral-100 bg-white shadow-[0_28px_60px_-32px_rgba(0,0,0,0.45)] duration-200 ease-out animate-in fade-in-0 slide-in-from-top-1"
     >
       {/* Hairline in the brand pink so the panel reads as part of the header. */}
-      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FF3D6E]/60 to-transparent" />
+      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand/60 to-transparent" />
 
       <div className="mx-auto max-w-7xl px-4 py-9">
         <div className="grid grid-cols-12 gap-10">
@@ -176,15 +178,13 @@ function MegaMenuPanel({
             className={cn(
               "grid gap-x-8 gap-y-8",
               feature ? "col-span-8" : "col-span-12",
-              (category.groups?.length ?? 0) > 3
-                ? "grid-cols-4"
-                : "grid-cols-3",
+              (category.groups?.length ?? 0) > 3 ? "grid-cols-4" : "grid-cols-3"
             )}
           >
             {category.groups?.map((group, groupIndex) => (
               <div
                 key={groupIndex}
-                className="animate-in fade-in-0 slide-in-from-bottom-1 fill-mode-both duration-300"
+                className="duration-300 animate-in fade-in-0 slide-in-from-bottom-1 fill-mode-both"
                 style={{ animationDelay: `${groupIndex * 60}ms` }}
               >
                 <h3
@@ -205,7 +205,7 @@ function MegaMenuPanel({
                           {link.name}
                         </span>
                         {link.badge && (
-                          <span className="rounded-full bg-[#FF3D6E]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#FF3D6E]">
+                          <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-strong">
                             {link.badge}
                           </span>
                         )}
@@ -224,7 +224,7 @@ function MegaMenuPanel({
                 onClick={onNavigate}
                 className={cn(
                   "group/feature relative flex h-full min-h-[220px] flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br p-6 text-white",
-                  feature.gradient,
+                  feature.gradient
                 )}
               >
                 <span className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 transition-transform duration-500 group-hover/feature:scale-125" />

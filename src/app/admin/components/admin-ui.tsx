@@ -51,9 +51,9 @@ import type React from "react";
  * ---------------------------------------------------------
  */
 
-export const ACCENT = "#FF3D6E";
+export const ACCENT = "#F97316";
 
-export const PRIMARY_BUTTON_CLASS = "bg-[#FF3D6E] text-white hover:bg-[#E0345F]";
+export const PRIMARY_BUTTON_CLASS = "bg-brand text-brand-foreground hover:bg-brand-strong";
 
 export const PANEL_CLASS =
   "overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm";

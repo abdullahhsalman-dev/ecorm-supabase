@@ -23,17 +23,15 @@ export default function AdminError({
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center p-8 text-center">
-      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#FF3D6E]/10 text-[#FF3D6E]">
+      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand/10 text-brand-strong">
         <AlertCircle className="h-6 w-6" />
       </div>
 
-      <h1 className="mb-2 text-xl font-bold text-neutral-900">
-        This screen failed to load
-      </h1>
+      <h1 className="mb-2 text-xl font-bold text-neutral-900">This screen failed to load</h1>
 
       <p className="mb-6 max-w-sm text-sm text-neutral-500">
-        Nothing has been changed. Retry, and if it keeps happening check that
-        the database is reachable.
+        Nothing has been changed. Retry, and if it keeps happening check that the database is
+        reachable.
       </p>
 
       <Button type="button" onClick={reset} className={PRIMARY_BUTTON_CLASS}>
@@ -41,9 +39,7 @@ export default function AdminError({
       </Button>
 
       {error.digest && (
-        <p className="mt-8 font-mono text-[11px] text-neutral-400">
-          Reference: {error.digest}
-        </p>
+        <p className="mt-8 font-mono text-[11px] text-neutral-400">Reference: {error.digest}</p>
       )}
     </div>
   );

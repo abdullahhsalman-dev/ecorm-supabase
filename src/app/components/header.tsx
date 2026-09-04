@@ -109,7 +109,7 @@ export function Header() {
                 <span className="text-2xl font-bold uppercase tracking-[0.2em] text-neutral-900">
                   Lamees
                 </span>
-                <span className="mt-1 h-[2px] w-8 bg-[#FF3D6E]" />
+                <span className="mt-1 h-[2px] w-8 bg-brand" />
               </Link>
             </div>
 
@@ -136,7 +136,7 @@ export function Header() {
                   autoFocus={isSearchOpen}
                   /* Nothing to submit while it is closed, and nothing to tab to. */
                   disabled={!isSearchOpen}
-                  className="h-9 w-full border-neutral-200 focus-visible:ring-[#FF3D6E]"
+                  className="h-9 w-full border-neutral-200 focus-visible:ring-brand"
                 />
               </form>
               <Button
@@ -184,7 +184,7 @@ export function Header() {
                 <Button variant="ghost" size="icon" className="relative" aria-label="Cart">
                   <ShoppingBag className="h-5 w-5" />
                   {cartCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#FF3D6E] text-[10px] font-semibold text-white">
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-brand-foreground">
                       {cartCount}
                     </span>
                   )}

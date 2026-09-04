@@ -39,12 +39,22 @@ export interface AsyncData<T> {
 
 export function useAsyncData<T>(
   fetcher: () => Promise<T>,
-  { fallback, enabled = true, onError }: UseAsyncDataOptions<T>,
+  { fallback, enabled = true, onError }: UseAsyncDataOptions<T>
 ): AsyncData<T> {
   /* Read through refs so neither one can retrigger the fetch. */
   const fallbackRef = useRef(fallback);
   const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
+
+  /*
+   * Kept current in an effect rather than assigned during render: a ref
+   * write is a side effect, and React reserves the right to throw a
+   * render away. Effects run in declaration order, so this lands before
+   * the fetch below on every commit, and useRef already seeded it for
+   * the first one.
+   */
+  useEffect(() => {
+    onErrorRef.current = onError;
+  });
 
   const [data, setData] = useState<T>(fallback);
   const [loading, setLoading] = useState(enabled);

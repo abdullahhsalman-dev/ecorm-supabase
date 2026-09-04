@@ -114,7 +114,7 @@ export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCard
         {/* Badges */}
         <div className="pointer-events-none absolute left-3 top-3 flex flex-col gap-1.5">
           {discountPercentage > 0 && (
-            <span className="rounded-full bg-[#FF3D6E] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+            <span className="rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-foreground shadow-sm">
               {discountPercentage}% off
             </span>
           )}
@@ -132,9 +132,9 @@ export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCard
           onClick={() => setIsFavorite((current) => !current)}
           aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}
           aria-pressed={isFavorite}
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-600 shadow-sm backdrop-blur transition-all hover:bg-white hover:text-[#FF3D6E] focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-600 shadow-sm backdrop-blur transition-all hover:bg-white hover:text-brand-strong focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
         >
-          <Heart className={cn("h-4 w-4", isFavorite && "fill-current text-[#FF3D6E]")} />
+          <Heart className={cn("h-4 w-4", isFavorite && "fill-current text-brand-strong")} />
         </button>
 
         {!inStock && (
@@ -187,7 +187,12 @@ export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCard
               <Link href={`/products/${product.slug}`}>Select options</Link>
             </Button>
           ) : (
-            <Button size="sm" className="w-full rounded-full" onClick={handleAddToCart}>
+            <Button
+              size="sm"
+              variant="brand"
+              className="w-full rounded-full text-white"
+              onClick={handleAddToCart}
+            >
               Add to cart
             </Button>
           )}

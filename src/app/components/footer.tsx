@@ -1,12 +1,8 @@
-import {
-  mailtoHref,
-  STORE_EMAIL,
-  STORE_PHONE,
-  telHref,
-} from "@/src/app/lib/store-contact";
+import { mailtoHref, STORE_EMAIL, STORE_PHONE, telHref } from "@/src/app/lib/store-contact";
 import { Button } from "@/src/app/components/ui/button";
 import {
   ArrowUpRight,
+  Code2,
   Facebook,
   Instagram,
   Mail,
@@ -16,6 +12,8 @@ import {
   Youtube,
 } from "lucide-react";
 import Link from "next/link";
+
+const DEVELOPER_URL = "https://abdullahdev.website/";
 
 const quickLinks = [
   { label: "About Us", href: "/about" },
@@ -75,8 +73,7 @@ export default function Footer() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
-                Be the first to discover new collections, exclusive offers, and
-                fashion inspiration.
+                Be the first to discover new collections, exclusive offers, and fashion inspiration.
               </p>
             </div>
 
@@ -113,8 +110,8 @@ export default function Footer() {
             </Link>
 
             <p className="mt-5 max-w-sm text-sm leading-6 text-muted-foreground">
-              A modern fashion destination bringing together timeless style,
-              contemporary trends, and quality pieces for the whole family.
+              A modern fashion destination bringing together timeless style, contemporary trends,
+              and quality pieces for the whole family.
             </p>
 
             {/* Socials */}
@@ -127,12 +124,7 @@ export default function Footer() {
                   className="h-9 w-9 rounded-full transition-all hover:-translate-y-0.5 hover:bg-foreground hover:text-background"
                   asChild
                 >
-                  <Link
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={label}
-                  >
+                  <Link href={href} target="_blank" rel="noopener noreferrer" aria-label={label}>
                     <Icon className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -239,32 +231,57 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Developer Credit */}
+        <div className="mt-14 rounded-lg border bg-muted/40 px-5 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-background">
+                <Code2 className="h-4 w-4" />
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">Website designed &amp; developed by Abdullah</p>
+                <p className="text-xs text-muted-foreground">
+                  Need a site like this? Let&apos;s build something together.
+                </p>
+              </div>
+            </div>
+
+            <Button variant="outline" size="sm" className="group w-full sm:w-auto" asChild>
+              <a href={DEVELOPER_URL} target="_blank" rel="noopener noreferrer">
+                Contact developer
+                <ArrowUpRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              </a>
+            </Button>
+          </div>
+        </div>
+
         {/* Bottom Bar */}
-        <div className="mt-14 border-t pt-7">
+        <div className="mt-7 border-t pt-7">
           <div className="flex flex-col gap-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>© {new Date().getFullYear()} Lamees. All rights reserved.</p>
 
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              <Link
-                href="/privacy"
-                className="transition-colors hover:text-foreground"
-              >
+              <Link href="/privacy" className="transition-colors hover:text-foreground">
                 Privacy
               </Link>
 
-              <Link
-                href="/terms"
-                className="transition-colors hover:text-foreground"
-              >
+              <Link href="/terms" className="transition-colors hover:text-foreground">
                 Terms
               </Link>
 
-              <Link
-                href="/returns"
-                className="transition-colors hover:text-foreground"
-              >
+              <Link href="/returns" className="transition-colors hover:text-foreground">
                 Returns
               </Link>
+
+              <a
+                href={DEVELOPER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors hover:text-foreground"
+              >
+                Developer
+              </a>
 
               <span className="hidden h-3 w-px bg-border sm:block" />
 

@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
       setError(
         resetError instanceof Error
           ? resetError.message
-          : "We couldn't send the reset email. Please try again.",
+          : "We couldn't send the reset email. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -57,18 +57,15 @@ export default function ForgotPasswordPage() {
     <AuthLayout>
       {sent ? (
         <div className="text-center">
-          <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[#FF3D6E]/10 text-[#FF3D6E]">
+          <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-brand/10 text-brand-strong">
             <MailCheck className="h-6 w-6" />
           </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Check your inbox
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Check your inbox</h1>
 
           <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
-            If an account exists for{" "}
-            <span className="font-medium text-foreground">{email}</span>, we&apos;ve
-            sent a link to reset your password. It expires in one hour.
+            If an account exists for <span className="font-medium text-foreground">{email}</span>,
+            we&apos;ve sent a link to reset your password. It expires in one hour.
           </p>
 
           <Button asChild className="mt-8 h-11 w-full rounded-full">
@@ -85,13 +82,10 @@ export default function ForgotPasswordPage() {
             Back to sign in
           </Link>
 
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Reset your password
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Reset your password</h1>
 
           <p className="mt-2 text-sm text-muted-foreground">
-            Enter the email on your account and we&apos;ll send you a link to set a
-            new password.
+            Enter the email on your account and we&apos;ll send you a link to set a new password.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -118,11 +112,7 @@ export default function ForgotPasswordPage() {
               />
             </div>
 
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="h-11 w-full rounded-full"
-            >
+            <Button type="submit" disabled={submitting} className="h-11 w-full rounded-full">
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
