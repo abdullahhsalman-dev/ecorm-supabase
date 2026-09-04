@@ -23,20 +23,16 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
   const { categories, loading } = useNavigation();
 
   /* undefined means "untouched", so the current route decides. */
-  const [openCategory, setOpenCategory] = useState<string | null | undefined>(
-    undefined,
-  );
+  const [openCategory, setOpenCategory] = useState<string | null | undefined>(undefined);
 
   const routeCategory =
     categories.find(
       (category) =>
         category.groups?.length &&
-        (pathname === category.href ||
-          pathname.startsWith(`${category.href}/`)),
+        (pathname === category.href || pathname.startsWith(`${category.href}/`))
     )?.name ?? null;
 
-  const activeCategory =
-    openCategory === undefined ? routeCategory : openCategory;
+  const activeCategory = openCategory === undefined ? routeCategory : openCategory;
 
   const toggleCategory = (categoryName: string) => {
     setOpenCategory(activeCategory === categoryName ? null : categoryName);
@@ -54,11 +50,7 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
         {loading
           ? /* Placeholder rows so the drawer does not open empty. */
             Array.from({ length: 6 }).map((_, index) => (
-              <div
-                key={index}
-                className="border-b border-neutral-100 py-5"
-                aria-hidden
-              >
+              <div key={index} className="border-b border-neutral-100 py-5" aria-hidden>
                 <span className="block h-4 w-32 animate-pulse rounded bg-neutral-100" />
               </div>
             ))
@@ -77,8 +69,8 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
                   className={cn(
                     "text-[15px] font-semibold uppercase tracking-[0.08em] transition-colors",
                     category.accent
-                      ? "text-[#FF3D6E]"
-                      : "text-neutral-900 hover:text-neutral-500",
+                      ? "text-brand-strong"
+                      : "text-neutral-900 hover:text-neutral-500"
                   )}
                 >
                   {category.name}
@@ -93,14 +85,10 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
                       "flex h-7 w-7 items-center justify-center rounded-full border transition-colors",
                       isOpen
                         ? "border-neutral-900 bg-neutral-900 text-white"
-                        : "border-neutral-200 text-neutral-500 hover:border-neutral-900 hover:text-neutral-900",
+                        : "border-neutral-200 text-neutral-500 hover:border-neutral-900 hover:text-neutral-900"
                     )}
                   >
-                    {isOpen ? (
-                      <Minus className="h-3.5 w-3.5" />
-                    ) : (
-                      <Plus className="h-3.5 w-3.5" />
-                    )}
+                    {isOpen ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                   </button>
                 )}
               </div>
@@ -109,13 +97,11 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
                 <div
                   className={cn(
                     "grid overflow-hidden transition-all duration-300 ease-out",
-                    isOpen
-                      ? "grid-rows-[1fr] opacity-100"
-                      : "grid-rows-[0fr] opacity-0",
+                    isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                   )}
                 >
                   <div className="min-h-0">
-                    <div className="space-y-5 border-l-2 border-[#FF3D6E]/30 py-1 pb-5 pl-4">
+                    <div className="space-y-5 border-l-2 border-brand/30 py-1 pb-5 pl-4">
                       {category.groups?.map((group, groupIndex) => (
                         <div key={groupIndex}>
                           {group.title && (
@@ -133,7 +119,7 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
                               >
                                 {link.name}
                                 {link.badge && (
-                                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#FF3D6E]">
+                                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-strong">
                                     {link.badge}
                                   </span>
                                 )}
@@ -149,7 +135,7 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
                           onClick={onNavigate}
                           className={cn(
                             "relative flex flex-col overflow-hidden rounded-xl bg-gradient-to-br p-4 text-white",
-                            category.feature.gradient,
+                            category.feature.gradient
                           )}
                         >
                           <span className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/10" />

@@ -46,12 +46,7 @@ interface ProductRowProps {
   onDelete: (id: string, name: string) => void;
 }
 
-export function ProductRow({
-  product,
-  deleting,
-  onEdit,
-  onDelete,
-}: ProductRowProps) {
+export function ProductRow({ product, deleting, onEdit, onDelete }: ProductRowProps) {
   return (
     <tr className="transition-colors hover:bg-neutral-50/50">
       <td className={TD_CLASS}>
@@ -59,13 +54,9 @@ export function ProductRow({
           <ProductThumbnail product={product} />
 
           <div>
-            <div className="font-bold leading-tight text-neutral-800">
-              {product.name}
-            </div>
+            <div className="font-bold leading-tight text-neutral-800">{product.name}</div>
 
-            <div className="mt-0.5 font-mono text-[10px] text-neutral-400">
-              {product.slug}
-            </div>
+            <div className="mt-0.5 font-mono text-[10px] text-neutral-400">{product.slug}</div>
           </div>
         </div>
       </td>
@@ -77,7 +68,7 @@ export function ProductRow({
       <td className={TD_CLASS}>
         {product.sale_price !== null ? (
           <div className="flex flex-col">
-            <span className="font-bold text-[#FF3D6E]">
+            <span className="font-bold text-brand-strong">
               {formatCurrency(product.sale_price)}
             </span>
 
@@ -86,9 +77,7 @@ export function ProductRow({
             </span>
           </div>
         ) : (
-          <span className="font-bold text-neutral-800">
-            {formatCurrency(product.price)}
-          </span>
+          <span className="font-bold text-neutral-800">{formatCurrency(product.price)}</span>
         )}
       </td>
 
@@ -98,7 +87,7 @@ export function ProductRow({
 
       <td className={TD_CLASS}>
         {product.featured ? (
-          <Badge className="border-none bg-[#FF3D6E]/10 text-[9px] font-bold text-[#FF3D6E] hover:bg-[#FF3D6E]/15">
+          <Badge className="border-none bg-brand/10 text-[9px] font-bold text-brand-strong hover:bg-brand/15">
             FEATURED
           </Badge>
         ) : (

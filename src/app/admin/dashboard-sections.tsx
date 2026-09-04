@@ -11,12 +11,7 @@
  */
 
 import { Button } from "@/src/app/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/src/app/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/src/app/components/ui/card";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
 import { cn } from "@/src/app/lib/utils";
 import { ArrowRight, ClipboardList } from "lucide-react";
@@ -43,13 +38,7 @@ export interface StatItem {
   trend?: Trend | null;
 }
 
-export function StatCards({
-  stats,
-  loading,
-}: {
-  stats: StatItem[];
-  loading: boolean;
-}) {
+export function StatCards({ stats, loading }: { stats: StatItem[]; loading: boolean }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {loading
@@ -79,24 +68,18 @@ export function StatCards({
                     {stat.title}
                   </CardTitle>
 
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FF3D6E]/10 text-[#FF3D6E]">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 text-brand-strong">
                     <Icon className="h-4 w-4" />
                   </div>
                 </CardHeader>
 
                 <CardContent>
-                  <div className="text-2xl font-black text-neutral-900">
-                    {stat.value}
-                  </div>
+                  <div className="text-2xl font-black text-neutral-900">{stat.value}</div>
 
                   <p className="mt-1 text-[10px] font-semibold text-neutral-400">
                     {stat.trend ? (
                       <span
-                        className={
-                          stat.trend.trendPositive
-                            ? "text-green-600"
-                            : "text-red-500"
-                        }
+                        className={stat.trend.trendPositive ? "text-green-600" : "text-red-500"}
                       >
                         {stat.trend.trend}
                       </span>
@@ -123,9 +106,7 @@ export function QuickLinks({ links }: { links: QuickLink[] }) {
   return (
     <div className="flex flex-col justify-between rounded-xl border border-neutral-200 bg-white p-6 shadow-sm lg:col-span-1">
       <div>
-        <h3 className="mb-4 text-base font-bold text-neutral-800">
-          Quick Management
-        </h3>
+        <h3 className="mb-4 text-base font-bold text-neutral-800">Quick Management</h3>
 
         <div className="space-y-2.5">
           {links.map((link) => {
@@ -143,13 +124,9 @@ export function QuickLinks({ links }: { links: QuickLink[] }) {
                   </div>
 
                   <div className="text-left">
-                    <p className="text-xs font-bold text-neutral-800">
-                      {link.title}
-                    </p>
+                    <p className="text-xs font-bold text-neutral-800">{link.title}</p>
 
-                    <p className="text-[10px] text-neutral-400">
-                      {link.description}
-                    </p>
+                    <p className="text-[10px] text-neutral-400">{link.description}</p>
                   </div>
                 </div>
 
@@ -185,7 +162,7 @@ export function RecentOrdersPanel({
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1 text-xs font-semibold text-[#FF3D6E] hover:bg-neutral-50 hover:text-[#E0345F]"
+            className="gap-1 text-xs font-semibold text-brand-strong hover:bg-neutral-50 hover:text-brand-strong"
           >
             View All Orders
             <ArrowRight className="h-3 w-3" />
@@ -214,26 +191,14 @@ export function RecentOrdersPanel({
             ]}
           >
             {orders.map((order) => (
-              <tr
-                key={order.id}
-                className="transition-colors hover:bg-neutral-50/50"
-              >
-                <td
-                  className={cn(
-                    TD_CLASS,
-                    "font-mono font-bold text-neutral-800",
-                  )}
-                >
+              <tr key={order.id} className="transition-colors hover:bg-neutral-50/50">
+                <td className={cn(TD_CLASS, "font-mono font-bold text-neutral-800")}>
                   {formatOrderId(order.id)}
                 </td>
 
-                <td className={cn(TD_CLASS, "text-neutral-500")}>
-                  {formatDate(order.created_at)}
-                </td>
+                <td className={cn(TD_CLASS, "text-neutral-500")}>{formatDate(order.created_at)}</td>
 
-                <td className={cn(TD_CLASS, "text-neutral-600")}>
-                  {order.customer_name}
-                </td>
+                <td className={cn(TD_CLASS, "text-neutral-600")}>{order.customer_name}</td>
 
                 <td className={TD_CLASS}>
                   <StatusBadge status={order.status} />
@@ -248,7 +213,7 @@ export function RecentOrdersPanel({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-xs font-medium text-neutral-500 hover:text-[#FF3D6E]"
+                      className="text-xs font-medium text-neutral-500 hover:text-brand-strong"
                     >
                       Manage
                     </Button>

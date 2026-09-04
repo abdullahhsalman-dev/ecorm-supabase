@@ -600,6 +600,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             <Button
               onClick={handleAddToCart}
               disabled={availableStock <= 0}
+              variant="brand"
               className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 disabled:translate-y-0"
             >
               {availableStock <= 0 ? "Out of stock" : "Add to cart"}

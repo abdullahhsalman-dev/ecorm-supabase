@@ -19,7 +19,7 @@ import {
 } from "@/src/app/components/ui/select";
 import { cn } from "@/src/app/lib/utils";
 import { ClipboardList, CreditCard, Truck, type LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   FormActions,
   FormField,
@@ -34,11 +34,7 @@ import {
   titleCase,
   type SelectOption,
 } from "../components/admin-ui";
-import {
-  CustomerSection,
-  NotesSection,
-  OrderItemsSection,
-} from "./order-sections";
+import { CustomerSection, NotesSection, OrderItemsSection } from "./order-sections";
 import { updateOrder } from "./queries";
 import type { Order, OrderUpdate } from "./types";
 import { useOrderItems } from "./use-orders";
@@ -97,12 +93,7 @@ interface OrderDetailSheetProps {
   onSaved: () => Promise<void> | void;
 }
 
-export function OrderDetailSheet({
-  open,
-  onOpenChange,
-  order,
-  onSaved,
-}: OrderDetailSheetProps) {
+export function OrderDetailSheet({ open, onOpenChange, order, onSaved }: OrderDetailSheetProps) {
   const { toast } = useToast();
 
   const [update, setUpdate] = useState<OrderUpdate>({
@@ -114,20 +105,28 @@ export function OrderDetailSheet({
 
   const [saving, setSaving] = useState(false);
 
-  const { items, loading: loadingItems } = useOrderItems(
-    open && order ? order.id : null,
-  );
+  const { items, loading: loadingItems } = useOrderItems(open && order ? order.id : null);
 
-  useEffect(() => {
-    if (open && order) {
-      setUpdate(updateFromOrder(order));
+  /*
+   * Seed the editable fields from the order row.
+   *
+   * Adjusted during render, not in an effect, so the sheet never paints
+   * one frame of the previous order's values. Forgetting the row on
+   * close is what makes reopening the same order re-read it, rather
+   * than showing edits that were abandoned last time.
+   */
+  const [seededFrom, setSeededFrom] = useState<Order | null>(null);
+
+  if (!open) {
+    if (seededFrom !== null) {
+      setSeededFrom(null);
     }
-  }, [open, order]);
+  } else if (order && order !== seededFrom) {
+    setSeededFrom(order);
+    setUpdate(updateFromOrder(order));
+  }
 
-  const setField = <K extends keyof OrderUpdate>(
-    key: K,
-    value: OrderUpdate[K],
-  ): void => {
+  const setField = <K extends keyof OrderUpdate>(key: K, value: OrderUpdate[K]): void => {
     setUpdate((current) => ({ ...current, [key]: value }));
   };
 
@@ -179,7 +178,7 @@ export function OrderDetailSheet({
       wide
       title={
         <>
-          <ClipboardList className="h-5 w-5 text-[#FF3D6E]" />
+          <ClipboardList className="h-5 w-5 text-brand-strong" />
           Manage Order {order ? formatOrderId(order.id) : ""}
         </>
       }
@@ -225,17 +224,11 @@ export function OrderDetailSheet({
               disabled={saving}
             />
 
-            <FormField
-              id="drawer-tracking"
-              label="Tracking / Courier Reference"
-              icon={Truck}
-            >
+            <FormField id="drawer-tracking" label="Tracking / Courier Reference" icon={Truck}>
               <Input
                 id="drawer-tracking"
                 value={update.trackingNumber}
-                onChange={(event) =>
-                  setField("trackingNumber", event.target.value)
-                }
+                onChange={(event) => setField("trackingNumber", event.target.value)}
                 placeholder="e.g. DHL992837 or TCS88493"
                 disabled={saving}
                 className={cn(INPUT_CLASS, "bg-white")}

@@ -33,7 +33,7 @@ function GateCard({
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 p-4">
       <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 text-center shadow-xl">
-        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[#FF3D6E]/10 text-[#FF3D6E]">
+        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-brand/10 text-brand-strong">
           {icon}
         </div>
 
@@ -59,11 +59,9 @@ function AdminShell({ children }: { readonly children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 p-4">
         <div className="flex flex-col items-center gap-4 text-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-[#FF3D6E]" />
+          <RefreshCw className="h-8 w-8 animate-spin text-brand-strong" />
 
-          <p className="text-sm font-medium text-neutral-500">
-            Checking credentials...
-          </p>
+          <p className="text-sm font-medium text-neutral-500">Checking credentials...</p>
         </div>
       </div>
     );
@@ -115,10 +113,7 @@ function AdminShell({ children }: { readonly children: React.ReactNode }) {
               : `We could not find a profile for ${user.email} in the users table, so your role could not be confirmed.`
         }
       >
-        <Button
-          onClick={() => router.push("/")}
-          className={`w-full ${PRIMARY_BUTTON_CLASS}`}
-        >
+        <Button onClick={() => router.push("/")} className={`w-full ${PRIMARY_BUTTON_CLASS}`}>
           Return to Storefront
         </Button>
 
@@ -158,11 +153,7 @@ function AdminShell({ children }: { readonly children: React.ReactNode }) {
   );
 }
 
-export default function AdminLayout({
-  children,
-}: {
-  readonly children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { readonly children: React.ReactNode }) {
   return (
     <AdminProvider>
       <AdminShell>{children}</AdminShell>

@@ -9,21 +9,12 @@ import { AccountWishlist } from "@/src/app/components/account-wishlist";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Label } from "@/src/app/components/ui/label";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/src/app/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/app/components/ui/tabs";
 import { useAuth } from "@/src/app/context/auth-context";
 import { useAsyncData } from "@/src/app/lib/use-async-data";
-import {
-  fetchUserProfileByEmail,
-  updateUserProfile,
-  type UserProfile,
-} from "@/src/app/lib/users";
+import { fetchUserProfileByEmail, updateUserProfile, type UserProfile } from "@/src/app/lib/users";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Please try again.";
@@ -31,6 +22,10 @@ const getErrorMessage = (error: unknown): string =>
 export default function AccountPage() {
   const router = useRouter();
   const { user, signOut, signIn, updatePassword } = useAuth();
+
+  /* Read once: the compiler infers `user` from `user?.email` inside a
+     callback, which widens the dependency past what we actually read. */
+  const userEmail = user?.email ?? null;
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -54,12 +49,12 @@ export default function AccountPage() {
    * old one on the next visit.
    */
   const loadProfile = useCallback(async (): Promise<UserProfile | null> => {
-    if (!user?.email) {
+    if (!userEmail) {
       return null;
     }
 
-    return fetchUserProfileByEmail(user.email);
-  }, [user?.email]);
+    return fetchUserProfileByEmail(userEmail);
+  }, [userEmail]);
 
   const onProfileError = useCallback((error: unknown) => {
     console.error("Error loading profile:", error);
@@ -67,19 +62,28 @@ export default function AccountPage() {
 
   const { data: profile } = useAsyncData(loadProfile, {
     fallback: null as UserProfile | null,
-    enabled: Boolean(user?.email),
+    enabled: Boolean(userEmail),
     onError: onProfileError,
   });
 
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        fullName: profile.full_name ?? "",
-        email: profile.email,
-        phone: profile.phone ?? "",
-      });
-    }
-  }, [profile]);
+  /*
+   * Seed the editable form from the profile of record.
+   *
+   * Adjusted during render rather than in an effect: an effect runs
+   * after paint, so the empty form would show for one frame before the
+   * fetched values landed. Guarded by the row we last copied, so a
+   * shopper's own edits are never overwritten on a later render.
+   */
+  const [seededFrom, setSeededFrom] = useState<UserProfile | null>(null);
+
+  if (profile && profile !== seededFrom) {
+    setSeededFrom(profile);
+    setFormData({
+      fullName: profile.full_name ?? "",
+      email: profile.email,
+      phone: profile.phone ?? "",
+    });
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -147,10 +151,7 @@ export default function AccountPage() {
        * unlocked browser could do it. Re-signing in with the current password
        * is what makes the "Current Password" field mean something.
        */
-      const { error: reauthError } = await signIn(
-        user.email,
-        passwordForm.currentPassword,
-      );
+      const { error: reauthError } = await signIn(user.email, passwordForm.currentPassword);
 
       if (reauthError) {
         toast({
@@ -201,30 +202,30 @@ export default function AccountPage() {
 
   if (!user) {
     return (
-      <div className=" flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
+      <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
         <h1 className="mb-4 text-3xl font-bold">Account Access</h1>
-        <p className="mb-8 text-muted-foreground">
-          Please sign in to access your account.
-        </p>
-        <Button onClick={() => router.push("/login?redirect=/account")}>
-          Sign In
-        </Button>
+        <p className="mb-8 text-muted-foreground">Please sign in to access your account.</p>
+        <Button onClick={() => router.push("/login?redirect=/account")}>Sign In</Button>
       </div>
     );
   }
 
   return (
-    <div className=" px-4 py-8 md:py-12">
+    <div className="px-4 py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <h1 className="text-3xl font-bold">My Account</h1>
         <div className="flex gap-3">
           <Button
-            className="bg-[#FF3D6E] hover:bg-[#E0345F] text-white font-semibold"
+            className="bg-brand font-semibold text-brand-foreground hover:bg-brand-strong"
             onClick={() => router.push("/admin")}
           >
             Admin Portal
           </Button>
-          <Button variant="outline" className="border-neutral-300 text-neutral-600 hover:bg-neutral-50" onClick={handleSignOut}>
+          <Button
+            variant="outline"
+            className="border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+            onClick={handleSignOut}
+          >
             Sign Out
           </Button>
         </div>
@@ -271,9 +272,7 @@ export default function AccountPage() {
                     onChange={handleInputChange}
                     disabled
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Email cannot be changed
-                  </p>
+                  <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>

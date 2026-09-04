@@ -17,20 +17,8 @@
  */
 
 import { useAuth } from "@/src/app/context/auth-context";
-import {
-  fetchUserProfileByEmail,
-  isAdminProfile,
-  type UserProfile,
-} from "@/src/app/lib/users";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { fetchUserProfileByEmail, isAdminProfile, type UserProfile } from "@/src/app/lib/users";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 /* The admin panel reads the same row shape as the storefront. */
 export type AdminProfile = UserProfile;
@@ -44,50 +32,77 @@ interface AdminProfileState {
   isAdmin: boolean;
 }
 
-const AdminProfileContext = createContext<AdminProfileState | undefined>(
-  undefined,
-);
+const AdminProfileContext = createContext<AdminProfileState | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
+
+  /* Read once, for the same reason as in the account page: reading
+     `user?.email` inside the callback makes the compiler infer `user`. */
+  const userEmail = user?.email ?? null;
 
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadProfile = useCallback(async () => {
-    /*
-     * The auth session is the source of identity; the users
-     * table is the source of the role.
-     */
-    if (!user?.email) {
-      setProfile(null);
-      setProfileLoading(false);
+  /*
+   * Reset the moment the identity changes, during render rather than in
+   * the effect below. Signing out has to drop the previous admin's row
+   * immediately -- an effect runs after paint, which would leave one
+   * frame where the old role still reads as authorised.
+   */
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+
+  if (userEmail !== loadedFor) {
+    setLoadedFor(userEmail);
+    setProfile(null);
+    setError(null);
+    /* No session means nothing to fetch, so nothing left to wait for. */
+    setProfileLoading(userEmail !== null);
+  }
+
+  /*
+   * The auth session is the source of identity; the users table is the
+   * source of the role. Every setState sits behind the await, which is
+   * what keeps this effect from cascading a render.
+   */
+  useEffect(() => {
+    if (!userEmail) {
       return;
     }
 
-    setProfileLoading(true);
+    let cancelled = false;
 
-    try {
-      setProfile(await fetchUserProfileByEmail(user.email));
-      setError(null);
-    } catch (queryError: unknown) {
-      console.error("Failed to load admin profile:", queryError);
+    void (async () => {
+      try {
+        const row = await fetchUserProfileByEmail(userEmail);
 
-      setProfile(null);
-      setError(
-        queryError instanceof Error
-          ? queryError.message
-          : "Could not verify your account role.",
-      );
-    } finally {
-      setProfileLoading(false);
-    }
-  }, [user?.email]);
+        if (!cancelled) {
+          setProfile(row);
+          setError(null);
+        }
+      } catch (queryError: unknown) {
+        console.error("Failed to load admin profile:", queryError);
 
-  useEffect(() => {
-    void loadProfile();
-  }, [loadProfile]);
+        if (cancelled) {
+          return;
+        }
+
+        setProfile(null);
+        setError(
+          queryError instanceof Error ? queryError.message : "Could not verify your account role."
+        );
+      } finally {
+        if (!cancelled) {
+          setProfileLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userEmail]);
 
   const value = useMemo<AdminProfileState>(
     () => ({
@@ -96,14 +111,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       error,
       isAdmin: isAdminProfile(profile),
     }),
-    [profile, authLoading, profileLoading, error],
+    [profile, authLoading, profileLoading, error]
   );
 
-  return (
-    <AdminProfileContext.Provider value={value}>
-      {children}
-    </AdminProfileContext.Provider>
-  );
+  return <AdminProfileContext.Provider value={value}>{children}</AdminProfileContext.Provider>;
 }
 
 export function useAdminProfile(): AdminProfileState {

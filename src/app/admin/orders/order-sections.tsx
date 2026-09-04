@@ -38,26 +38,20 @@ export function CustomerSection({ order }: { order: Order }) {
         <div className="space-y-2">
           <p className="flex items-center gap-2 text-neutral-600">
             <User className="h-4 w-4 shrink-0 text-neutral-400" />
-            <span className="font-semibold text-neutral-800">
-              {order.customer_name}
-            </span>
+            <span className="font-semibold text-neutral-800">{order.customer_name}</span>
           </p>
 
           <p className="pl-6 leading-none text-neutral-500">
             {order.customer_email ?? "No email on file"}
           </p>
 
-          <p className="pl-6 leading-none text-neutral-500">
-            Phone: {order.customer_phone ?? "—"}
-          </p>
+          <p className="pl-6 leading-none text-neutral-500">Phone: {order.customer_phone ?? "—"}</p>
         </div>
 
         <div className="space-y-1.5 border-t border-neutral-100 pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
           <p className="flex items-start gap-2 text-neutral-600">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
-            <span className="font-semibold text-neutral-800">
-              Shipping Address
-            </span>
+            <span className="font-semibold text-neutral-800">Shipping Address</span>
           </p>
 
           <p className="whitespace-pre-line pl-6 leading-relaxed text-neutral-500">
@@ -66,9 +60,7 @@ export function CustomerSection({ order }: { order: Order }) {
 
           {order.billing_address && (
             <>
-              <p className="pl-6 pt-2 font-semibold text-neutral-800">
-                Billing Address
-              </p>
+              <p className="pl-6 pt-2 font-semibold text-neutral-800">Billing Address</p>
 
               <p className="whitespace-pre-line pl-6 leading-relaxed text-neutral-500">
                 {order.billing_address}
@@ -88,11 +80,7 @@ interface OrderItemsSectionProps {
   totalAmount: number;
 }
 
-export function OrderItemsSection({
-  items,
-  loading,
-  totalAmount,
-}: OrderItemsSectionProps) {
+export function OrderItemsSection({ items, loading, totalAmount }: OrderItemsSectionProps) {
   return (
     <div className="space-y-3">
       <SectionHeading>Order Items</SectionHeading>
@@ -115,9 +103,7 @@ export function OrderItemsSection({
                 className="flex items-center justify-between p-3 hover:bg-neutral-50/50"
               >
                 <div>
-                  <p className="font-bold text-neutral-800">
-                    {item.product_name}
-                  </p>
+                  <p className="font-bold text-neutral-800">{item.product_name}</p>
 
                   {item.variant_label && (
                     <p className="mt-0.5 text-[10px] font-semibold text-neutral-500">
@@ -139,9 +125,7 @@ export function OrderItemsSection({
             <div className="flex items-center justify-between border-t border-neutral-100 bg-neutral-50/70 p-3 text-sm font-bold">
               <span className="text-neutral-600">Total Purchase Amount</span>
 
-              <span className="text-[#FF3D6E]">
-                {formatCurrency(totalAmount)}
-              </span>
+              <span className="text-brand-strong">{formatCurrency(totalAmount)}</span>
             </div>
           </div>
         )}

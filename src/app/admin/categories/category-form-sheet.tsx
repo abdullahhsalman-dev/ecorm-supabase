@@ -81,17 +81,37 @@ export function CategoryFormSheet({
   /* The upload runs here, the save runs in the page above. */
   const busy = saving || uploading;
 
-  /* Reload the form whenever the sheet opens on a new target. */
-  useEffect(() => {
-    if (!open) {
-      return;
+  /*
+   * Reload the form whenever the sheet opens on a new target.
+   *
+   * The values are adjusted during render so the fields are already
+   * correct on the first paint; clearing the file input is a DOM write
+   * and stays in an effect. Both keep the original trigger: the sheet
+   * opening, or the target changing while it is open.
+   */
+  const [seededFor, setSeededFor] = useState<{
+    open: boolean;
+    editing: CategoryRecord | null;
+    presetParentId: string | null;
+  }>({ open: false, editing: null, presetParentId: null });
+
+  if (
+    open !== seededFor.open ||
+    editing !== seededFor.editing ||
+    presetParentId !== seededFor.presetParentId
+  ) {
+    setSeededFor({ open, editing, presetParentId });
+
+    if (open) {
+      setValues(
+        editing ? categoryFormValues(editing) : emptyCategoryForm(presetParentId ?? NO_PARENT)
+      );
     }
+  }
 
-    setValues(
-      editing ? categoryFormValues(editing) : emptyCategoryForm(presetParentId ?? NO_PARENT)
-    );
-
-    if (fileInputRef.current) {
+  /* Clearing the input by hand is what lets the same file be re-picked. */
+  useEffect(() => {
+    if (open && fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   }, [open, editing, presetParentId]);

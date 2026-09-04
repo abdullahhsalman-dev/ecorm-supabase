@@ -71,16 +71,19 @@ function OrdersContent() {
   };
 
   /* Deep link from the dashboard: /admin/orders?id=<uuid> */
-  useEffect(() => {
-    if (loading || orders.length === 0) {
-      return;
-    }
+  const orderIdQuery = searchParams.get("id");
+  const deepLinkReady = !loading && orders.length > 0 && Boolean(orderIdQuery);
 
-    const orderIdQuery = searchParams.get("id");
+  /*
+   * Open the drawer during render so the linked order is on screen in
+   * the first paint. Tracking which id was consumed is what stops the
+   * drawer reopening after the operator closes it, since the query is
+   * still in searchParams until the replace below lands.
+   */
+  const [openedFor, setOpenedFor] = useState<string | null>(null);
 
-    if (!orderIdQuery) {
-      return;
-    }
+  if (deepLinkReady && openedFor !== orderIdQuery) {
+    setOpenedFor(orderIdQuery);
 
     const matched = orders.find((order) => order.id === orderIdQuery);
 
@@ -88,10 +91,14 @@ function OrdersContent() {
       setSelectedOrder(matched);
       setIsDrawerOpen(true);
     }
+  }
 
-    /* Clear the query so a refresh doesn't reopen the drawer. */
-    router.replace("/admin/orders", { scroll: false });
-  }, [searchParams, loading, orders, router]);
+  /* Clear the query so a refresh doesn't reopen the drawer. */
+  useEffect(() => {
+    if (deepLinkReady) {
+      router.replace("/admin/orders", { scroll: false });
+    }
+  }, [deepLinkReady, router]);
 
   return (
     <div className="space-y-6">
@@ -134,9 +141,7 @@ function OrdersContent() {
         emptyDescription="Customers placing orders will appear here automatically."
         filteredTitle="No orders match your filters."
         filteredDescription="Try a different status or clear your search."
-        renderRow={(order) => (
-          <OrderRow key={order.id} order={order} onManage={openDrawer} />
-        )}
+        renderRow={(order) => <OrderRow key={order.id} order={order} onManage={openDrawer} />}
       />
 
       <OrderDetailSheet
