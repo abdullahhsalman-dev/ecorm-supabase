@@ -1,6 +1,8 @@
 import { ProductListing, type ListingSearchParams } from "@/src/app/components/product-listing";
 import { fetchCategoriesBySlugs } from "@/src/app/lib/categories";
+import { absoluteUrl } from "@/src/app/lib/seo";
 import { createClient } from "@/src/app/lib/supabase/server";
+import type { Metadata } from "next";
 
 /*
  * ---------------------------------------------------------
@@ -140,15 +142,60 @@ export async function CategoryListing({
  */
 export async function buildCategoryMetadata(
   slug: string,
-  context: { titlePrefix?: string; parentSlug?: string }
-) {
+  context: {
+    titlePrefix?: string;
+    parentSlug?: string;
+    /*
+     * The route this listing lives under, e.g. "/women" or
+     * "/sale". Used for the canonical - the layout sets none on
+     * purpose, so a page without its own is not in the index
+     * under any address of its own.
+     */
+    basePath?: string;
+    /* "sale" narrows the wording to the discounted view. */
+    variant?: "sale";
+  } = {}
+): Promise<Metadata> {
   const category = await getCategory(slug, context.parentSlug);
   const name = category?.name ?? titleFromSlug(slug);
 
-  const title = context.titlePrefix ? `${context.titlePrefix} ${name}` : name;
+  const heading = context.titlePrefix ? `${context.titlePrefix} ${name}` : name;
 
-  return {
-    title: `${title} | Lamees`,
-    description: category?.description || `Shop ${title.toLowerCase()} at Lamees.`,
-  };
+  /*
+   * "stitched" and "ready to wear" are what shoppers actually
+   * type, and every listing has to say one of them out loud -
+   * see lib/seo. A sale listing leads with the discount, which
+   * is the phrase that carries intent on that page.
+   */
+  const title =
+    context.variant === "sale"
+      ? `${heading} on Sale - Stitched Ready to Wear`
+      : `${heading} - Stitched Ready to Wear`;
+
+  const description =
+    category?.description?.trim() ||
+    (context.variant === "sale"
+      ? `Shop reduced ${heading.toLowerCase()} at Lamees. Stitched, ready to wear, delivered across Pakistan.`
+      : `Shop ${heading.toLowerCase()} at Lamees. Stitched, ready to wear, with prices shown before you click.`);
+
+  /*
+   * No brand suffix: the root layout's title.template appends
+   * it to every page title but the homepage's.
+   */
+  const metadata: Metadata = { title, description };
+
+  if (context.basePath) {
+    const url = absoluteUrl(`${context.basePath}/${slug}`);
+
+    metadata.alternates = { canonical: url };
+
+    metadata.openGraph = {
+      type: "website",
+      url,
+      title,
+      description,
+    };
+  }
+
+  return metadata;
 }

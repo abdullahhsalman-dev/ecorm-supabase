@@ -2,7 +2,7 @@ import { AuthForm, AuthLayout } from "@/src/app/components/auth-form";
 import { Suspense } from "react";
 
 export const metadata = {
-  title: "Sign In | Lamees",
+  title: "Sign In",
   description: "Sign in to your Lamees account.",
 };
 

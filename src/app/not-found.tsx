@@ -4,7 +4,7 @@ import { Compass } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Page Not Found | Lamees",
+  title: "Page Not Found",
 };
 
 /*
@@ -32,8 +32,7 @@ export default function NotFound() {
       </h1>
 
       <p className="mb-8 max-w-md text-sm leading-6 text-muted-foreground">
-        The link may be out of date, or the collection it pointed to is no
-        longer part of the store.
+        The link may be out of date, or the collection it pointed to is no longer part of the store.
       </p>
 
       <div className="flex flex-col gap-3 sm:flex-row">

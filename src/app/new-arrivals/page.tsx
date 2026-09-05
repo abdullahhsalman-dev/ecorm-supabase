@@ -2,8 +2,11 @@ import { ProductListing, type ListingSearchParams } from "@/src/app/components/p
 import { NEW_ARRIVAL_MONTHS } from "@/src/app/lib/products";
 
 export const metadata = {
-  title: "New Arrivals | Lamees",
-  description: "Explore the latest products in our store",
+  title: "Ready to Wear New Arrivals - Latest Stitched Dresses in Pakistan",
+  description:
+    "The newest stitched dresses in the collection. Ready to wear summer and winter pieces " +
+    "for women in Pakistan - lawn, cotton, chiffon and formal wear, with prices shown.",
+  alternates: { canonical: "/new-arrivals" },
 };
 
 /*

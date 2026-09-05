@@ -13,9 +13,10 @@ import { Clock, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Contact Us | Lamees",
+  title: "Contact Us",
   description:
     "Reach the Lamees team on WhatsApp, by phone or by email — we usually reply the same day.",
+  alternates: { canonical: "/contact" },
 };
 
 const ENQUIRY = "Hi! I have a question about Lamees.";
@@ -69,13 +70,11 @@ export default function ContactPage() {
           </ol>
         </nav>
 
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Get in touch
-        </h1>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Get in touch</h1>
 
         <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-          Questions about an order, a size, or a return? WhatsApp is the fastest
-          way to reach us — we usually reply the same day.
+          Questions about an order, a size, or a return? WhatsApp is the fastest way to reach us —
+          we usually reply the same day.
         </p>
       </header>
 

@@ -3,6 +3,12 @@ import { SaleCategories } from "@/src/app/components/sale-categories";
 import { Container } from "@/src/app/components/ui/container";
 import type { ListingSearchParams } from "@/src/app/components/product-listing";
 
+/*
+ * "Sale" and "with price" attach to almost every commercial
+ * phrase in the Pakistani corpus, so this page leads with the
+ * discount and the word "stitched" rather than a campaign name
+ * nobody searches for.
+ */
 export const metadata = {
   title: "Grand Festive Sale | Lamees",
   description: "Shop our exclusive sale with up to 50% off on selected items",

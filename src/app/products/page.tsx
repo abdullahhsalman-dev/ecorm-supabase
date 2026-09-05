@@ -6,8 +6,11 @@ import {
 import Link from "next/link";
 
 export const metadata = {
-  title: "Products | Lamees",
-  description: "Browse our collection of products",
+  title: "Stitched Dresses Online in Pakistan - Shop All Ready to Wear",
+  description:
+    "Browse every stitched dress in the collection. Ready to wear eastern wear for women in " +
+    "Pakistan - lawn, cotton, chiffon, formal and party wear - filtered by price, size and colour.",
+  alternates: { canonical: "/products" },
 };
 
 /* Next 15 hands route props in as promises. */
