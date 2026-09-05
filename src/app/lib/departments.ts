@@ -54,13 +54,6 @@ export interface DepartmentSection {
   sort: string;
 }
 
-export interface DepartmentPromo {
-  title: string;
-  description: string;
-  /* Route segment under the department, e.g. "formal". */
-  segment: string;
-}
-
 export interface Department {
   slug: string;
   name: string;
@@ -72,21 +65,22 @@ export interface Department {
     description: string;
     primaryCta: string;
   };
-  sections: [DepartmentSection, DepartmentSection];
-  /* Empty when nobody has written tiles for this department. */
-  promos: DepartmentPromo[];
+  /*
+   * One product rail. There used to be two - "New Arrivals" and
+   * "Trending Now" / "Best Sellers" - but the schema has no
+   * sales counters, so `trending` and `best-selling` both fell
+   * through applySort to the same default ordering: the same
+   * query, run twice, under two headings.
+   */
+  section: DepartmentSection;
+  /* The category's own banner, when the admin has uploaded one. */
+  imageUrl: string | null;
 }
 
 const NEW_ARRIVALS: DepartmentSection = {
   id: "new-arrivals",
   title: "New Arrivals",
   sort: "newest",
-};
-
-const BEST_SELLERS: DepartmentSection = {
-  id: "best-sellers",
-  title: "Best Sellers",
-  sort: "best-selling",
 };
 
 /*
@@ -111,51 +105,18 @@ const OVERRIDES: Record<string, DepartmentOverride> = Object.fromEntries(
             "Discover our latest men's fashion collection featuring premium quality clothing for every occasion.",
           primaryCta: "Shop New Arrivals",
         },
-        sections: [NEW_ARRIVALS, BEST_SELLERS],
-        promos: [
-          {
-            title: "Formal Collection",
-            description: "Elevate your style with our premium formal wear collection.",
-            segment: "formal",
-          },
-          {
-            title: "Casual Collection",
-            description: "Comfort meets style in our casual wear collection.",
-            segment: "casual",
-          },
-        ],
       },
       {
         slug: "women",
         name: "Women",
-        /*
-         * The store's most important category page, so it carries
-         * the tier-2 phrase verbatim rather than "Women's
-         * Collection", which nobody searches for.
-         */
-        metaTitle: "Ready to Wear Dresses for Women in Pakistan",
-        metaDescription:
-          "Stitched, ready to wear dresses for women in Pakistan. Lawn suits, kurtis, maxis, " +
-          "frocks and 3 piece suits - all sold fully stitched, with prices shown.",
+        metaTitle: "Women's Collection",
+        metaDescription: "Explore our stunning women's fashion collection for every style",
         hero: {
           title: "Women's Collection",
           description:
             "Explore our stunning women's fashion collection featuring elegant designs for every style and occasion.",
           primaryCta: "Shop New Arrivals",
         },
-        sections: [NEW_ARRIVALS, { id: "trending", title: "Trending Now", sort: "trending" }],
-        promos: [
-          {
-            title: "Ethnic Collection",
-            description: "Celebrate tradition with our elegant ethnic wear collection.",
-            segment: "ethnic",
-          },
-          {
-            title: "Western Collection",
-            description: "Modern styles for the contemporary woman.",
-            segment: "western",
-          },
-        ],
       },
       {
         slug: "kids",
@@ -168,19 +129,6 @@ const OVERRIDES: Record<string, DepartmentOverride> = Object.fromEntries(
             "Adorable and comfortable clothing for kids of all ages. From everyday wear to special occasions.",
           primaryCta: "Shop New Arrivals",
         },
-        sections: [NEW_ARRIVALS, BEST_SELLERS],
-        promos: [
-          {
-            title: "Boys Collection",
-            description: "Stylish and comfortable clothing for boys of all ages.",
-            segment: "boys",
-          },
-          {
-            title: "Girls Collection",
-            description: "Beautiful and trendy outfits for girls of all ages.",
-            segment: "girls",
-          },
-        ],
       },
       {
         slug: "footwear",
@@ -193,19 +141,6 @@ const OVERRIDES: Record<string, DepartmentOverride> = Object.fromEntries(
             "Step out in style with our premium footwear collection for men, women, and kids.",
           primaryCta: "Shop New Arrivals",
         },
-        sections: [NEW_ARRIVALS, BEST_SELLERS],
-        promos: [
-          {
-            title: "Men's Footwear",
-            description: "Stylish and comfortable footwear for men.",
-            segment: "men",
-          },
-          {
-            title: "Women's Footwear",
-            description: "Elegant and trendy footwear for women.",
-            segment: "women",
-          },
-        ],
       },
       {
         slug: "fragrance",
@@ -217,19 +152,6 @@ const OVERRIDES: Record<string, DepartmentOverride> = Object.fromEntries(
           description: "Discover our exclusive collection of premium fragrances for men and women.",
           primaryCta: "Shop New Arrivals",
         },
-        sections: [NEW_ARRIVALS, BEST_SELLERS],
-        promos: [
-          {
-            title: "Men's Fragrances",
-            description: "Discover our collection of masculine scents.",
-            segment: "men",
-          },
-          {
-            title: "Women's Fragrances",
-            description: "Explore our collection of feminine scents.",
-            segment: "women",
-          },
-        ],
       },
       {
         slug: "winter-wear",
@@ -242,19 +164,6 @@ const OVERRIDES: Record<string, DepartmentOverride> = Object.fromEntries(
             "Stay warm and stylish with our premium winter wear collection for the whole family.",
           primaryCta: "Shop Collection",
         },
-        sections: [{ id: "featured", title: "Featured Collection", sort: "newest" }, BEST_SELLERS],
-        promos: [
-          {
-            title: "Men's Winter Collection",
-            description: "Stay warm and stylish with our men's winter collection.",
-            segment: "men",
-          },
-          {
-            title: "Women's Winter Collection",
-            description: "Elegant and warm winter wear for women.",
-            segment: "women",
-          },
-        ],
       },
     ] as (DepartmentOverride & { slug: string })[]
   ).map(({ slug, ...override }) => [slug, override])
@@ -267,8 +176,6 @@ const titleFromSlug = (slug: string): string =>
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
-
-const DEFAULT_SECTIONS: [DepartmentSection, DepartmentSection] = [NEW_ARRIVALS, BEST_SELLERS];
 
 /**
  * Build the landing page's content for one top-level category.
@@ -295,12 +202,12 @@ export function buildDepartment(category: CategoryRecord): Department {
       description: override.hero?.description ?? description,
       primaryCta: override.hero?.primaryCta ?? "Shop New Arrivals",
     },
-    sections: override.sections ?? DEFAULT_SECTIONS,
+    section: override.section ?? NEW_ARRIVALS,
     /*
-     * No promo tiles by default. Two empty cards pointing at
-     * subcategories that may not exist would be worse than the
-     * band simply not being there.
+     * Straight off the row. The page used to render a fixed
+     * /assets/kids.webp for every department, so /women showed
+     * a photo of children.
      */
-    promos: override.promos ?? [],
+    imageUrl: category.image_url,
   };
 }

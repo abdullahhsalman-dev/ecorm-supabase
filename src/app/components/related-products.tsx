@@ -27,8 +27,8 @@ export function RelatedProducts({ currentProductId, categoryId }: RelatedProduct
 
   if (loading) {
     return (
-      <section className="py-12">
-        <h2 className="mb-8 text-2xl font-bold">Related Products</h2>
+      <section className="py-10">
+        <h2 className="mb-6 text-2xl font-bold">Related Products</h2>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -49,8 +49,8 @@ export function RelatedProducts({ currentProductId, categoryId }: RelatedProduct
   }
 
   return (
-    <section className="py-12">
-      <h2 className="mb-8 text-2xl font-bold">Related Products</h2>
+    <section className="py-10">
+      <h2 className="mb-6 text-2xl font-bold">Related Products</h2>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 md:grid-cols-4">
         {products.map((product) => (

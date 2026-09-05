@@ -46,15 +46,15 @@ export function useAsyncData<T>(
   const onErrorRef = useRef(onError);
 
   /*
-   * Kept current in an effect rather than assigned during render: a ref
-   * write is a side effect, and React reserves the right to throw a
-   * render away. Effects run in declaration order, so this lands before
-   * the fetch below on every commit, and useRef already seeded it for
-   * the first one.
+   * Kept current in an effect rather than assigned during
+   * render: a render can be thrown away, and writing to a ref
+   * from one makes the value depend on renders that never
+   * committed. Declared above the fetch effect so it has
+   * already run by the time a failure can call it.
    */
   useEffect(() => {
     onErrorRef.current = onError;
-  });
+  }, [onError]);
 
   const [data, setData] = useState<T>(fallback);
   const [loading, setLoading] = useState(enabled);

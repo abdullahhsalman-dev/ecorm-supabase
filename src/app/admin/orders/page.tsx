@@ -70,22 +70,23 @@ function OrdersContent() {
     }
   };
 
-  /* Deep link from the dashboard: /admin/orders?id=<uuid> */
-  const orderIdQuery = searchParams.get("id");
-  const deepLinkReady = !loading && orders.length > 0 && Boolean(orderIdQuery);
-
   /*
-   * Open the drawer during render so the linked order is on screen in
-   * the first paint. Tracking which id was consumed is what stops the
-   * drawer reopening after the operator closes it, since the query is
-   * still in searchParams until the replace below lands.
+   * Deep link from the dashboard: /admin/orders?id=<uuid>
+   *
+   * Resolved during render rather than from an effect, so the
+   * drawer is open on the first paint that has the order rather
+   * than a frame later. `consumedId` is what stops it reopening
+   * after the admin closes it, since the id is still in the URL
+   * until the replace below lands.
    */
-  const [openedFor, setOpenedFor] = useState<string | null>(null);
+  const linkedId = searchParams.get("id");
 
-  if (deepLinkReady && openedFor !== orderIdQuery) {
-    setOpenedFor(orderIdQuery);
+  const [consumedId, setConsumedId] = useState<string | null>(null);
 
-    const matched = orders.find((order) => order.id === orderIdQuery);
+  if (linkedId && linkedId !== consumedId && !loading && orders.length > 0) {
+    const matched = orders.find((order) => order.id === linkedId);
+
+    setConsumedId(linkedId);
 
     if (matched) {
       setSelectedOrder(matched);
@@ -93,12 +94,12 @@ function OrdersContent() {
     }
   }
 
-  /* Clear the query so a refresh doesn't reopen the drawer. */
+  /* Clearing the query is navigation, not state. */
   useEffect(() => {
-    if (deepLinkReady) {
+    if (linkedId && linkedId === consumedId) {
       router.replace("/admin/orders", { scroll: false });
     }
-  }, [deepLinkReady, router]);
+  }, [linkedId, consumedId, router]);
 
   return (
     <div className="space-y-6">

@@ -17,9 +17,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/src/app/components/cart-provider";
 import { ProductReviews } from "@/src/app/components/product-reviews";
+import { SizeGuide } from "@/src/app/components/size-guide";
+import { useWishlist } from "@/src/app/lib/use-wishlist";
 import { StarRating } from "@/src/app/components/ui/star-rating";
-import { useAuth } from "@/src/app/context/auth-context";
-import { useAsyncData } from "@/src/app/lib/use-async-data";
 import {
   EMPTY_REVIEW_STATS,
   fetchReviewStats,
@@ -27,7 +27,6 @@ import {
   formatReviewCount,
   type ReviewStats,
 } from "@/src/app/lib/reviews";
-import { addToWishlist, fetchWishlistProductIds, removeFromWishlist } from "@/src/app/lib/wishlist";
 import { Button } from "@/src/app/components/ui/button";
 import { Label } from "@/src/app/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/src/app/components/ui/radio-group";
@@ -78,7 +77,6 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [brokenImages, setBrokenImages] = useState<string[]>([]);
-  const [savingFavorite, setSavingFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
 
   /*
@@ -90,74 +88,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
   const { addItem } = useCart();
   const { toast } = useToast();
-  const { user } = useAuth();
 
   /*
-   * The heart used to be local state, so it forgot itself the
-   * moment you navigated away. It now reflects wishlist_items.
+   * The same hook the product cards use, so the heart here and
+   * the heart on any grid are one piece of state: saving from
+   * either fills both, and a page of cards costs one wishlist
+   * query rather than one per card.
    */
-  const loadFavorite = useCallback(async () => {
-    if (!user) {
-      return false;
-    }
+  const { isSaved, toggle: toggleFavorite, saving: savingFavorite } = useWishlist();
 
-    return (await fetchWishlistProductIds(user.id)).has(product.id);
-  }, [user, product.id]);
-
-  const onFavoriteError = useCallback((error: unknown) => {
-    console.error("Could not read wishlist:", error);
-  }, []);
-
-  const { data: isFavorite, setData: setIsFavorite } = useAsyncData(loadFavorite, {
-    fallback: false,
-    enabled: Boolean(user),
-    onError: onFavoriteError,
-  });
-
-  const handleToggleFavorite = async () => {
-    if (!user) {
-      toast({
-        title: "Sign in to save items",
-        description: "Your wishlist is kept with your account.",
-      });
-      return;
-    }
-
-    if (savingFavorite) {
-      return;
-    }
-
-    const next = !isFavorite;
-
-    /* Optimistic: the heart fills instantly, and reverts if the write fails. */
-    setIsFavorite(next);
-    setSavingFavorite(true);
-
-    try {
-      if (next) {
-        await addToWishlist(user.id, product.id);
-      } else {
-        await removeFromWishlist(user.id, product.id);
-      }
-
-      toast({
-        title: next ? "Saved to wishlist" : "Removed from wishlist",
-        description: `${product.name} ${next ? "is in" : "is no longer in"} your wishlist.`,
-      });
-    } catch (error: unknown) {
-      console.error("Could not update wishlist:", error);
-
-      setIsFavorite(!next);
-
-      toast({
-        title: "Couldn't update your wishlist",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingFavorite(false);
-    }
-  };
+  const isFavorite = isSaved(product.id);
 
   const loadReviewStats = useCallback(async () => {
     try {
@@ -342,6 +282,15 @@ export function ProductDetails({ product }: ProductDetailsProps) {
    * changes, so a broken shot is remembered here rather than patched onto
    * the DOM node.
    */
+  /*
+   * Which picker the size guide belongs beside. Matched loosely
+   * because the group name is whatever an admin typed into
+   * product_variants.name - "Size", "size", "Sizes".
+   */
+  const sizeGroupName = variantGroups.find((group) =>
+    group.name.trim().toLowerCase().startsWith("size")
+  )?.name;
+
   const resolveImage = (src: string) =>
     brokenImages.includes(src) ? FALLBACK_IMAGE : safeImageSrc(src, FALLBACK_IMAGE);
 
@@ -360,16 +309,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
   return (
     <section className="w-full">
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:items-start">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:items-start">
         {/* Gallery */}
         <div className="lg:sticky lg:top-6">
-          <div className="group relative aspect-square overflow-hidden rounded-3xl border bg-muted/30 shadow-sm">
+          <div className="group relative aspect-[4/5] overflow-hidden rounded-2xl border bg-muted/30 shadow-sm">
             <Image
               src={resolveImage(productImages[activeImage] || FALLBACK_IMAGE)}
               alt={product.name}
               fill
               priority
-              sizes="(min-width: 1024px) 50vw, 100vw"
+              sizes="(min-width: 1024px) 440px, 100vw"
               className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
               onError={() => handleImageError(productImages[activeImage] || FALLBACK_IMAGE)}
             />
@@ -388,17 +337,17 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                   type="button"
                   onClick={goToPreviousImage}
                   aria-label="Previous image"
-                  className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-md backdrop-blur transition hover:scale-105 hover:bg-background"
+                  className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-md backdrop-blur transition hover:scale-105 hover:bg-background"
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
                   onClick={goToNextImage}
                   aria-label="Next image"
-                  className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-md backdrop-blur transition hover:scale-105 hover:bg-background"
+                  className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-md backdrop-blur transition hover:scale-105 hover:bg-background"
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </>
             )}
@@ -409,7 +358,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           {productImages.length > 1 && (
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {productImages.map((image, index) => (
                 <button
                   key={`${image}-${index}`}
@@ -417,7 +366,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                   onClick={() => setSelectedImage(index)}
                   aria-label={`View product image ${index + 1}`}
                   aria-current={activeImage === index}
-                  className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 bg-muted/30 transition-all duration-200 ${
+                  className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-muted/30 transition-all duration-200 ${
                     activeImage === index
                       ? "border-foreground shadow-md"
                       : "border-transparent opacity-70 hover:border-border hover:opacity-100"
@@ -427,7 +376,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                     src={resolveImage(image || FALLBACK_IMAGE)}
                     alt=""
                     fill
-                    sizes="80px"
+                    sizes="64px"
                     className="object-cover"
                     onError={() => handleImageError(image || FALLBACK_IMAGE)}
                   />
@@ -439,7 +388,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
         {/* Product information */}
         <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             {categoryName && categorySlug ? (
               <Link
                 href={`/categories/${categorySlug}`}
@@ -455,14 +404,14 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             <span>Premium quality</span>
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{product.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{product.name}</h1>
 
           {/* Jumps to the reviews rather than repeating them here. */}
           {reviewStats.reviewCount > 0 && (
             <button
               type="button"
               onClick={() => setActiveTab("reviews")}
-              className="mt-3 flex items-center gap-2 text-sm transition-colors hover:text-foreground/70"
+              className="mt-2 flex items-center gap-2 text-sm transition-colors hover:text-foreground/70"
             >
               <StarRating value={reviewStats.averageRating} size="sm" />
               <span className="font-semibold">
@@ -474,8 +423,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             </button>
           )}
 
-          <div className="mt-5 flex flex-wrap items-end gap-x-3 gap-y-1">
-            <span className="text-3xl font-bold tracking-tight">
+          <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-1">
+            <span className="text-2xl font-bold tracking-tight">
               {formatCurrency(currentPrice)}
             </span>
 
@@ -492,12 +441,18 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           {product.description && (
-            <p className="mt-5 max-w-2xl text-[15px] leading-7 text-muted-foreground">
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
               {product.description}
             </p>
           )}
 
-          <div className="my-7 h-px bg-border" />
+          {!sizeGroupName && (
+            <div className="mt-4">
+              <SizeGuide productName={product.name} />
+            </div>
+          )}
+
+          <div className="my-6 h-px bg-border" />
 
           {/* Variant pickers, one per product_variants group */}
           {variantGroups.map((group) => {
@@ -505,14 +460,24 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             const selected = group.values.find((variant) => variant.id === selectedId);
 
             return (
-              <div key={group.name} className="mb-7">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">{group.name}</h2>
-                  <span className="text-xs text-muted-foreground">
-                    {selected
-                      ? `Selected: ${selected.value}`
-                      : `Choose a ${group.name.toLowerCase()}`}
-                  </span>
+              <div key={group.name} className="mb-6">
+                {/*
+                  The guide sits opposite the label, on the row
+                  that introduces the size chips - where a
+                  shopper looks the moment they have to commit
+                  to one. The selection moves in beside the
+                  label to make room for it.
+                */}
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <h2 className="text-sm font-semibold">{group.name}</h2>
+
+                    <span className="text-xs text-muted-foreground">
+                      {selected ? `· ${selected.value}` : `· choose a ${group.name.toLowerCase()}`}
+                    </span>
+                  </div>
+
+                  {group.name === sizeGroupName && <SizeGuide productName={product.name} />}
                 </div>
 
                 <RadioGroup
@@ -568,7 +533,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
           {/* Quantity + actions */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-            <div className="flex h-12 w-full items-center rounded-xl border bg-background sm:w-auto">
+            <div className="flex h-11 w-full items-center rounded-xl border bg-background sm:w-auto">
               <button
                 type="button"
                 onClick={() => setQuantity((current) => Math.max(1, current - 1))}
@@ -600,8 +565,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             <Button
               onClick={handleAddToCart}
               disabled={availableStock <= 0}
-              variant="brand"
-              className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 disabled:translate-y-0"
+              className="h-11 flex-1 rounded-xl text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 disabled:translate-y-0"
             >
               {availableStock <= 0 ? "Out of stock" : "Add to cart"}
             </Button>
@@ -610,11 +574,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               type="button"
               variant="outline"
               size="icon"
-              onClick={handleToggleFavorite}
+              onClick={() => toggleFavorite(product.id)}
               disabled={savingFavorite}
               aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}
               aria-pressed={isFavorite}
-              className="h-12 w-12 shrink-0 rounded-xl"
+              className="h-11 w-11 shrink-0 rounded-xl"
             >
               <Heart className={`h-5 w-5 transition ${isFavorite ? "fill-current" : ""}`} />
             </Button>
@@ -625,13 +589,13 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               size="icon"
               onClick={handleShare}
               aria-label="Share product"
-              className="h-12 w-12 shrink-0 rounded-xl"
+              className="h-11 w-11 shrink-0 rounded-xl"
             >
               <Share2 className="h-5 w-5" />
             </Button>
           </div>
 
-          <p className="mb-7 text-xs text-muted-foreground">
+          <p className="mb-6 text-xs text-muted-foreground">
             {availableStock <= 0
               ? "This product is currently unavailable."
               : variantGroups.length > 0 && !allGroupsChosen
@@ -645,8 +609,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
           {/* Service highlights */}
           <div className="grid overflow-hidden rounded-2xl border bg-muted/20 sm:grid-cols-3">
-            <div className="flex items-center gap-3 border-b p-4 sm:border-b-0 sm:border-r">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-background shadow-sm">
+            <div className="flex items-center gap-3 border-b p-3 sm:border-b-0 sm:border-r">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background shadow-sm">
                 <Truck className="h-4 w-4" />
               </div>
               <div>
@@ -655,8 +619,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 border-b p-4 sm:border-b-0 sm:border-r">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-background shadow-sm">
+            <div className="flex items-center gap-3 border-b p-3 sm:border-b-0 sm:border-r">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background shadow-sm">
                 <RotateCcw className="h-4 w-4" />
               </div>
               <div>
@@ -665,8 +629,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-4">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-background shadow-sm">
+            <div className="flex items-center gap-3 p-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background shadow-sm">
                 <ShieldCheck className="h-4 w-4" />
               </div>
               <div>
@@ -677,8 +641,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
 
           {/* Product tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8">
-            <TabsList className="grid h-11 w-full grid-cols-4 rounded-xl bg-muted p-1">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
+            <TabsList className="grid h-10 w-full grid-cols-4 rounded-xl bg-muted p-1">
               <TabsTrigger value="description" className="rounded-lg text-xs sm:text-sm">
                 Description
               </TabsTrigger>
@@ -696,12 +660,12 @@ export function ProductDetails({ product }: ProductDetailsProps) {
 
             <TabsContent
               value="description"
-              className="mt-5 text-sm leading-7 text-muted-foreground"
+              className="mt-4 text-sm leading-6 text-muted-foreground"
             >
               <p>{product.description || "No description available."}</p>
             </TabsContent>
 
-            <TabsContent value="details" className="mt-5">
+            <TabsContent value="details" className="mt-4">
               <ul className="space-y-3 text-sm text-muted-foreground">
                 {[
                   categoryName ? `Category: ${categoryName}` : null,
@@ -726,7 +690,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               </ul>
             </TabsContent>
 
-            <TabsContent value="shipping" className="mt-5 text-sm leading-7 text-muted-foreground">
+            <TabsContent value="shipping" className="mt-4 text-sm leading-6 text-muted-foreground">
               <p>
                 Standard delivery: 3–5 business days
                 <br />

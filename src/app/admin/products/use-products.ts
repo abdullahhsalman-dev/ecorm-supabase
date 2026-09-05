@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAsyncData } from "@/src/app/lib/use-async-data";
 import { useCallback, useMemo, useState } from "react";
 import { getErrorMessage, LOW_STOCK_THRESHOLD } from "../components/admin-ui";
+import { useInvalidateProducts } from "@/src/app/lib/use-product-list";
 import { useCategories } from "../lib/use-categories";
 import { deleteProduct, fetchProducts } from "./queries";
 import type { Product, StockFilter } from "./types";
@@ -37,6 +38,13 @@ const matchesStockFilter = (stock: number, filter: StockFilter): boolean => {
 
 export function useProducts() {
   const { toast } = useToast();
+
+  /*
+   * The storefront caches its product queries. A row edited or
+   * deleted here has to drop them, or a shopper keeps seeing a
+   * product that no longer exists until the cache goes stale.
+   */
+  const invalidateStorefront = useInvalidateProducts();
 
   const { categories, loading: loadingCategories, reload: reloadCategories } = useCategories();
 
@@ -62,6 +70,15 @@ export function useProducts() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  /*
+   * The table's checkboxes need somewhere to go. This is the
+   * single delete above run over a selection - a separate path
+   * rather than a widened one, so the row-level delete keeps
+   * working exactly as it did.
+   */
+  const [pendingBulkDelete, setPendingBulkDelete] = useState<Product[] | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   /* The product the confirm dialog is open for, if any. */
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
@@ -75,7 +92,8 @@ export function useProducts() {
   const loadData = useCallback((): void => {
     reloadCategories();
     reloadProducts();
-  }, [reloadCategories, reloadProducts]);
+    void invalidateStorefront();
+  }, [reloadCategories, reloadProducts, invalidateStorefront]);
 
   /*
    * The row asks, the dialog confirms: the click only records
@@ -116,6 +134,8 @@ export function useProducts() {
       /* Drop the row locally rather than refetching the table. */
       setProducts((current) => current.filter((product) => product.id !== id));
 
+      void invalidateStorefront();
+
       toast({
         title: "Product deleted",
         description: `"${name}" has been deleted successfully.`,
@@ -132,7 +152,76 @@ export function useProducts() {
       setDeletingId(null);
       setPendingDelete(null);
     }
-  }, [pendingDelete, deletingId, setProducts, toast]);
+  }, [pendingDelete, deletingId, setProducts, toast, invalidateStorefront]);
+
+  const requestBulkDelete = useCallback((selected: Product[]): void => {
+    if (selected.length === 0) {
+      return;
+    }
+
+    setPendingBulkDelete(selected);
+  }, []);
+
+  const cancelBulkDelete = useCallback((): void => {
+    if (bulkDeleting) {
+      return;
+    }
+
+    setPendingBulkDelete(null);
+  }, [bulkDeleting]);
+
+  const confirmBulkDelete = useCallback(async (): Promise<void> => {
+    if (!pendingBulkDelete || bulkDeleting) {
+      return;
+    }
+
+    setBulkDeleting(true);
+
+    /*
+     * Sequential, not Promise.all: each delete clears the
+     * product's images from storage first, and a partial
+     * failure should stop rather than leave the rest in flight.
+     */
+    const deleted: string[] = [];
+    let failure: unknown = null;
+
+    for (const product of pendingBulkDelete) {
+      try {
+        await deleteProduct(product.id);
+        deleted.push(product.id);
+      } catch (error: unknown) {
+        console.error("Product bulk delete error:", error);
+        failure = error;
+        break;
+      }
+    }
+
+    /* Drop whatever did go, so the table matches the table. */
+    if (deleted.length > 0) {
+      setProducts((current) => current.filter((product) => !deleted.includes(product.id)));
+
+      void invalidateStorefront();
+    }
+
+    if (failure) {
+      toast({
+        title: "Delete failed",
+        description:
+          deleted.length === 0
+            ? getErrorMessage(failure)
+            : `${deleted.length} deleted, then: ${getErrorMessage(failure)}`,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: `${deleted.length} product${deleted.length === 1 ? "" : "s"} deleted`,
+        description: "The selected products have been deleted successfully.",
+      });
+    }
+
+    setBulkDeleting(false);
+    setPendingBulkDelete(null);
+  }, [pendingBulkDelete, bulkDeleting, setProducts, toast, invalidateStorefront]);
 
   const filteredProducts = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
@@ -158,6 +247,11 @@ export function useProducts() {
     requestDelete,
     confirmDelete,
     cancelDelete,
+    pendingBulkDelete,
+    bulkDeleting,
+    requestBulkDelete,
+    confirmBulkDelete,
+    cancelBulkDelete,
     searchQuery,
     setSearchQuery,
     categoryFilter,

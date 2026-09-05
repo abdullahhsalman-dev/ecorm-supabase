@@ -1,12 +1,30 @@
 "use client";
 
+/*
+ * ---------------------------------------------------------
+ * THEME PROVIDER
+ * ---------------------------------------------------------
+ *
+ * The stored preference and the operating system's setting are
+ * both things outside React that can change on their own, so
+ * they are read as external stores rather than copied into
+ * state by an effect.
+ *
+ * That is not only a lint rule: the effect version rendered
+ * once with the default theme, then set state and rendered
+ * again, so a shopper who had chosen dark saw a flash of light
+ * on every page load. Subscribing means the first client render
+ * already knows the answer.
+ */
+
 import * as React from "react";
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
-  useState,
+  useMemo,
+  useRef,
   useSyncExternalStore,
 } from "react";
 
@@ -31,62 +49,93 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const STORAGE_KEY = "theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
-const isTheme = (value: string | null): value is Theme =>
-  value === "light" || value === "dark" || value === "system";
-
 /*
  * ---------------------------------------------------------
  * THE STORED PREFERENCE
  * ---------------------------------------------------------
- *
- * localStorage is external state: it exists only on the client, and a
- * second tab can change it underneath us. Reading it through
- * useSyncExternalStore is what lets the value arrive on mount without
- * an effect writing state - the server snapshot is null, so hydration
- * renders the default and React re-renders once with the real value.
  */
 
-const listeners = new Set<() => void>();
+const storeListeners = new Set<() => void>();
 
-/* Same-tab writes don't raise a storage event, so announce them. */
-const announceThemeChange = (): void => {
-  for (const listener of listeners) {
-    listener();
-  }
-};
+/* Cached so getSnapshot does not hit localStorage every render. */
+let cachedTheme: Theme | null = null;
+let cacheLoaded = false;
 
-const subscribeStoredTheme = (onChange: () => void): (() => void) => {
-  listeners.add(onChange);
-  window.addEventListener("storage", onChange);
-
-  return () => {
-    listeners.delete(onChange);
-    window.removeEventListener("storage", onChange);
-  };
-};
-
-/* Blocked storage (private mode, embedded webviews) reads as "unset". */
-const readStoredTheme = (): Theme | null => {
+function readStoredTheme(): Theme | null {
+  /* Private windows and blocked site data both throw here. */
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return isTheme(stored) ? stored : null;
+    const value = window.localStorage.getItem(STORAGE_KEY);
+
+    return value === "light" || value === "dark" || value === "system" ? value : null;
   } catch {
     return null;
   }
-};
+}
 
-const noStoredTheme = (): Theme | null => null;
+function getStoredTheme(): Theme | null {
+  if (!cacheLoaded) {
+    cachedTheme = readStoredTheme();
+    cacheLoaded = true;
+  }
 
-const subscribeSystemTheme = (onChange: () => void): (() => void) => {
+  return cachedTheme;
+}
+
+function writeStoredTheme(theme: Theme): void {
+  cachedTheme = theme;
+  cacheLoaded = true;
+
+  try {
+    window.localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    /* The in-memory value still drives this tab. */
+  }
+}
+
+function emitThemeChange(): void {
+  for (const listener of storeListeners) {
+    listener();
+  }
+}
+
+function subscribeToStoredTheme(listener: () => void): () => void {
+  storeListeners.add(listener);
+
+  /* Another tab changing the theme fires this, never our own. */
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === STORAGE_KEY) {
+      cacheLoaded = false;
+      listener();
+    }
+  };
+
+  window.addEventListener("storage", onStorage);
+
+  return () => {
+    storeListeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+/*
+ * ---------------------------------------------------------
+ * THE SYSTEM SETTING
+ * ---------------------------------------------------------
+ */
+
+function subscribeToSystemTheme(listener: () => void): () => void {
   const query = window.matchMedia(DARK_QUERY);
-  query.addEventListener("change", onChange);
 
-  return () => query.removeEventListener("change", onChange);
-};
+  query.addEventListener("change", listener);
 
-const readSystemPrefersDark = (): boolean => window.matchMedia(DARK_QUERY).matches;
+  return () => query.removeEventListener("change", listener);
+}
 
-const noSystemPreference = (): boolean => false;
+const getSystemPrefersDark = (): boolean => window.matchMedia(DARK_QUERY).matches;
+
+/* The server has no window; light is the documented default. */
+const getServerStoredTheme = (): Theme | null => null;
+const getServerPrefersDark = (): boolean => false;
 
 export function ThemeProvider({
   children,
@@ -95,26 +144,39 @@ export function ThemeProvider({
   enableSystem = false,
   disableTransitionOnChange = false,
 }: ThemeProviderProps) {
-  const storedTheme = useSyncExternalStore(subscribeStoredTheme, readStoredTheme, noStoredTheme);
-
-  const systemPrefersDark = useSyncExternalStore(
-    subscribeSystemTheme,
-    enableSystem ? readSystemPrefersDark : noSystemPreference,
-    noSystemPreference
+  const storedTheme = useSyncExternalStore(
+    subscribeToStoredTheme,
+    getStoredTheme,
+    getServerStoredTheme
   );
 
-  /* A choice made this session outranks whatever was stored before it. */
-  const [chosenTheme, setChosenTheme] = useState<Theme | null>(null);
+  const prefersDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemPrefersDark,
+    getServerPrefersDark
+  );
 
-  const theme: Theme = chosenTheme ?? storedTheme ?? defaultTheme;
+  /* Set by the setter so the effect below knows a change was
+     deliberate, and can suppress the transition for it. */
+  const suppressTransition = useRef(false);
+
+  const theme: Theme = useMemo(() => {
+    const initial = storedTheme ?? defaultTheme;
+
+    if (enableSystem && (!storedTheme || initial === "system")) {
+      return prefersDark ? "dark" : "light";
+    }
+
+    return initial;
+  }, [storedTheme, defaultTheme, enableSystem, prefersDark]);
 
   const resolvedTheme: "light" | "dark" =
-    theme === "system" ? (enableSystem && systemPrefersDark ? "dark" : "light") : theme;
+    theme === "system" ? (prefersDark ? "dark" : "light") : theme;
 
   /*
-   * The class on <html> is the only real output here, and writing it is
-   * a DOM side effect, so it stays in an effect - one place, rather than
-   * the three the previous version kept in sync by hand.
+   * Writing the class onto <html> is synchronising an external
+   * system with React state, which is what an effect is for -
+   * no state is set here.
    */
   useEffect(() => {
     if (attribute !== "class") {
@@ -122,43 +184,44 @@ export function ThemeProvider({
     }
 
     const root = document.documentElement;
+    const suppress = suppressTransition.current;
 
-    if (disableTransitionOnChange) {
+    if (suppress) {
       root.style.transition = "none";
     }
 
     root.classList.remove("light", "dark");
     root.classList.add(resolvedTheme);
 
-    if (!disableTransitionOnChange) {
+    if (!suppress) {
       return;
     }
 
-    /* Let the class land before transitions are allowed back. */
-    const restore = window.setTimeout(() => {
+    suppressTransition.current = false;
+
+    /* Restored after the browser has painted the new colours. */
+    const frame = requestAnimationFrame(() => {
       root.style.transition = "";
-    }, 0);
+    });
 
-    return () => window.clearTimeout(restore);
-  }, [attribute, resolvedTheme, disableTransitionOnChange]);
+    return () => cancelAnimationFrame(frame);
+  }, [attribute, resolvedTheme]);
 
-  const setTheme = useCallback((next: Theme) => {
-    setChosenTheme(next);
-
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* An unwritable store just means the choice lasts this session. */
-    }
-
-    announceThemeChange();
-  }, []);
-
-  return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
+  const setTheme = useCallback(
+    (next: Theme) => {
+      suppressTransition.current = disableTransitionOnChange;
+      writeStoredTheme(next);
+      emitThemeChange();
+    },
+    [disableTransitionOnChange]
   );
+
+  const value = useMemo<ThemeContextType>(
+    () => ({ theme, resolvedTheme, setTheme }),
+    [theme, resolvedTheme, setTheme]
+  );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export const useTheme = () => {

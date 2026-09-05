@@ -2,52 +2,53 @@
 
 /*
  * ---------------------------------------------------------
- * useCategories
+ * useCategories (admin)
  * ---------------------------------------------------------
  *
  * The categories list feeds the Categories screen, the product
- * form's picker and the bulk importer. All three read it
- * through this hook so there is one query and one error path.
+ * form's picker and the bulk importer.
+ *
+ * It no longer runs a query of its own: all three read the same
+ * store the storefront does, so opening the admin costs nothing
+ * extra and a save here is seen by every open tab.
  */
 
 import { useToast } from "@/hooks/use-toast";
 import {
-  fetchCategories,
+  invalidateCategories,
+  useCategoryStore,
   type CategoryRecord,
-} from "@/src/app/lib/categories";
-import { useAsyncData } from "@/src/app/lib/use-async-data";
-import { useCallback } from "react";
+} from "@/src/app/components/category-provider";
+import { useEffect, useRef } from "react";
 import { getErrorMessage } from "../components/admin-ui";
-
-const NO_CATEGORIES: CategoryRecord[] = [];
 
 export function useCategories() {
   const { toast } = useToast();
+  const { categories, loading, error, refresh } = useCategoryStore();
 
-  const onError = useCallback(
-    (error: unknown) => {
-      console.error("Failed to load categories:", error);
+  /*
+   * The store logs and swallows its own failures so the header
+   * survives them. The admin, which cannot work without this
+   * list, surfaces the same failure once per occurrence.
+   */
+  const reported = useRef<unknown>(null);
 
-      toast({
-        title: "Failed to load categories",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    },
-    [toast],
-  );
+  useEffect(() => {
+    if (!error || reported.current === error) {
+      return;
+    }
 
-  const {
-    data: categories,
-    loading,
-    reload,
-    setData,
-  } = useAsyncData(fetchCategories, {
-    fallback: NO_CATEGORIES,
-    onError,
-  });
+    reported.current = error;
 
-  return { categories, loading, reload, setCategories: setData };
+    toast({
+      title: "Failed to load categories",
+      description: getErrorMessage(error),
+      variant: "destructive",
+    });
+  }, [error, toast]);
+
+  return { categories, loading, reload: refresh };
 }
 
+export { invalidateCategories };
 export type { CategoryRecord };

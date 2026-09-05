@@ -1,5 +1,7 @@
 // src/app/layout.tsx
 import { CartProvider } from "@/src/app/components/cart-provider";
+import { CategoryProvider } from "@/src/app/components/category-provider";
+import { QueryProvider } from "@/src/app/components/query-provider";
 import { ThemeProvider } from "@/src/app/components/theme-provider";
 import { Toaster } from "@/src/app/components/ui/toaster";
 import { AuthProvider } from "@/src/app/context/auth-context";
@@ -86,14 +88,24 @@ export default function RootLayout({
     <html lang="en-PK">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange>
-          <AuthProvider>
-            <CartProvider>
-              <div className="flex min-h-screen flex-col">
-                <LayoutWrapper>{children}</LayoutWrapper>
-              </div>
-              <Toaster />
-            </CartProvider>
-          </AuthProvider>
+          {/* Outermost of the data providers: the others read through it. */}
+          <QueryProvider>
+            <AuthProvider>
+              <CartProvider>
+                {/*
+                 * Above LayoutWrapper so the admin, which renders
+                 * without the header, reads the same store the
+                 * storefront does.
+                 */}
+                <CategoryProvider>
+                  <div className="flex min-h-screen flex-col">
+                    <LayoutWrapper>{children}</LayoutWrapper>
+                  </div>
+                </CategoryProvider>
+                <Toaster />
+              </CartProvider>
+            </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
 
         {/*

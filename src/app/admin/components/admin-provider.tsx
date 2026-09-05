@@ -16,9 +16,10 @@
  * the layout and the header share a single query.
  */
 
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/src/app/context/auth-context";
 import { fetchUserProfileByEmail, isAdminProfile, type UserProfile } from "@/src/app/lib/users";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 /* The admin panel reads the same row shape as the storefront. */
 export type AdminProfile = UserProfile;
@@ -37,72 +38,39 @@ const AdminProfileContext = createContext<AdminProfileState | undefined>(undefin
 export function AdminProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
 
-  /* Read once, for the same reason as in the account page: reading
-     `user?.email` inside the callback makes the compiler infer `user`. */
-  const userEmail = user?.email ?? null;
-
-  const [profile, setProfile] = useState<AdminProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   /*
-   * Reset the moment the identity changes, during render rather than in
-   * the effect below. Signing out has to drop the previous admin's row
-   * immediately -- an effect runs after paint, which would leave one
-   * frame where the old role still reads as authorised.
+   * The auth session is the source of identity; the users table
+   * is the source of the role.
+   *
+   * Lifted out of the destructuring so the dependency the React
+   * Compiler infers and the one written here are the same
+   * thing - reading `user?.email` inline made it infer `user`,
+   * which is coarser and cannot be reconciled.
    */
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const email = user?.email;
 
-  if (userEmail !== loadedFor) {
-    setLoadedFor(userEmail);
-    setProfile(null);
-    setError(null);
-    /* No session means nothing to fetch, so nothing left to wait for. */
-    setProfileLoading(userEmail !== null);
+  const {
+    data: profile = null,
+    isPending,
+    error: queryError,
+  } = useQuery({
+    queryKey: ["admin-profile", email],
+    queryFn: () => fetchUserProfileByEmail(email as string),
+    enabled: Boolean(email),
+  });
+
+  if (queryError) {
+    console.error("Failed to load admin profile:", queryError);
   }
 
-  /*
-   * The auth session is the source of identity; the users table is the
-   * source of the role. Every setState sits behind the await, which is
-   * what keeps this effect from cascading a render.
-   */
-  useEffect(() => {
-    if (!userEmail) {
-      return;
-    }
+  /* A disabled query stays pending forever; signed out is not loading. */
+  const profileLoading = Boolean(email) && isPending;
 
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const row = await fetchUserProfileByEmail(userEmail);
-
-        if (!cancelled) {
-          setProfile(row);
-          setError(null);
-        }
-      } catch (queryError: unknown) {
-        console.error("Failed to load admin profile:", queryError);
-
-        if (cancelled) {
-          return;
-        }
-
-        setProfile(null);
-        setError(
-          queryError instanceof Error ? queryError.message : "Could not verify your account role."
-        );
-      } finally {
-        if (!cancelled) {
-          setProfileLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userEmail]);
+  const error = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Could not verify your account role."
+    : null;
 
   const value = useMemo<AdminProfileState>(
     () => ({

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import { useNavigation } from "@/src/app/components/navigation-provider";
+import { useNavigation } from "@/src/app/components/category-provider";
 import { utilityLinks } from "@/src/app/lib/navigation";
 import { cn } from "@/src/app/lib/utils";
 
@@ -68,9 +68,7 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
                   onClick={onNavigate}
                   className={cn(
                     "text-[15px] font-semibold uppercase tracking-[0.08em] transition-colors",
-                    category.accent
-                      ? "text-brand-strong"
-                      : "text-neutral-900 hover:text-neutral-500"
+                    category.accent ? "text-[#FF3D6E]" : "text-neutral-900 hover:text-neutral-500"
                   )}
                 >
                   {category.name}

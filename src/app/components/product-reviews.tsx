@@ -2,7 +2,7 @@
 
 import { AlertCircle, BadgeCheck, EyeOff, MessageSquare, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/src/app/components/ui/button";
@@ -35,6 +35,13 @@ import {
   type ReviewSort,
   type ReviewStats,
 } from "@/src/app/lib/reviews";
+import { useQuery } from "@tanstack/react-query";
+
+/* One shared empty result, so the fallback is stable. */
+const EMPTY_REVIEWS: {
+  reviews: ProductReview[];
+  ownReview: ProductReview | null;
+} = { reviews: [], ownReview: null };
 
 interface ProductReviewsProps {
   productId: string;
@@ -58,92 +65,46 @@ export function ProductReviews({
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [reviews, setReviews] = useState<ProductReview[]>([]);
-  const [ownReview, setOwnReview] = useState<ProductReview | null>(null);
   const [sort, setSort] = useState<ReviewSort>("recent");
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
 
   const [isWriting, setIsWriting] = useState(false);
   const [draft, setDraft] = useState<ReviewDraft>(EMPTY_DRAFT);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setFailed(false);
+  /*
+   * Through the query cache rather than into state from an
+   * effect. Keyed on the shopper too: their own review is
+   * fetched alongside the list rather than picked out of it,
+   * because staff can hide a review and its author still has to
+   * be able to edit it.
+   */
+  const userId = user?.id ?? null;
 
-    try {
-      /*
-       * The shopper's own review is fetched separately rather
-       * than picked out of the list: staff can hide a review,
-       * and its author still has to be able to edit it.
-       */
+  const {
+    data = EMPTY_REVIEWS,
+    isPending: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["product-reviews", productId, sort, userId],
+    queryFn: async () => {
       const [list, own] = await Promise.all([
         fetchProductReviews(productId, sort),
-        user ? fetchOwnReview(productId, user.id) : Promise.resolve(null),
+        userId ? fetchOwnReview(productId, userId) : Promise.resolve(null),
       ]);
 
-      setReviews(list);
-      setOwnReview(own);
-    } catch (error: unknown) {
-      console.error("Could not load reviews:", error);
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [productId, sort, user]);
+      return { reviews: list, ownReview: own };
+    },
+  });
 
-  /*
-   * Raise the spinner during render, before the effect below refetches.
-   * Effects run after paint, so changing the sort would otherwise show
-   * one frame of the old list under the new heading. Same trick as
-   * useAsyncData.
-   */
-  const [fetchedFor, setFetchedFor] = useState({ productId, sort, user });
+  const { reviews, ownReview } = data;
 
-  if (fetchedFor.productId !== productId || fetchedFor.sort !== sort || fetchedFor.user !== user) {
-    setFetchedFor({ productId, sort, user });
-    setLoading(true);
-    setFailed(false);
-  }
+  const failed = Boolean(error);
 
-  /*
-   * Written out rather than calling load(): the first setState has to
-   * sit behind an await, or the effect cascades a render. The cancelled
-   * flag keeps a superseded sort from overwriting a newer one.
-   */
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const [list, own] = await Promise.all([
-          fetchProductReviews(productId, sort),
-          user ? fetchOwnReview(productId, user.id) : Promise.resolve(null),
-        ]);
-
-        if (!cancelled) {
-          setReviews(list);
-          setOwnReview(own);
-        }
-      } catch (error: unknown) {
-        console.error("Could not load reviews:", error);
-
-        if (!cancelled) {
-          setFailed(true);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [productId, sort, user]);
+  const load = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   const openForm = () => {
     setDraft(

@@ -1,6 +1,6 @@
 import { ProductDetails } from "@/src/app/components/product-details";
 import { RelatedProducts } from "@/src/app/components/related-products";
-import { fetchProductBySlug, type StorefrontProduct } from "@/src/app/lib/products";
+import { fetchProductBySlug, isInStock, type StorefrontProduct } from "@/src/app/lib/products";
 import { absoluteUrl, CURRENCY, SITE_NAME } from "@/src/app/lib/seo";
 import { createClient } from "@/src/app/lib/supabase/server";
 import { formatCurrency } from "@/src/app/lib/utils";
@@ -70,17 +70,30 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const title = productTitle(product);
     const description = productDescription(product);
     const image = product.product_images[0]?.image_url;
+    const url = absoluteUrl(`/products/${product.slug}`);
 
     return {
+      /*
+       * No brand suffix here: the root layout's title.template
+       * appends "| Lamees" to every page title that is not the
+       * homepage's, so spelling it out would render it twice.
+       */
       title,
       description,
-      alternates: { canonical: `/products/${product.slug}` },
+      /* Set per-route, since the layout deliberately sets none. */
+      alternates: { canonical: url },
       openGraph: {
         type: "website",
+        url,
         title,
         description,
-        url: `/products/${product.slug}`,
         images: image ? [{ url: image, alt: product.name }] : undefined,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: image ? [image] : undefined,
       },
     };
   } catch {
@@ -113,6 +126,8 @@ export default async function ProductPage({ params }: { params: Params }) {
    * this page for a corpus where "with price" rides along with
    * almost every commercial phrase.
    */
+  const images = product.product_images.map((image) => image.image_url);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -120,7 +135,7 @@ export default async function ProductPage({ params }: { params: Params }) {
     description: product.description ?? undefined,
     sku: product.id,
     url: absoluteUrl(`/products/${product.slug}`),
-    image: product.product_images.map((image) => image.image_url),
+    image: images.length > 0 ? images : undefined,
     brand: { "@type": "Brand", name: SITE_NAME },
     category: product.categories?.name ?? undefined,
     offers: {
@@ -129,21 +144,34 @@ export default async function ProductPage({ params }: { params: Params }) {
       priceCurrency: CURRENCY,
       url: absoluteUrl(`/products/${product.slug}`),
       itemCondition: "https://schema.org/NewCondition",
-      availability:
-        product.stock_quantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      /*
+       * isInStock, not stock_quantity: a product with variants
+       * is in stock when any variant is, and the two disagree
+       * often enough that using the raw column would tell
+       * Google "in stock" over a page saying otherwise.
+       */
+      availability: isInStock(product)
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
     },
   };
 
   return (
-    <div className="px-4 py-8 md:py-12">
+    <div className="mx-auto w-full max-w-7xl px-4 py-6 md:py-8">
+      {/*
+        The structured data was being built and then dropped on
+        the floor - none of it ever reached the page, so none of
+        it ever reached Google.
+
+        `<` is escaped because a product name containing
+        "</script>" would otherwise close this tag early and
+        leave the rest of the JSON as markup.
+      */}
       <script
         type="application/ld+json"
-        /*
-         * The payload is built from our own columns, not from
-         * anything a shopper typed, and JSON.stringify escapes
-         * the quotes that would otherwise break out of the tag.
-         */
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
       />
 
       <ProductDetails product={product} />

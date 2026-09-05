@@ -126,19 +126,50 @@ const FALLBACK_GRADIENTS = [
   "from-[#8A4C5C] to-[#3A1E26]",
   "from-[#3F6E4C] to-[#17301C]",
   "from-[#7A5A2E] to-[#2E2113]",
+  "from-[#42708A] to-[#152B3A]",
+  "from-[#7A3F6E] to-[#2B1730]",
+  "from-[#8A6440] to-[#3A2A1B]",
+  "from-[#4F7A73] to-[#1A302D]",
 ];
 
-/* Stable per slug, so a department keeps its colour between renders. */
-const gradientFor = (slug: string): string => {
+/*
+ * Stable per slug, so a department keeps its colour between
+ * renders - and so a category tile with no banner picks up the
+ * same palette its panel in the mega menu already uses.
+ */
+export const gradientFor = (slug: string): string => {
   const known = SECTION_GRADIENTS[slug];
 
   if (known) {
     return known;
   }
 
-  const hash = Array.from(slug).reduce((total, character) => total + character.charCodeAt(0), 0);
+  /*
+   * A plain sum of character codes collides on anagrams, which
+   * sibling slugs very nearly are: "women-tops" and
+   * "women-pants" summed to the same number and so drew the
+   * same card. That went unseen while only the mega menu read
+   * this - it shows one card at a time - but the category grids
+   * put siblings side by side, where a repeat reads as a bug.
+   *
+   * djb2 mixes in each character's position, and the final
+   * avalanche spreads the result across all 32 bits, so the low
+   * bits the modulo actually uses are not decided by a handful
+   * of characters. Sibling slugs, which differ only in their
+   * last word, land far apart.
+   */
+  let hash = Array.from(slug).reduce(
+    (total, character) => (total * 33 + character.charCodeAt(0)) >>> 0,
+    5381
+  );
 
-  return FALLBACK_GRADIENTS[hash % FALLBACK_GRADIENTS.length];
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 2246822507) >>> 0;
+  hash ^= hash >>> 13;
+  hash = Math.imul(hash, 3266489909) >>> 0;
+  hash ^= hash >>> 16;
+
+  return FALLBACK_GRADIENTS[(hash >>> 0) % FALLBACK_GRADIENTS.length];
 };
 
 const featureFor = (category: CategoryRecord): NavFeature => ({

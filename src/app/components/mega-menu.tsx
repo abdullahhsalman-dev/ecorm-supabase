@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useNavigation } from "@/src/app/components/navigation-provider";
+import { useNavigation } from "@/src/app/components/category-provider";
 import { type NavCategory } from "@/src/app/lib/navigation";
 import { cn } from "@/src/app/lib/utils";
 
@@ -17,9 +17,25 @@ const CLOSE_DELAY = 160;
 
 export function MegaMenu() {
   const { categories, loading } = useNavigation();
-  const [activeName, setActiveName] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
+
+  /*
+   * An open panel belongs to the route it was opened on, so
+   * navigating closes it as a matter of arithmetic rather than
+   * an effect reaching in to reset the state after the fact.
+   *
+   * It also settles the race the old reset could not: a hover
+   * timer that fires just after the route changed carries the
+   * page it was scheduled on, so it resolves to closed instead
+   * of opening a panel over the page the visitor just landed on.
+   */
+  const [active, setActive] = useState<{ name: string | null; path: string }>({
+    name: null,
+    path: pathname,
+  });
+
+  const activeName = active.path === pathname ? active.name : null;
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -28,44 +44,36 @@ export function MegaMenu() {
     }
   }, []);
 
+  const open = useCallback(
+    (name: string | null) => {
+      setActive({ name, path: pathname });
+    },
+    [pathname]
+  );
+
   const closeNow = useCallback(() => {
     clearTimer();
-    setActiveName(null);
-  }, [clearTimer]);
+    open(null);
+  }, [clearTimer, open]);
 
   const scheduleOpen = useCallback(
     (name: string | null) => {
       clearTimer();
-      timer.current = setTimeout(() => setActiveName(name), OPEN_DELAY);
+      timer.current = setTimeout(() => open(name), OPEN_DELAY);
     },
-    [clearTimer]
+    [clearTimer, open]
   );
 
   const scheduleClose = useCallback(() => {
     clearTimer();
-    timer.current = setTimeout(() => setActiveName(null), CLOSE_DELAY);
-  }, [clearTimer]);
+    timer.current = setTimeout(() => open(null), CLOSE_DELAY);
+  }, [clearTimer, open]);
 
   /*
-   * Drop the panel once the route changes.
-   *
-   * Closing during render keeps the old panel from painting over the new
-   * page for a frame; clearing the timer is a ref write, so it has to
-   * stay in the effect below.
+   * Cleanup only - on unmount, and whenever the route changes,
+   * so no pending timer is left to fire into the next page.
    */
-  const [panelPath, setPanelPath] = useState(pathname);
-
-  if (panelPath !== pathname) {
-    setPanelPath(pathname);
-    setActiveName(null);
-  }
-
-  /* ...and never leave a timer behind. */
-  useEffect(() => {
-    clearTimer();
-  }, [pathname, clearTimer]);
-
-  useEffect(() => clearTimer, [clearTimer]);
+  useEffect(() => clearTimer, [pathname, clearTimer]);
 
   const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -105,7 +113,7 @@ export function MegaMenu() {
             >
               <Link
                 href={category.href}
-                onFocus={() => (hasPanel ? setActiveName(category.name) : closeNow())}
+                onFocus={() => (hasPanel ? open(category.name) : closeNow())}
                 onClick={closeNow}
                 aria-expanded={hasPanel ? isOpen : undefined}
                 className={cn(
@@ -121,7 +129,7 @@ export function MegaMenu() {
                 <span
                   className={cn(
                     "absolute bottom-2 left-0 h-[1.5px] transition-all duration-200",
-                    category.accent ? "bg-brand" : "bg-neutral-900",
+                    category.accent ? "bg-[#FF3D6E]" : "bg-neutral-900",
                     isOpen || isCurrent(category.href) ? "w-full" : "w-0 group-hover:w-full"
                   )}
                 />
@@ -256,7 +264,7 @@ function MegaMenuPanel({ category, onMouseEnter, onMouseLeave, onNavigate }: Meg
             <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover/all:translate-x-1" />
           </Link>
           <span className="text-[12px] text-neutral-400">
-            Free delivery on orders over PKR 3,000
+            Free delivery on orders over PKR 5,000
           </span>
         </div>
       </div>

@@ -84,37 +84,31 @@ export function CategoryFormSheet({
   /*
    * Reload the form whenever the sheet opens on a new target.
    *
-   * The values are adjusted during render so the fields are already
-   * correct on the first paint; clearing the file input is a DOM write
-   * and stays in an effect. Both keep the original trigger: the sheet
-   * opening, or the target changing while it is open.
+   * Done by comparing a key during render rather than from an
+   * effect: an effect would paint the previous category's
+   * values for one frame before replacing them, and cost a
+   * second render every time the sheet opened.
    */
-  const [seededFor, setSeededFor] = useState<{
-    open: boolean;
-    editing: CategoryRecord | null;
-    presetParentId: string | null;
-  }>({ open: false, editing: null, presetParentId: null });
+  const targetKey = open ? (editing?.id ?? `new:${presetParentId ?? NO_PARENT}`) : null;
 
-  if (
-    open !== seededFor.open ||
-    editing !== seededFor.editing ||
-    presetParentId !== seededFor.presetParentId
-  ) {
-    setSeededFor({ open, editing, presetParentId });
+  const [loadedKey, setLoadedKey] = useState(targetKey);
 
-    if (open) {
+  if (targetKey !== loadedKey) {
+    setLoadedKey(targetKey);
+
+    if (targetKey !== null) {
       setValues(
         editing ? categoryFormValues(editing) : emptyCategoryForm(presetParentId ?? NO_PARENT)
       );
     }
   }
 
-  /* Clearing the input by hand is what lets the same file be re-picked. */
+  /* Clearing the file input is a DOM write, not state. */
   useEffect(() => {
     if (open && fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, [open, editing, presetParentId]);
+  }, [open, targetKey]);
 
   /*
    * A picked file is previewed from an object URL, which has to

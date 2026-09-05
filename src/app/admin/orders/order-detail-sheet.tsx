@@ -108,22 +108,23 @@ export function OrderDetailSheet({ open, onOpenChange, order, onSaved }: OrderDe
   const { items, loading: loadingItems } = useOrderItems(open && order ? order.id : null);
 
   /*
-   * Seed the editable fields from the order row.
+   * Seed the form from the order the sheet was opened on.
    *
-   * Adjusted during render, not in an effect, so the sheet never paints
-   * one frame of the previous order's values. Forgetting the row on
-   * close is what makes reopening the same order re-read it, rather
-   * than showing edits that were abandoned last time.
+   * Compared during render rather than in an effect: from an
+   * effect the sheet painted the previous order's status for a
+   * frame before correcting itself, which on a slow list read
+   * as the wrong order being open.
    */
-  const [seededFrom, setSeededFrom] = useState<Order | null>(null);
+  const orderKey = open ? (order?.id ?? null) : null;
 
-  if (!open) {
-    if (seededFrom !== null) {
-      setSeededFrom(null);
+  const [loadedKey, setLoadedKey] = useState(orderKey);
+
+  if (orderKey !== loadedKey) {
+    setLoadedKey(orderKey);
+
+    if (order && orderKey !== null) {
+      setUpdate(updateFromOrder(order));
     }
-  } else if (order && order !== seededFrom) {
-    setSeededFrom(order);
-    setUpdate(updateFromOrder(order));
   }
 
   const setField = <K extends keyof OrderUpdate>(key: K, value: OrderUpdate[K]): void => {

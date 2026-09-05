@@ -1,6 +1,8 @@
 import { Button } from "@/src/app/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { Container } from "@/src/app/components/ui/container";
+import { toOrderNumber } from "@/src/app/lib/order-number";
 
 export const metadata = {
   title: "Order Confirmation",
@@ -20,11 +22,16 @@ export default async function OrderSuccessPage({
 }) {
   const { order } = await searchParams;
 
-  /* The uuid's first block is short enough to read out over the phone. */
-  const orderNumber = order ? order.split("-")[0].toUpperCase() : null;
+  /*
+   * The number the customer quotes back at us. Derived from the
+   * uuid, and the same string /track-order accepts - the page
+   * used to print the first block bare, which was not a
+   * reference anything could look up.
+   */
+  const orderNumber = order ? toOrderNumber(order) : null;
 
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
+    <Container className="flex min-h-[70vh] flex-col items-center justify-center py-16 text-center">
       <div className="mb-6 rounded-full bg-green-100 p-3">
         <CheckCircle className="h-12 w-12 text-green-600" />
       </div>
@@ -39,7 +46,7 @@ export default async function OrderSuccessPage({
           {orderNumber && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Order Number:</span>
-              <span className="font-medium">#{orderNumber}</span>
+              <span className="font-mono font-medium">{orderNumber}</span>
             </div>
           )}
           <div className="flex justify-between">
@@ -58,12 +65,12 @@ export default async function OrderSuccessPage({
       </div>
       <div className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
         <Button asChild>
-          <Link href="/account">View Order</Link>
+          <Link href={order ? `/track-order?ref=${orderNumber}` : "/track-order"}>Track Order</Link>
         </Button>
         <Button variant="outline" asChild>
           <Link href="/">Continue Shopping</Link>
         </Button>
       </div>
-    </div>
+    </Container>
   );
 }

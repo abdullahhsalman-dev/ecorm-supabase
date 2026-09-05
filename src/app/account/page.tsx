@@ -15,6 +15,7 @@ import { useAsyncData } from "@/src/app/lib/use-async-data";
 import { fetchUserProfileByEmail, updateUserProfile, type UserProfile } from "@/src/app/lib/users";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { Container } from "@/src/app/components/ui/container";
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Please try again.";
@@ -31,11 +32,18 @@ export default function AccountPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Profile form state
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: user?.email || "",
-    phone: "",
-  });
+  /*
+   * What the shopper has typed, or null while they have not
+   * touched the form. Null means "show the profile", which is
+   * why the loaded row does not have to be copied into state:
+   * an effect doing that ran a second render every time the
+   * profile arrived, and raced anything typed in between.
+   */
+  const [edits, setEdits] = useState<{
+    fullName: string;
+    email: string;
+    phone: string;
+  } | null>(null);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -66,28 +74,21 @@ export default function AccountPage() {
     onError: onProfileError,
   });
 
-  /*
-   * Seed the editable form from the profile of record.
-   *
-   * Adjusted during render rather than in an effect: an effect runs
-   * after paint, so the empty form would show for one frame before the
-   * fetched values landed. Guarded by the row we last copied, so a
-   * shopper's own edits are never overwritten on a later render.
-   */
-  const [seededFrom, setSeededFrom] = useState<UserProfile | null>(null);
-
-  if (profile && profile !== seededFrom) {
-    setSeededFrom(profile);
-    setFormData({
-      fullName: profile.full_name ?? "",
-      email: profile.email,
-      phone: profile.phone ?? "",
-    });
-  }
+  /* The profile is the default; edits win once there are any. */
+  const formData = edits ?? {
+    fullName: profile?.full_name ?? "",
+    email: profile?.email ?? userEmail ?? "",
+    phone: profile?.phone ?? "",
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    /*
+     * The first keystroke promotes the profile's values into
+     * edits, so the other fields keep what was on screen.
+     */
+    setEdits((prev) => ({ ...(prev ?? formData), [name]: value }));
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,7 +131,7 @@ export default function AccountPage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user?.email) {
+    if (!userEmail) {
       return;
     }
 
@@ -151,7 +152,7 @@ export default function AccountPage() {
        * unlocked browser could do it. Re-signing in with the current password
        * is what makes the "Current Password" field mean something.
        */
-      const { error: reauthError } = await signIn(user.email, passwordForm.currentPassword);
+      const { error: reauthError } = await signIn(userEmail, passwordForm.currentPassword);
 
       if (reauthError) {
         toast({
@@ -202,21 +203,21 @@ export default function AccountPage() {
 
   if (!user) {
     return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
+      <Container className="flex min-h-[70vh] flex-col items-center justify-center py-16 text-center">
         <h1 className="mb-4 text-3xl font-bold">Account Access</h1>
         <p className="mb-8 text-muted-foreground">Please sign in to access your account.</p>
         <Button onClick={() => router.push("/login?redirect=/account")}>Sign In</Button>
-      </div>
+      </Container>
     );
   }
 
   return (
-    <div className="px-4 py-8 md:py-12">
+    <Container className="py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <h1 className="text-3xl font-bold">My Account</h1>
         <div className="flex gap-3">
           <Button
-            className="bg-brand font-semibold text-brand-foreground hover:bg-brand-strong"
+            className="bg-[#FF3D6E] font-semibold text-white hover:bg-[#E0345F]"
             onClick={() => router.push("/admin")}
           >
             Admin Portal
@@ -351,6 +352,6 @@ export default function AccountPage() {
           <AccountWishlist />
         </TabsContent>
       </Tabs>
-    </div>
+    </Container>
   );
 }

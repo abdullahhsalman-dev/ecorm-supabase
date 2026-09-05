@@ -148,10 +148,15 @@ export async function fetchWishlistProductIds(userId: string): Promise<Set<strin
 
 /*
  * Saving something already saved is a no-op rather than an
- * error: the heart is a toggle, and two clicks racing each
- * other must not leave two rows behind. There is no unique
- * constraint on (wishlist_id, product_id) in the shipped
- * schema, so this check is what keeps the list clean.
+ * error: the heart is a toggle, and clicking it twice must not
+ * read as a failure.
+ *
+ * The database is what actually guarantees one row per product
+ * - schema.sql creates a unique index on (wishlist_id,
+ * product_id), which is what settles two clicks racing each
+ * other. This check only turns the second one into a quiet
+ * no-op instead of a constraint violation surfacing as an
+ * error toast. Do not read it as the uniqueness guarantee.
  */
 export async function addToWishlist(userId: string, productId: string): Promise<void> {
   const wishlistId = await ensureWishlist(userId);
