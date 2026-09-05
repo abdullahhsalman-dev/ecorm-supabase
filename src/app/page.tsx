@@ -1,13 +1,13 @@
 import { CategoryShowcase } from "@/src/app/components/category-showcase";
+import { FeaturedPicks } from "@/src/app/components/featured-picks";
 import { FeaturedProducts } from "@/src/app/components/featured-products";
 import { HeroSection } from "@/src/app/components/hero-section";
-import { PromoSection } from "@/src/app/components/promo-section";
 
 /*
- * CategoryShowcase reads the categories table, so this page goes
- * stale the same way the department pages do without a rebuild.
+ * Nothing on this page is read on the server any more - the
+ * categories come from the shared store and the products from
+ * the client - so there is nothing here to revalidate.
  */
-export const revalidate = 300;
 
 export default function Home() {
   return (
@@ -20,7 +20,7 @@ export default function Home() {
       <HeroSection />
       <CategoryShowcase />
       <FeaturedProducts />
-      <PromoSection />
+      <FeaturedPicks />
 
       {/*
         The newsletter sign-up lives in the footer on every

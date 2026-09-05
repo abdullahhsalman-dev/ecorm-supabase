@@ -70,28 +70,36 @@ function OrdersContent() {
     }
   };
 
-  /* Deep link from the dashboard: /admin/orders?id=<uuid> */
-  useEffect(() => {
-    if (loading || orders.length === 0) {
-      return;
-    }
+  /*
+   * Deep link from the dashboard: /admin/orders?id=<uuid>
+   *
+   * Resolved during render rather than from an effect, so the
+   * drawer is open on the first paint that has the order rather
+   * than a frame later. `consumedId` is what stops it reopening
+   * after the admin closes it, since the id is still in the URL
+   * until the replace below lands.
+   */
+  const linkedId = searchParams.get("id");
 
-    const orderIdQuery = searchParams.get("id");
+  const [consumedId, setConsumedId] = useState<string | null>(null);
 
-    if (!orderIdQuery) {
-      return;
-    }
+  if (linkedId && linkedId !== consumedId && !loading && orders.length > 0) {
+    const matched = orders.find((order) => order.id === linkedId);
 
-    const matched = orders.find((order) => order.id === orderIdQuery);
+    setConsumedId(linkedId);
 
     if (matched) {
       setSelectedOrder(matched);
       setIsDrawerOpen(true);
     }
+  }
 
-    /* Clear the query so a refresh doesn't reopen the drawer. */
-    router.replace("/admin/orders", { scroll: false });
-  }, [searchParams, loading, orders, router]);
+  /* Clearing the query is navigation, not state. */
+  useEffect(() => {
+    if (linkedId && linkedId === consumedId) {
+      router.replace("/admin/orders", { scroll: false });
+    }
+  }, [linkedId, consumedId, router]);
 
   return (
     <div className="space-y-6">
@@ -134,9 +142,7 @@ function OrdersContent() {
         emptyDescription="Customers placing orders will appear here automatically."
         filteredTitle="No orders match your filters."
         filteredDescription="Try a different status or clear your search."
-        renderRow={(order) => (
-          <OrderRow key={order.id} order={order} onManage={openDrawer} />
-        )}
+        renderRow={(order) => <OrderRow key={order.id} order={order} onManage={openDrawer} />}
       />
 
       <OrderDetailSheet

@@ -28,6 +28,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createAddress, fetchAddresses, type AddressRecord } from "@/src/app/lib/addresses";
 import { fetchUserProfileByEmail } from "@/src/app/lib/users";
 import { PAYMENT_METHOD, placeOrder, StockError } from "./queries";
+import { Container } from "@/src/app/components/ui/container";
+import { useCartImages } from "@/src/app/lib/use-cart-images";
 
 /* The picker's value when the shopper is typing an address of their own. */
 const NEW_ADDRESS = "new";
@@ -86,6 +88,9 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, cartTotal, clearCart } = useCart();
+
+  /* The saved URL is a snapshot; this is the product's photo now. */
+  const imageFor = useCartImages(items);
   const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -399,18 +404,18 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto px-4 py-16 text-center">
+      <Container className="py-16 text-center">
         <h1 className="mb-6 text-3xl font-bold">Checkout</h1>
         <p className="mb-8 text-gray-600">
           Your cart is empty. Please add items to your cart before checking out.
         </p>
         <Button onClick={() => router.push("/products")}>Browse Products</Button>
-      </div>
+      </Container>
     );
   }
 
   return (
-    <div className="px-4 py-8 md:py-12">
+    <Container className="py-8 md:py-12">
       <h1 className="mb-8 text-3xl font-bold">Checkout</h1>
 
       <form onSubmit={handleSubmit}>
@@ -652,7 +657,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center">
                       <div className="relative h-16 w-16 overflow-hidden rounded-md bg-muted">
                         <Image
-                          src={safeImageSrc(item.image, "/assets/kids.webp")}
+                          src={safeImageSrc(imageFor(item))}
                           alt={item.name}
                           fill
                           sizes="64px"
@@ -698,6 +703,6 @@ export default function CheckoutPage() {
           </div>
         </div>
       </form>
-    </div>
+    </Container>
   );
 }

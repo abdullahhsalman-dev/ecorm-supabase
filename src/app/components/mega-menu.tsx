@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useNavigation } from "@/src/app/components/navigation-provider";
+import { useNavigation } from "@/src/app/components/category-provider";
 import { type NavCategory } from "@/src/app/lib/navigation";
 import { cn } from "@/src/app/lib/utils";
 
@@ -17,9 +17,25 @@ const CLOSE_DELAY = 160;
 
 export function MegaMenu() {
   const { categories, loading } = useNavigation();
-  const [activeName, setActiveName] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
+
+  /*
+   * An open panel belongs to the route it was opened on, so
+   * navigating closes it as a matter of arithmetic rather than
+   * an effect reaching in to reset the state after the fact.
+   *
+   * It also settles the race the old reset could not: a hover
+   * timer that fires just after the route changed carries the
+   * page it was scheduled on, so it resolves to closed instead
+   * of opening a panel over the page the visitor just landed on.
+   */
+  const [active, setActive] = useState<{ name: string | null; path: string }>({
+    name: null,
+    path: pathname,
+  });
+
+  const activeName = active.path === pathname ? active.name : null;
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -28,33 +44,38 @@ export function MegaMenu() {
     }
   }, []);
 
+  const open = useCallback(
+    (name: string | null) => {
+      setActive({ name, path: pathname });
+    },
+    [pathname]
+  );
+
   const closeNow = useCallback(() => {
     clearTimer();
-    setActiveName(null);
-  }, [clearTimer]);
+    open(null);
+  }, [clearTimer, open]);
 
   const scheduleOpen = useCallback(
     (name: string | null) => {
       clearTimer();
-      timer.current = setTimeout(() => setActiveName(name), OPEN_DELAY);
+      timer.current = setTimeout(() => open(name), OPEN_DELAY);
     },
-    [clearTimer],
+    [clearTimer, open]
   );
 
   const scheduleClose = useCallback(() => {
     clearTimer();
-    timer.current = setTimeout(() => setActiveName(null), CLOSE_DELAY);
-  }, [clearTimer]);
+    timer.current = setTimeout(() => open(null), CLOSE_DELAY);
+  }, [clearTimer, open]);
 
-  /* Drop the panel once the route changes, and never leave a timer behind. */
-  useEffect(() => {
-    closeNow();
-  }, [pathname, closeNow]);
+  /*
+   * Cleanup only - on unmount, and whenever the route changes,
+   * so no pending timer is left to fire into the next page.
+   */
+  useEffect(() => clearTimer, [pathname, clearTimer]);
 
-  useEffect(() => clearTimer, [clearTimer]);
-
-  const isCurrent = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <nav
@@ -88,15 +109,11 @@ export function MegaMenu() {
           return (
             <li
               key={category.name}
-              onMouseEnter={() =>
-                scheduleOpen(hasPanel ? category.name : null)
-              }
+              onMouseEnter={() => scheduleOpen(hasPanel ? category.name : null)}
             >
               <Link
                 href={category.href}
-                onFocus={() =>
-                  hasPanel ? setActiveName(category.name) : closeNow()
-                }
+                onFocus={() => (hasPanel ? open(category.name) : closeNow())}
                 onClick={closeNow}
                 aria-expanded={hasPanel ? isOpen : undefined}
                 className={cn(
@@ -105,7 +122,7 @@ export function MegaMenu() {
                     ? "text-[#FF3D6E]"
                     : isOpen || isCurrent(category.href)
                       ? "text-neutral-900"
-                      : "text-neutral-700 hover:text-neutral-900",
+                      : "text-neutral-700 hover:text-neutral-900"
                 )}
               >
                 {category.name}
@@ -113,9 +130,7 @@ export function MegaMenu() {
                   className={cn(
                     "absolute bottom-2 left-0 h-[1.5px] transition-all duration-200",
                     category.accent ? "bg-[#FF3D6E]" : "bg-neutral-900",
-                    isOpen || isCurrent(category.href)
-                      ? "w-full"
-                      : "w-0 group-hover:w-full",
+                    isOpen || isCurrent(category.href) ? "w-full" : "w-0 group-hover:w-full"
                   )}
                 />
               </Link>
@@ -128,7 +143,7 @@ export function MegaMenu() {
                   {/* Dims the page behind the panel — decorative, never eats a click. */}
                   <div
                     aria-hidden
-                    className="animate-in fade-in-0 pointer-events-none absolute inset-x-0 top-full z-30 h-screen bg-neutral-950/25 duration-200"
+                    className="pointer-events-none absolute inset-x-0 top-full z-30 h-screen bg-neutral-950/25 duration-200 animate-in fade-in-0"
                   />
                   <MegaMenuPanel
                     category={category}
@@ -153,19 +168,14 @@ type MegaMenuPanelProps = {
   onNavigate: () => void;
 };
 
-function MegaMenuPanel({
-  category,
-  onMouseEnter,
-  onMouseLeave,
-  onNavigate,
-}: MegaMenuPanelProps) {
+function MegaMenuPanel({ category, onMouseEnter, onMouseLeave, onNavigate }: MegaMenuPanelProps) {
   const feature = category.feature;
 
   return (
     <div
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="animate-in fade-in-0 slide-in-from-top-1 absolute inset-x-0 top-full z-40 border-t border-neutral-100 bg-white shadow-[0_28px_60px_-32px_rgba(0,0,0,0.45)] duration-200 ease-out"
+      className="absolute inset-x-0 top-full z-40 border-t border-neutral-100 bg-white shadow-[0_28px_60px_-32px_rgba(0,0,0,0.45)] duration-200 ease-out animate-in fade-in-0 slide-in-from-top-1"
     >
       {/* Hairline in the brand pink so the panel reads as part of the header. */}
       <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FF3D6E]/60 to-transparent" />
@@ -176,15 +186,13 @@ function MegaMenuPanel({
             className={cn(
               "grid gap-x-8 gap-y-8",
               feature ? "col-span-8" : "col-span-12",
-              (category.groups?.length ?? 0) > 3
-                ? "grid-cols-4"
-                : "grid-cols-3",
+              (category.groups?.length ?? 0) > 3 ? "grid-cols-4" : "grid-cols-3"
             )}
           >
             {category.groups?.map((group, groupIndex) => (
               <div
                 key={groupIndex}
-                className="animate-in fade-in-0 slide-in-from-bottom-1 fill-mode-both duration-300"
+                className="duration-300 animate-in fade-in-0 slide-in-from-bottom-1 fill-mode-both"
                 style={{ animationDelay: `${groupIndex * 60}ms` }}
               >
                 <h3
@@ -224,7 +232,7 @@ function MegaMenuPanel({
                 onClick={onNavigate}
                 className={cn(
                   "group/feature relative flex h-full min-h-[220px] flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br p-6 text-white",
-                  feature.gradient,
+                  feature.gradient
                 )}
               >
                 <span className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 transition-transform duration-500 group-hover/feature:scale-125" />
@@ -256,7 +264,7 @@ function MegaMenuPanel({
             <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover/all:translate-x-1" />
           </Link>
           <span className="text-[12px] text-neutral-400">
-            Free delivery on orders over PKR 3,000
+            Free delivery on orders over PKR 5,000
           </span>
         </div>
       </div>

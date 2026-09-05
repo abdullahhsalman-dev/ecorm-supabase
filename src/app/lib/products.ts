@@ -57,6 +57,13 @@ export interface StorefrontProduct {
   categories: ProductCategory | null;
   product_images: ProductImage[];
   product_variants: ProductVariant[];
+  /*
+   * Whether the product has options at all. The card select
+   * fetches variant ids only, so `product_variants` there
+   * carries no names or values - read this rather than the
+   * array's length when all you need is "does it have any".
+   */
+  hasVariants: boolean;
 }
 
 /* A variant group, e.g. { name: "Size", values: [S, M, L] }. */
@@ -91,6 +98,43 @@ export const PRODUCT_LIST_SELECT = `
   product_variants (id, name, value, price_adjustment, stock_quantity),
   categories:category_id (id, name, slug)
 `;
+
+/*
+ * What a card actually renders. The full select above pulls
+ * every product's description and every one of its variant
+ * rows for a tile that shows neither - measured at ~2.1 KB per
+ * product against ~450 B for this, so a page of 24 was 49 KB
+ * of JSON to paint 11 KB of it.
+ *
+ * Variants are asked for by id and stock only. The card has to
+ * know two things about them: whether the product has options
+ * at all (it links through to configure them rather than
+ * adding to the cart), and whether any of them is in stock -
+ * isInStock() reads variant stock in preference to the
+ * product's own, so a card fetched without it renders every
+ * product as out of stock. Their names and prices are the
+ * detail page's business.
+ */
+/* `created_at` is absent on purpose: it is ordered on in SQL,
+   and nothing reads it off the mapped product. */
+export const PRODUCT_CARD_SELECT = `
+  id,
+  name,
+  slug,
+  price,
+  sale_price,
+  stock_quantity,
+  featured,
+  category_id,
+  product_images (image_url, is_primary, display_order),
+  product_variants (id, stock_quantity),
+  categories:category_id (id, name, slug)
+`;
+
+export const PRODUCT_CARD_SELECT_INNER_CATEGORY = PRODUCT_CARD_SELECT.replace(
+  "categories:category_id (",
+  "categories:category_id!inner ("
+);
 
 export const PRODUCT_LIST_SELECT_INNER_CATEGORY = PRODUCT_LIST_SELECT.replace(
   "categories:category_id (",
@@ -173,6 +217,7 @@ export function mapProduct(row: Row): StorefrontProduct {
       : null,
     product_images: images,
     product_variants: variants,
+    hasVariants: variants.length > 0,
   };
 }
 
@@ -267,6 +312,13 @@ export interface ProductQuery {
   categoryId?: string;
   /* Matches on the embedded category, which forces an inner join. */
   categorySlug?: string;
+  /*
+   * Any of several categories, for a department that has to
+   * include its subcategories: products sit in "women-dresses",
+   * never in "women", so filtering a department page by its own
+   * slug alone matches nothing.
+   */
+  categorySlugs?: string[];
   /* Excludes the product currently on screen. */
   excludeId?: string;
   /* Discounted products only. */
@@ -276,11 +328,26 @@ export interface ProductQuery {
   /* Undefined leaves the ordering to PostgREST. */
   sort?: string;
   limit?: number;
+  /* Rows to skip, for paging. Requires `limit`. */
+  offset?: number;
+  /* Fetch only the fields a card renders, not the full row. */
+  cardsOnly?: boolean;
   /* Values a product must carry across its variants, e.g. ["M","black"]. */
   variantValues?: string[];
   /* Free text from the header search, matched on name and description. */
   search?: string;
+  /*
+   * Only products created within the last N months. Sorting by
+   * "newest" orders the catalogue but narrows nothing, so
+   * without this /new-arrivals was the whole catalogue in date
+   * order - the oldest product in the shop was a "new arrival",
+   * it was just last.
+   */
+  newWithinMonths?: number;
 }
+
+/* What the storefront treats as a new arrival. */
+export const NEW_ARRIVAL_MONTHS = 3;
 
 /*
  * PostgREST reads , . : ( ) as syntax inside an or() filter, and a bare %
@@ -293,14 +360,63 @@ const escapeSearchTerm = (term: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+/* A shopper typing five words should not be able to build a
+   five-way join by accident. */
+const MAX_SEARCH_TOKENS = 6;
+
+/*
+ * The search the header box runs.
+ *
+ * It used to be one `%whole query%` against name and
+ * description, which only ever matched a contiguous substring:
+ * "silk dress" found nothing at all against "Mahnoor Silk Slip
+ * Dress", because those two words are not adjacent in it. Any
+ * two-word search that was not a literal phrase returned an
+ * empty page.
+ *
+ * The query is now split into words, and a product has to match
+ * every one of them somewhere - so word order stops mattering
+ * and "dress silk" finds the same thing "silk dress" does.
+ *
+ * Shape: or(name~w1, desc~w1) AND or(name~w2, desc~w2) ...
+ * Each ILIKE is an infix match, which is what the pg_trgm GIN
+ * indexes from migrations/001 exist to serve - without them
+ * this is a sequential scan per token.
+ */
+function applySearch(query: ProductQueryBuilder, search: string): void {
+  const tokens = escapeSearchTerm(search).split(" ").filter(Boolean).slice(0, MAX_SEARCH_TOKENS);
+
+  if (tokens.length === 0) {
+    return;
+  }
+
+  /*
+   * One or() per token. Separate top-level filters are ANDed by
+   * PostgREST, so this reads as "matches every word" without an
+   * and() wrapper - which supabase-js does not expose anyway.
+   */
+  for (const token of tokens) {
+    query.or(`name.ilike.*${token}*,description.ilike.*${token}*`);
+  }
+}
+
 /*
  * `!inner` on categories matters here: without it PostgREST
  * filters the embedded row rather than the parent.
  */
-const selectProducts = (categorySlug?: string) =>
-  createClient()
+const selectProducts = (categorySlug?: string, cardsOnly = false, count = false) => {
+  const columns = cardsOnly
+    ? categorySlug
+      ? PRODUCT_CARD_SELECT_INNER_CATEGORY
+      : PRODUCT_CARD_SELECT
+    : categorySlug
+      ? PRODUCT_LIST_SELECT_INNER_CATEGORY
+      : PRODUCT_LIST_SELECT;
+
+  return createClient()
     .from("products")
-    .select(categorySlug ? PRODUCT_LIST_SELECT_INNER_CATEGORY : PRODUCT_LIST_SELECT);
+    .select(columns, count ? { count: "exact" } : undefined);
+};
 
 type ProductQueryBuilder = ReturnType<typeof selectProducts>;
 
@@ -321,17 +437,90 @@ const applySort = (query: ProductQueryBuilder, sort: string): void => {
       query.order("created_at", { ascending: false });
       break;
     case "discount-desc":
-      query.not("sale_price", "is", null);
+      /*
+       * Ordering by discount is a computed percentage, which
+       * PostgREST cannot sort on, so the ranking happens after
+       * the rows come back. This case used to apply a
+       * `sale_price is not null` filter and no ordering at all
+       * - a sort that silently deleted every product without a
+       * discount from whatever list you were looking at.
+       */
+      query.order("sale_price", { ascending: true, nullsFirst: false });
       break;
     default:
       query.order("featured", { ascending: false }).order("created_at", { ascending: false });
   }
 };
 
+/*
+ * Product ids carrying every one of the wanted variant values.
+ *
+ * "Size M AND black" spans two product_variants rows, which a
+ * single PostgREST filter cannot express, so this resolves the
+ * ids first and the main query narrows to them. It used to be
+ * done in JS *after* the row limit, which meant a filtered page
+ * was "the M products among the first 24" rather than the first
+ * 24 M products - a mostly empty page while matches sat
+ * unfetched. Paging made that worse, so it moved server-side.
+ */
+async function idsWithAllVariants(values: string[], client: Client): Promise<string[]> {
+  const matches = await Promise.all(
+    values.map(async (value) => {
+      const { data, error } = await client
+        .from("product_variants")
+        .select("product_id")
+        .ilike("value", value);
+
+      if (error) {
+        throw error;
+      }
+
+      return new Set(
+        (data ?? [])
+          .map((row) => row.product_id as string | null)
+          .filter((id): id is string => Boolean(id))
+      );
+    })
+  );
+
+  if (matches.length === 0) {
+    return [];
+  }
+
+  /* Every value must be present, so intersect rather than union. */
+  return [...matches[0]].filter((id) => matches.every((set) => set.has(id)));
+}
+
 export async function fetchStorefrontProducts(
   options: ProductQuery = {}
 ): Promise<StorefrontProduct[]> {
-  const query = selectProducts(options.categorySlug);
+  return (await fetchStorefrontProductPage(options)).products;
+}
+
+export interface ProductPage {
+  products: StorefrontProduct[];
+  /* Rows matching the filters, ignoring limit/offset. */
+  total: number | null;
+}
+
+export async function fetchStorefrontProductPage(
+  options: ProductQuery = {},
+  withCount = false
+): Promise<ProductPage> {
+  /*
+   * An empty list means "no categories", which can only match
+   * nothing - returning early beats sending `in.()` to
+   * PostgREST, which is a syntax error.
+   */
+  if (options.categorySlugs?.length === 0) {
+    return { products: [], total: 0 };
+  }
+
+  const query = selectProducts(
+    options.categorySlug ?? options.categorySlugs?.[0],
+    options.cardsOnly,
+    withCount
+  );
 
   if (options.featured !== undefined) {
     query.eq("featured", options.featured);
@@ -339,6 +528,10 @@ export async function fetchStorefrontProducts(
 
   if (options.categorySlug) {
     query.eq("categories.slug", options.categorySlug);
+  }
+
+  if (options.categorySlugs?.length) {
+    query.in("categories.slug", options.categorySlugs);
   }
 
   if (options.categoryId) {
@@ -349,19 +542,43 @@ export async function fetchStorefrontProducts(
     query.neq("id", options.excludeId);
   }
 
-  if (options.sale) {
-    query.not("sale_price", "is", null);
+  const wantedVariants = (options.variantValues ?? []).map((value) => value.trim()).filter(Boolean);
+
+  if (wantedVariants.length > 0) {
+    const ids = await idsWithAllVariants(wantedVariants, createClient());
+
+    if (ids.length === 0) {
+      return { products: [], total: 0 };
+    }
+
+    query.in("id", ids);
   }
 
   /*
-   * A match on either the name or the description, case-insensitive. The
-   * term is escaped first: an unescaped comma would end up read as the
-   * separator between the two or() branches.
+   * A row only counts as on sale when its sale_price actually
+   * undercuts its price - which is what hasDiscount says, and
+   * what the card renders a "% off" badge from. PostgREST
+   * cannot compare two columns, so the query narrows on what
+   * it can and the price comparison runs below.
    */
-  const term = escapeSearchTerm(options.search ?? "");
+  if (options.sale) {
+    query.not("sale_price", "is", null);
+    query.gt("sale_price", 0);
+  }
 
-  if (term) {
-    query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
+  if (options.search) {
+    applySearch(query, options.search);
+  }
+
+  /*
+   * Computed per query rather than passed in from a page: a
+   * statically rendered page would otherwise bake the cutoff in
+   * at build time and drift further out of date every day.
+   */
+  if (options.newWithinMonths !== undefined) {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - options.newWithinMonths);
+    query.gte("created_at", cutoff.toISOString());
   }
 
   if (options.minPrice !== undefined) {
@@ -376,7 +593,26 @@ export async function fetchStorefrontProducts(
     applySort(query, options.sort);
   }
 
-  const { data, error } = await (options.limit ? query.limit(options.limit) : query);
+  /*
+   * A stable tiebreaker. Without one, Postgres may return rows
+   * in a different order for two queries with equal sort keys,
+   * which for a paged list means a product appearing on two
+   * pages or on none.
+   */
+  query.order("id", { ascending: true });
+
+  /*
+   * range() is inclusive at both ends, and is what makes paging
+   * possible at all: limit() alone can only ever return the
+   * first N rows, which is why nothing past the 24th product
+   * was reachable.
+   */
+  if (options.limit !== undefined) {
+    const from = options.offset ?? 0;
+    query.range(from, from + options.limit - 1);
+  }
+
+  const { data, error, count } = await query;
 
   if (error) {
     throw error;
@@ -385,32 +621,73 @@ export async function fetchStorefrontProducts(
   const products = ((data ?? []) as unknown as Row[]).map(mapProduct);
 
   /*
-   * Variant filtering runs client-side because "Size M AND
-   * black" spans two product_variants rows, which a single
-   * PostgREST filter cannot express.
+   * The remaining post-filter: a row whose sale_price is set but
+   * no cheaper than its price is not a discount by any measure
+   * the storefront uses, and comparing two columns is the one
+   * thing the query above cannot do. It can only ever remove
+   * rows the sale filter already matched, so the count is
+   * adjusted rather than reported as-is.
    */
-  const wanted = (options.variantValues ?? [])
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-
-  const filtered =
-    wanted.length === 0
-      ? products
-      : products.filter((product) =>
-          wanted.every((value) =>
-            product.product_variants.some((variant) => variant.value.toLowerCase() === value)
-          )
-        );
+  const filtered = options.sale ? products.filter(hasDiscount) : products;
 
   /*
-   * Discount ordering is a computed percentage, which
-   * PostgREST cannot sort on.
+   * Discount ordering is a computed percentage, which PostgREST
+   * cannot sort on. The query orders by sale_price so the page
+   * is at least drawn from the deepest discounts; this ranks
+   * what came back. Ordering it properly needs a stored
+   * discount column - see migrations/001.
    */
   if (options.sort === "discount-desc") {
     filtered.sort((a, b) => getDiscountPercent(b) - getDiscountPercent(a));
   }
 
-  return filtered;
+  return {
+    products: filtered,
+    total:
+      count === null || count === undefined ? null : count - (products.length - filtered.length),
+  };
+}
+
+/*
+ * Current primary image per product id.
+ *
+ * The cart stores a copy of the image URL at the moment the
+ * item was added, which is a snapshot that rots: a line added
+ * before the product had a photo keeps showing the placeholder
+ * even after one is uploaded, and a line whose photo the admin
+ * has since replaced points at a file that may be gone. The
+ * cart and checkout resolve the live image through this and
+ * keep the stored URL only as a fallback.
+ */
+export async function fetchProductImages(
+  ids: string[],
+  client: Client = createClient()
+): Promise<Record<string, string>> {
+  if (ids.length === 0) {
+    return {};
+  }
+
+  const { data, error } = await client
+    .from("products")
+    .select("id, product_images (image_url, is_primary, display_order)")
+    .in("id", ids);
+
+  if (error) {
+    throw error;
+  }
+
+  const images: Record<string, string> = {};
+
+  for (const row of (data ?? []) as unknown as Row[]) {
+    /* mapProduct already knows which image is the primary one. */
+    const primary = getPrimaryImage(mapProduct(row));
+
+    if (primary) {
+      images[String(row.id)] = primary;
+    }
+  }
+
+  return images;
 }
 
 /* One product with everything the detail page renders. */

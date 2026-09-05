@@ -39,12 +39,22 @@ export interface AsyncData<T> {
 
 export function useAsyncData<T>(
   fetcher: () => Promise<T>,
-  { fallback, enabled = true, onError }: UseAsyncDataOptions<T>,
+  { fallback, enabled = true, onError }: UseAsyncDataOptions<T>
 ): AsyncData<T> {
   /* Read through refs so neither one can retrigger the fetch. */
   const fallbackRef = useRef(fallback);
   const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
+
+  /*
+   * Kept current in an effect rather than assigned during
+   * render: a render can be thrown away, and writing to a ref
+   * from one makes the value depend on renders that never
+   * committed. Declared above the fetch effect so it has
+   * already run by the time a failure can call it.
+   */
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   const [data, setData] = useState<T>(fallback);
   const [loading, setLoading] = useState(enabled);

@@ -558,6 +558,24 @@ export type Database = {
         };
         Returns: string;
       };
+      /* migrations/002-track-order.sql: one order's status, for the
+       * person who placed it. Hand-added - regenerating types will
+       * pick it up. */
+      track_order: {
+        Args: {
+          p_reference: string;
+          p_email: string;
+        };
+        Returns: {
+          id: string;
+          status: string;
+          payment_status: string;
+          tracking_number: string | null;
+          total_amount: number;
+          created_at: string;
+          updated_at: string;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never;

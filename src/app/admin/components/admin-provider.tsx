@@ -16,21 +16,10 @@
  * the layout and the header share a single query.
  */
 
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/src/app/context/auth-context";
-import {
-  fetchUserProfileByEmail,
-  isAdminProfile,
-  type UserProfile,
-} from "@/src/app/lib/users";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { fetchUserProfileByEmail, isAdminProfile, type UserProfile } from "@/src/app/lib/users";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 /* The admin panel reads the same row shape as the storefront. */
 export type AdminProfile = UserProfile;
@@ -44,50 +33,44 @@ interface AdminProfileState {
   isAdmin: boolean;
 }
 
-const AdminProfileContext = createContext<AdminProfileState | undefined>(
-  undefined,
-);
+const AdminProfileContext = createContext<AdminProfileState | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
 
-  const [profile, setProfile] = useState<AdminProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /*
+   * The auth session is the source of identity; the users table
+   * is the source of the role.
+   *
+   * Lifted out of the destructuring so the dependency the React
+   * Compiler infers and the one written here are the same
+   * thing - reading `user?.email` inline made it infer `user`,
+   * which is coarser and cannot be reconciled.
+   */
+  const email = user?.email;
 
-  const loadProfile = useCallback(async () => {
-    /*
-     * The auth session is the source of identity; the users
-     * table is the source of the role.
-     */
-    if (!user?.email) {
-      setProfile(null);
-      setProfileLoading(false);
-      return;
-    }
+  const {
+    data: profile = null,
+    isPending,
+    error: queryError,
+  } = useQuery({
+    queryKey: ["admin-profile", email],
+    queryFn: () => fetchUserProfileByEmail(email as string),
+    enabled: Boolean(email),
+  });
 
-    setProfileLoading(true);
+  if (queryError) {
+    console.error("Failed to load admin profile:", queryError);
+  }
 
-    try {
-      setProfile(await fetchUserProfileByEmail(user.email));
-      setError(null);
-    } catch (queryError: unknown) {
-      console.error("Failed to load admin profile:", queryError);
+  /* A disabled query stays pending forever; signed out is not loading. */
+  const profileLoading = Boolean(email) && isPending;
 
-      setProfile(null);
-      setError(
-        queryError instanceof Error
-          ? queryError.message
-          : "Could not verify your account role.",
-      );
-    } finally {
-      setProfileLoading(false);
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    void loadProfile();
-  }, [loadProfile]);
+  const error = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Could not verify your account role."
+    : null;
 
   const value = useMemo<AdminProfileState>(
     () => ({
@@ -96,14 +79,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       error,
       isAdmin: isAdminProfile(profile),
     }),
-    [profile, authLoading, profileLoading, error],
+    [profile, authLoading, profileLoading, error]
   );
 
-  return (
-    <AdminProfileContext.Provider value={value}>
-      {children}
-    </AdminProfileContext.Provider>
-  );
+  return <AdminProfileContext.Provider value={value}>{children}</AdminProfileContext.Provider>;
 }
 
 export function useAdminProfile(): AdminProfileState {

@@ -11,9 +11,14 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Container } from "@/src/app/components/ui/container";
+import { useCartImages } from "@/src/app/lib/use-cart-images";
 
 export default function CartPage() {
   const { items, cartTotal, updateItemQuantity, removeItem } = useCart();
+
+  /* The saved URL is a snapshot; this is the product's photo now. */
+  const imageFor = useCartImages(items);
   const { toast } = useToast();
   const [couponCode, setCouponCode] = useState("");
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
@@ -70,18 +75,18 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto px-4 py-16 text-center">
+      <Container className="py-16 text-center">
         <h1 className="mb-6 text-3xl font-bold">Your Cart</h1>
         <p className="mb-8 text-gray-600">Your cart is currently empty.</p>
         <Button asChild>
           <Link href="/products">Continue Shopping</Link>
         </Button>
-      </div>
+      </Container>
     );
   }
 
   return (
-    <div className="mx-auto px-4 py-8">
+    <Container className="py-8">
       <h1 className="mb-8 text-3xl font-bold">Your Cart</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
@@ -104,7 +109,7 @@ export default function CartPage() {
                     <div className="col-span-6 flex items-center gap-4">
                       <div className="relative h-20 w-20 overflow-hidden rounded-md bg-muted">
                         <Image
-                          src={safeImageSrc(item.image)}
+                          src={safeImageSrc(imageFor(item))}
                           alt={item.name}
                           fill
                           sizes="80px"
@@ -225,14 +230,10 @@ export default function CartPage() {
               <Button asChild className="w-full">
                 <Link href="/checkout">Proceed to Checkout</Link>
               </Button>
-
-              <div className="text-center text-sm text-muted-foreground">
-                <p>Secure checkout powered by Stripe</p>
-              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Container>
   );
 }

@@ -13,6 +13,7 @@ import {
   type StorefrontProduct,
 } from "@/src/app/lib/products";
 import { EMPTY_REVIEW_STATS, formatAverageRating, type ReviewStats } from "@/src/app/lib/reviews";
+import { useWishlist } from "@/src/app/lib/use-wishlist";
 import { cn, formatCurrency, safeImageSrc } from "@/src/app/lib/utils";
 import { Heart, ImageOff } from "lucide-react";
 import Image from "next/image";
@@ -30,7 +31,16 @@ interface ProductCardProps {
 
 export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
+
+  /*
+   * Shared across every card on the page and the product page,
+   * so one query answers all of them and a heart filled here is
+   * filled everywhere. This used to be useState(false): it lit
+   * up on click, wrote nothing, and forgot itself on navigation.
+   */
+  const { isSaved, toggle, saving } = useWishlist();
+
+  const isFavorite = isSaved(product.id);
 
   const { addItem } = useCart();
   const { toast } = useToast();
@@ -50,7 +60,12 @@ export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCard
    * page, so the card links through instead of adding an
    * unconfigured item to the cart.
    */
-  const needsVariantSelection = product.product_variants.length > 0;
+  /*
+   * The card select fetches variant ids only, so this asks the
+   * mapped flag rather than reading names off rows that are not
+   * there.
+   */
+  const needsVariantSelection = product.hasVariants;
 
   const handleAddToCart = () => {
     const { added } = addItem({
@@ -129,10 +144,11 @@ export function ProductCard({ product, stats = EMPTY_REVIEW_STATS }: ProductCard
         {/* Wishlist */}
         <button
           type="button"
-          onClick={() => setIsFavorite((current) => !current)}
+          disabled={saving}
+          onClick={() => toggle(product.id)}
           aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}
           aria-pressed={isFavorite}
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-600 shadow-sm backdrop-blur transition-all hover:bg-white hover:text-[#FF3D6E] focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-600 shadow-sm backdrop-blur transition-all hover:bg-white hover:text-[#FF3D6E] focus-visible:opacity-100 disabled:opacity-60 sm:opacity-0 sm:group-hover:opacity-100"
         >
           <Heart className={cn("h-4 w-4", isFavorite && "fill-current text-[#FF3D6E]")} />
         </button>

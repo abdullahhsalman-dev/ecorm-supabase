@@ -2,7 +2,7 @@
 
 import { AlertCircle, BadgeCheck, EyeOff, MessageSquare, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/src/app/components/ui/button";
@@ -35,6 +35,13 @@ import {
   type ReviewSort,
   type ReviewStats,
 } from "@/src/app/lib/reviews";
+import { useQuery } from "@tanstack/react-query";
+
+/* One shared empty result, so the fallback is stable. */
+const EMPTY_REVIEWS: {
+  reviews: ProductReview[];
+  ownReview: ProductReview | null;
+} = { reviews: [], ownReview: null };
 
 interface ProductReviewsProps {
   productId: string;
@@ -58,45 +65,46 @@ export function ProductReviews({
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [reviews, setReviews] = useState<ProductReview[]>([]);
-  const [ownReview, setOwnReview] = useState<ProductReview | null>(null);
   const [sort, setSort] = useState<ReviewSort>("recent");
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
 
   const [isWriting, setIsWriting] = useState(false);
   const [draft, setDraft] = useState<ReviewDraft>(EMPTY_DRAFT);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setFailed(false);
+  /*
+   * Through the query cache rather than into state from an
+   * effect. Keyed on the shopper too: their own review is
+   * fetched alongside the list rather than picked out of it,
+   * because staff can hide a review and its author still has to
+   * be able to edit it.
+   */
+  const userId = user?.id ?? null;
 
-    try {
-      /*
-       * The shopper's own review is fetched separately rather
-       * than picked out of the list: staff can hide a review,
-       * and its author still has to be able to edit it.
-       */
+  const {
+    data = EMPTY_REVIEWS,
+    isPending: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["product-reviews", productId, sort, userId],
+    queryFn: async () => {
       const [list, own] = await Promise.all([
         fetchProductReviews(productId, sort),
-        user ? fetchOwnReview(productId, user.id) : Promise.resolve(null),
+        userId ? fetchOwnReview(productId, userId) : Promise.resolve(null),
       ]);
 
-      setReviews(list);
-      setOwnReview(own);
-    } catch (error: unknown) {
-      console.error("Could not load reviews:", error);
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [productId, sort, user]);
+      return { reviews: list, ownReview: own };
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { reviews, ownReview } = data;
+
+  const failed = Boolean(error);
+
+  const load = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   const openForm = () => {
     setDraft(

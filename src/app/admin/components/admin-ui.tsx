@@ -139,7 +139,13 @@ export const formatDateTime = (value: string | null): string => {
  * Orders are identified by a UUID. The admin only ever needs
  * the readable prefix.
  */
-export const formatOrderId = (id: string): string => `#${id.slice(0, 8)}`;
+/*
+ * The same number the customer was given on their confirmation
+ * and types into /track-order. Support reading a different
+ * string off the admin than the one in front of the customer is
+ * how a five-minute call becomes a twenty-minute one.
+ */
+export { toOrderNumber as formatOrderId } from "@/src/app/lib/order-number";
 
 export const titleCase = (value: string): string =>
   value.replace(/[_-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());

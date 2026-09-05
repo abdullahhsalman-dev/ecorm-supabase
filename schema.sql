@@ -1015,3 +1015,260 @@ drop policy if exists "orders_insert_own"       on orders;
 drop policy if exists "orders_insert_guest"     on orders;
 drop policy if exists "order_items_insert_own"  on order_items;
 drop policy if exists "order_items_insert_guest" on order_items;
+
+
+-- ---------------------------------------------------------
+-- 001 - Indexes for the product listing filters
+-- ---------------------------------------------------------
+--
+-- Additive and safe to re-run: every statement is IF NOT
+-- EXISTS, and nothing in the application depends on these -
+-- they only change how fast the same queries answer. On a
+-- table with real traffic prefer CREATE INDEX CONCURRENTLY,
+-- which cannot run inside a transaction block.
+--
+-- schema.sql already indexes category_id, featured and
+-- created_at. These are the filters the storefront ships that
+-- had nothing behind them.
+
+-- The price-range filter (?minPrice/?maxPrice) and both price
+-- sorts scan on this today.
+CREATE INDEX IF NOT EXISTS products_price_idx
+  ON products (price);
+
+-- /sale runs `sale_price is not null and sale_price > 0` on
+-- every load. Partial, so it indexes only the discounted rows
+-- rather than a column that is null for most of the table.
+CREATE INDEX IF NOT EXISTS products_sale_price_idx
+  ON products (sale_price)
+  WHERE sale_price IS NOT NULL AND sale_price > 0;
+
+-- Header search is `name ILIKE '%term%'`. A leading wildcard
+-- cannot use a btree at all, so this is a sequential scan over
+-- every product on every search. Trigrams are what make an
+-- infix match indexable.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX IF NOT EXISTS products_name_trgm_idx
+  ON products USING gin (name gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS products_description_trgm_idx
+  ON products USING gin (description gin_trgm_ops);
+
+-- The variant filter resolves product ids by value first
+-- ("Size M" and "black" are two rows), so it looks up on value
+-- rather than on product_id, which is the direction schema.sql
+-- already covers.
+CREATE INDEX IF NOT EXISTS product_variants_value_idx
+  ON product_variants (lower(value));
+
+
+-- ---------------------------------------------------------
+-- OPTIONAL: ordering by discount
+-- ---------------------------------------------------------
+--
+-- "Biggest discount" is a computed percentage, and PostgREST
+-- can only order by a column. The application ranks each page
+-- after it arrives, which orders what you are looking at but
+-- cannot order across pages.
+--
+-- Uncomment to make it a real sort. Nothing breaks if you do
+-- not: applySort() currently orders by sale_price, which is a
+-- reasonable approximation.
+--
+-- ALTER TABLE products
+--   ADD COLUMN IF NOT EXISTS discount_percent NUMERIC
+--   GENERATED ALWAYS AS (
+--     CASE
+--       WHEN sale_price IS NOT NULL
+--        AND sale_price > 0
+--        AND sale_price < price
+--       THEN round(((price - sale_price) / price) * 100)
+--       ELSE 0
+--     END
+--   ) STORED;
+--
+-- CREATE INDEX IF NOT EXISTS products_discount_percent_idx
+--   ON products (discount_percent DESC)
+--   WHERE discount_percent > 0;
+--
+-- Then in applySort(), replace the sale_price ordering with:
+--   query.order("discount_percent", { ascending: false });
+-- and delete the post-fetch sort in fetchStorefrontProductPage.
+
+-- ---------------------------------------------------------
+-- 002 - Guest order tracking
+-- ---------------------------------------------------------
+--
+-- /track-order needs to answer "where is my order" for someone
+-- who checked out without an account.
+--
+-- It cannot do that through the table. `orders_select_own_or_admin`
+-- reads `user_id = auth.uid() or is_admin()`, and a guest order
+-- has `user_id is null`, so it belongs to nobody and is
+-- readable by staff alone. That is the correct policy - it is
+-- what stops one shopper reading another's orders - so this
+-- adds a narrow, checked way through it rather than widening it.
+--
+-- SECURITY DEFINER means RLS is not consulted inside the
+-- function, so the check the policy would have made is made
+-- here by hand: the caller has to present BOTH the order id and
+-- the email the order was placed with. The id alone is not
+-- enough, because order ids travel in confirmation emails and
+-- screenshots.
+--
+-- It returns status only. Never the address, never the notes -
+-- the notes hold the guest's phone number.
+
+create or replace function public.track_order(
+  p_order_id uuid,
+  p_email    text
+)
+returns table (
+  id              uuid,
+  status          varchar(50),
+  payment_status  varchar(50),
+  tracking_number varchar(100),
+  total_amount    numeric,
+  created_at      timestamptz,
+  updated_at      timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    o.id,
+    o.status,
+    o.payment_status,
+    o.tracking_number,
+    o.total_amount,
+    o.created_at,
+    o.updated_at
+  from public.orders o
+  left join public.users u on u.id = o.user_id
+  where o.id = p_order_id
+    and coalesce(btrim(p_email), '') <> ''
+    and (
+      /*
+       * A guest order records its contact details in `notes`,
+       * as "Guest contact: <email> / <phone>". position() is
+       * used rather than LIKE so an address containing % or _
+       * cannot be read as a wildcard.
+       */
+      (
+        o.user_id is null
+        and o.notes is not null
+        and position(lower(btrim(p_email)) in lower(o.notes)) > 0
+      )
+      /* An account order matches the account's own email. */
+      or (
+        o.user_id is not null
+        and lower(u.email) = lower(btrim(p_email))
+      )
+    )
+  limit 1;
+$$;
+
+-- Callable by shoppers, signed in or not. Nothing else is
+-- granted: the function is the entire surface.
+revoke all on function public.track_order(uuid, text) from public;
+grant execute on function public.track_order(uuid, text) to anon, authenticated;
+
+
+-- ---------------------------------------------------------
+-- 003 - Look an order up by its short number
+-- ---------------------------------------------------------
+--
+-- Replaces track_order from 002.
+--
+-- 002 took the order's uuid. That is fine for a link, and
+-- useless for a person: nobody reads 36 characters down a
+-- phone or types them from a screenshot. The number a customer
+-- is now given is the uuid's first block, prefixed - LM-C3F9A1C0
+-- - so the lookup has to accept that as well.
+--
+-- The signature changes from uuid to text, so the old function
+-- is dropped rather than replaced. Safe to run before or after
+-- 002; it does not depend on it.
+--
+-- What has NOT changed: the email is still required, and it is
+-- still what proves the order is yours. A short code narrows
+-- 8 hex characters, which is not a secret on its own and is
+-- not treated as one.
+
+drop function if exists public.track_order(uuid, text);
+drop function if exists public.track_order(text, text);
+
+-- Prefix matching would otherwise scan the table. Postgres can
+-- use this for `left(id::text, 8) = ...` because the index is
+-- on exactly that expression.
+create index if not exists orders_short_id_idx
+  on public.orders (left(id::text, 8));
+
+create or replace function public.track_order(
+  p_reference text,
+  p_email     text
+)
+returns table (
+  id              uuid,
+  status          varchar(50),
+  payment_status  varchar(50),
+  tracking_number varchar(100),
+  total_amount    numeric,
+  created_at      timestamptz,
+  updated_at      timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  with input as (
+    select
+      lower(btrim(p_reference)) as ref,
+      lower(btrim(p_email))     as email
+  )
+  select
+    o.id,
+    o.status,
+    o.payment_status,
+    o.tracking_number,
+    o.total_amount,
+    o.created_at,
+    o.updated_at
+  from public.orders o
+  left join public.users u on u.id = o.user_id
+  cross join input i
+  where i.email <> ''
+    and i.ref <> ''
+    and (
+      /* The full uuid, as it appears in the confirmation URL. */
+      (length(i.ref) = 36 and o.id::text = i.ref)
+      /* Or the short number the customer was shown. */
+      or (length(i.ref) = 8 and left(o.id::text, 8) = i.ref)
+    )
+    and (
+      /*
+       * A guest order records its contact details in `notes`,
+       * as "Guest contact: <email> / <phone>". position() is
+       * used rather than LIKE so an address containing % or _
+       * cannot be read as a wildcard.
+       */
+      (
+        o.user_id is null
+        and o.notes is not null
+        and position(i.email in lower(o.notes)) > 0
+      )
+      /* An account order matches the account's own email. */
+      or (
+        o.user_id is not null
+        and lower(u.email) = i.email
+      )
+    )
+  limit 1;
+$$;
+
+revoke all on function public.track_order(text, text) from public;
+grant execute on function public.track_order(text, text) to anon, authenticated;

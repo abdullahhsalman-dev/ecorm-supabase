@@ -9,21 +9,13 @@ import { AccountWishlist } from "@/src/app/components/account-wishlist";
 import { Button } from "@/src/app/components/ui/button";
 import { Input } from "@/src/app/components/ui/input";
 import { Label } from "@/src/app/components/ui/label";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/src/app/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/app/components/ui/tabs";
 import { useAuth } from "@/src/app/context/auth-context";
 import { useAsyncData } from "@/src/app/lib/use-async-data";
-import {
-  fetchUserProfileByEmail,
-  updateUserProfile,
-  type UserProfile,
-} from "@/src/app/lib/users";
+import { fetchUserProfileByEmail, updateUserProfile, type UserProfile } from "@/src/app/lib/users";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { Container } from "@/src/app/components/ui/container";
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Please try again.";
@@ -36,11 +28,18 @@ export default function AccountPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Profile form state
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: user?.email || "",
-    phone: "",
-  });
+  /*
+   * What the shopper has typed, or null while they have not
+   * touched the form. Null means "show the profile", which is
+   * why the loaded row does not have to be copied into state:
+   * an effect doing that ran a second render every time the
+   * profile arrived, and raced anything typed in between.
+   */
+  const [edits, setEdits] = useState<{
+    fullName: string;
+    email: string;
+    phone: string;
+  } | null>(null);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -53,13 +52,15 @@ export default function AccountPage() {
    * was passed at signup, so reading it made an edited name reappear as the
    * old one on the next visit.
    */
+  const email = user?.email;
+
   const loadProfile = useCallback(async (): Promise<UserProfile | null> => {
-    if (!user?.email) {
+    if (!email) {
       return null;
     }
 
-    return fetchUserProfileByEmail(user.email);
-  }, [user?.email]);
+    return fetchUserProfileByEmail(email);
+  }, [email]);
 
   const onProfileError = useCallback((error: unknown) => {
     console.error("Error loading profile:", error);
@@ -67,23 +68,25 @@ export default function AccountPage() {
 
   const { data: profile } = useAsyncData(loadProfile, {
     fallback: null as UserProfile | null,
-    enabled: Boolean(user?.email),
+    enabled: Boolean(email),
     onError: onProfileError,
   });
 
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        fullName: profile.full_name ?? "",
-        email: profile.email,
-        phone: profile.phone ?? "",
-      });
-    }
-  }, [profile]);
+  /* The profile is the default; edits win once there are any. */
+  const formData = edits ?? {
+    fullName: profile?.full_name ?? "",
+    email: profile?.email ?? email ?? "",
+    phone: profile?.phone ?? "",
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    /*
+     * The first keystroke promotes the profile's values into
+     * edits, so the other fields keep what was on screen.
+     */
+    setEdits((prev) => ({ ...(prev ?? formData), [name]: value }));
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,10 +150,7 @@ export default function AccountPage() {
        * unlocked browser could do it. Re-signing in with the current password
        * is what makes the "Current Password" field mean something.
        */
-      const { error: reauthError } = await signIn(
-        user.email,
-        passwordForm.currentPassword,
-      );
+      const { error: reauthError } = await signIn(user.email, passwordForm.currentPassword);
 
       if (reauthError) {
         toast({
@@ -201,30 +201,30 @@ export default function AccountPage() {
 
   if (!user) {
     return (
-      <div className=" flex min-h-[70vh] flex-col items-center justify-center px-4 py-16 text-center">
+      <Container className="flex min-h-[70vh] flex-col items-center justify-center py-16 text-center">
         <h1 className="mb-4 text-3xl font-bold">Account Access</h1>
-        <p className="mb-8 text-muted-foreground">
-          Please sign in to access your account.
-        </p>
-        <Button onClick={() => router.push("/login?redirect=/account")}>
-          Sign In
-        </Button>
-      </div>
+        <p className="mb-8 text-muted-foreground">Please sign in to access your account.</p>
+        <Button onClick={() => router.push("/login?redirect=/account")}>Sign In</Button>
+      </Container>
     );
   }
 
   return (
-    <div className=" px-4 py-8 md:py-12">
+    <Container className="py-8 md:py-12">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <h1 className="text-3xl font-bold">My Account</h1>
         <div className="flex gap-3">
           <Button
-            className="bg-[#FF3D6E] hover:bg-[#E0345F] text-white font-semibold"
+            className="bg-[#FF3D6E] font-semibold text-white hover:bg-[#E0345F]"
             onClick={() => router.push("/admin")}
           >
             Admin Portal
           </Button>
-          <Button variant="outline" className="border-neutral-300 text-neutral-600 hover:bg-neutral-50" onClick={handleSignOut}>
+          <Button
+            variant="outline"
+            className="border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+            onClick={handleSignOut}
+          >
             Sign Out
           </Button>
         </div>
@@ -271,9 +271,7 @@ export default function AccountPage() {
                     onChange={handleInputChange}
                     disabled
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Email cannot be changed
-                  </p>
+                  <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
@@ -352,6 +350,6 @@ export default function AccountPage() {
           <AccountWishlist />
         </TabsContent>
       </Tabs>
-    </div>
+    </Container>
   );
 }

@@ -81,20 +81,34 @@ export function CategoryFormSheet({
   /* The upload runs here, the save runs in the page above. */
   const busy = saving || uploading;
 
-  /* Reload the form whenever the sheet opens on a new target. */
-  useEffect(() => {
-    if (!open) {
-      return;
+  /*
+   * Reload the form whenever the sheet opens on a new target.
+   *
+   * Done by comparing a key during render rather than from an
+   * effect: an effect would paint the previous category's
+   * values for one frame before replacing them, and cost a
+   * second render every time the sheet opened.
+   */
+  const targetKey = open ? (editing?.id ?? `new:${presetParentId ?? NO_PARENT}`) : null;
+
+  const [loadedKey, setLoadedKey] = useState(targetKey);
+
+  if (targetKey !== loadedKey) {
+    setLoadedKey(targetKey);
+
+    if (targetKey !== null) {
+      setValues(
+        editing ? categoryFormValues(editing) : emptyCategoryForm(presetParentId ?? NO_PARENT)
+      );
     }
+  }
 
-    setValues(
-      editing ? categoryFormValues(editing) : emptyCategoryForm(presetParentId ?? NO_PARENT)
-    );
-
-    if (fileInputRef.current) {
+  /* Clearing the file input is a DOM write, not state. */
+  useEffect(() => {
+    if (open && fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, [open, editing, presetParentId]);
+  }, [open, targetKey]);
 
   /*
    * A picked file is previewed from an object URL, which has to

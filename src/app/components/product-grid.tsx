@@ -3,13 +3,16 @@
 import { ProductCard } from "@/src/app/components/product-card";
 import { ProductSorting } from "@/src/app/components/product-sorting";
 import { Skeleton } from "@/src/app/components/ui/skeleton";
-import { useProductList } from "@/src/app/lib/use-product-list";
+import { InfiniteSentinel } from "@/src/app/components/infinite-sentinel";
+import { useProductList, useProductPages } from "@/src/app/lib/use-product-list";
 import { statsFor, useReviewStats } from "@/src/app/lib/use-review-stats";
 import { PackageOpen } from "lucide-react";
 import { useMemo } from "react";
 
 interface ProductGridProps {
   categorySlug?: string;
+  /* A department plus its subcategories. */
+  categorySlugs?: string[];
   categoryId?: string;
   sale?: boolean;
   sort?: string;
@@ -20,12 +23,21 @@ interface ProductGridProps {
   variantValues?: string[];
   /* Free text from the header search. */
   search?: string;
+  /* Only products created within the last N months. */
+  newWithinMonths?: number;
   /* Renders the result count and the sort control above the grid. */
   showToolbar?: boolean;
+  /*
+   * Pages in more products as the shopper reaches the bottom.
+   * Off for the fixed-size rails (a department preview wants
+   * eight products, not the whole department).
+   */
+  infinite?: boolean;
 }
 
 export function ProductGrid({
   categorySlug,
+  categorySlugs,
   categoryId,
   sale,
   sort,
@@ -34,20 +46,36 @@ export function ProductGrid({
   limit = 24,
   variantValues,
   search,
+  newWithinMonths,
   showToolbar = false,
+  infinite = false,
 }: ProductGridProps) {
-  const { products, loading, error, reload } = useProductList({
+  const query = {
     categorySlug,
+    categorySlugs,
     categoryId,
     sale,
     /* No sort prop still means the featured-first default. */
     sort: sort ?? "featured",
     minPrice,
     maxPrice,
-    limit,
     variantValues,
     search,
-  });
+    newWithinMonths,
+  };
+
+  /*
+   * Both hooks are called every render - a hook cannot be
+   * conditional - and the one that is not in use is disabled,
+   * so it neither fetches nor holds a cache entry.
+   */
+  const single = useProductList({ ...query, limit, enabled: !infinite });
+
+  const paged = useProductPages({ ...query, pageSize: limit, enabled: infinite });
+
+  const { products, loading, error, reload } = infinite ? paged : single;
+
+  const total = infinite ? paged.total : null;
 
   /* One stats query for the whole grid, not one per card. */
   const stats = useReviewStats(useMemo(() => products.map((product) => product.id), [products]));
@@ -88,9 +116,16 @@ export function ProductGrid({
 
   const toolbar = showToolbar ? (
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      {/*
+        With paging on, the count is the number of matching rows
+        in the database rather than the number fetched so far -
+        "Showing 24 products" used to be the length of the array,
+        which said nothing about how many there were.
+      */}
       <p className="text-sm text-muted-foreground">
-        Showing <span className="font-medium text-foreground">{products.length}</span>{" "}
-        {products.length === 1 ? "product" : "products"}
+        Showing <span className="font-medium text-foreground">{products.length}</span>
+        {total !== null && total > products.length ? ` of ${total}` : ""}{" "}
+        {(total ?? products.length) === 1 ? "product" : "products"}
       </p>
 
       <ProductSorting />
@@ -152,6 +187,15 @@ export function ProductGrid({
           <ProductCard key={product.id} product={product} stats={statsFor(stats, product.id)} />
         ))}
       </div>
+
+      {infinite && (
+        <InfiniteSentinel
+          hasMore={paged.hasMore}
+          loading={paged.loadingMore}
+          onLoadMore={paged.loadMore}
+          endLabel={products.length > limit ? "That's everything." : undefined}
+        />
+      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@ import Link from "next/link";
  * fixed campaign date, so it doesn't go stale on the shelf.
  */
 
-const HERO_IMAGE = "/assets/kids.webp";
+const HERO_IMAGE = "/main_img.jpeg";
 
 const highlights = [
   { value: "Free", label: "Shipping over Rs. 5,000" },
@@ -38,14 +38,12 @@ export function HeroSection() {
             <h1 className="mt-6 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
               Everyday essentials,
               <br />
-              <span className="font-light italic text-white/70">
-                thoughtfully made.
-              </span>
+              <span className="font-light italic text-white/70">thoughtfully made.</span>
             </h1>
 
             <p className="mt-6 max-w-md text-base leading-7 text-white/60">
-              Clothing and accessories for men, women and kids — considered
-              fabrics, honest prices, and pieces built to stay in rotation.
+              Clothing and accessories for women, considered fabrics, honest prices, and pieces
+              built to stay in rotation.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -74,12 +72,8 @@ export function HeroSection() {
             <dl className="mt-12 grid max-w-lg grid-cols-3 gap-6 border-t border-white/10 pt-7">
               {highlights.map((item) => (
                 <div key={item.label}>
-                  <dt className="text-lg font-semibold tracking-tight">
-                    {item.value}
-                  </dt>
-                  <dd className="mt-1 text-xs leading-5 text-white/50">
-                    {item.label}
-                  </dd>
+                  <dt className="text-lg font-semibold tracking-tight">{item.value}</dt>
+                  <dd className="mt-1 text-xs leading-5 text-white/50">{item.label}</dd>
                 </div>
               ))}
             </dl>
@@ -87,7 +81,7 @@ export function HeroSection() {
 
           {/* Image */}
           <div className="relative">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-white/5 sm:aspect-[5/4] lg:aspect-[4/5]">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-white/5">
               <Image
                 src={HERO_IMAGE}
                 alt="Lamees new season collection"
@@ -108,9 +102,7 @@ export function HeroSection() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
                 Starting from
               </p>
-              <p className="mt-1 text-xl font-semibold tracking-tight">
-                Rs. 1,290
-              </p>
+              <p className="mt-1 text-xl font-semibold tracking-tight">Rs. 3500</p>
             </div>
           </div>
         </div>

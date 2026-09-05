@@ -25,7 +25,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/src/app/components/ui/button";
@@ -49,6 +49,10 @@ import {
   setReviewStatus,
   type AdminReview,
 } from "@/src/app/lib/reviews";
+import { useQuery } from "@tanstack/react-query";
+
+/* One shared empty list, so the fallback is referentially stable. */
+const NO_REVIEWS: AdminReview[] = [];
 
 type StatusFilter = "all" | "published" | "hidden";
 
@@ -66,10 +70,6 @@ const getErrorMessage = (error: unknown): string =>
 export default function AdminReviewsPage() {
   const { toast } = useToast();
 
-  const [reviews, setReviews] = useState<AdminReview[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -78,23 +78,28 @@ export default function AdminReviewsPage() {
   const [replyText, setReplyText] = useState("");
   const [savingReply, setSavingReply] = useState(false);
 
+  /*
+   * Fetched through the query cache rather than into state from
+   * an effect: the effect version set state on mount, which
+   * cost a render before the first request had even been sent,
+   * and left `load` to be threaded through every mutation by
+   * hand.
+   */
+  const {
+    data: reviews = NO_REVIEWS,
+    isPending: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["admin-reviews"],
+    queryFn: fetchAllReviews,
+  });
+
+  const failed = Boolean(error);
+
   const load = useCallback(async () => {
-    setLoading(true);
-    setFailed(false);
-
-    try {
-      setReviews(await fetchAllReviews());
-    } catch (error: unknown) {
-      console.error("Could not load reviews:", error);
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+    await refetch();
+  }, [refetch]);
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();

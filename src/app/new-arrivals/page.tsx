@@ -1,33 +1,32 @@
-import { ProductGrid } from "@/src/app/components/product-grid";
-import { Skeleton } from "@/src/app/components/ui/skeleton";
-import { Suspense } from "react";
+import { ProductListing, type ListingSearchParams } from "@/src/app/components/product-listing";
+import { NEW_ARRIVAL_MONTHS } from "@/src/app/lib/products";
 
 export const metadata = {
   title: "New Arrivals | Lamees",
   description: "Explore the latest products in our store",
 };
 
-export default function NewArrivalsPage() {
+/*
+ * "Newest first" is an ordering, not a filter, so this page
+ * used to list the entire catalogue - the oldest product in
+ * the shop was a new arrival, it was simply last. A product
+ * is new here if it was added in the last NEW_ARRIVAL_MONTHS.
+ */
+
+/* Next 15 hands route props in as promises. */
+type SearchParams = Promise<ListingSearchParams>;
+
+export default async function NewArrivalsPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+
   return (
-    <div className=" px-4 py-12">
-      <h1 className="text-3xl font-bold mb-8">New Arrivals</h1>
-      <Suspense
-        fallback={
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {Array(4)
-              .fill(null)
-              .map((_, i) => (
-                <div key={i} className="space-y-4">
-                  <Skeleton className="aspect-square w-full rounded-lg" />
-                  <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              ))}
-          </div>
-        }
-      >
-        <ProductGrid sort="newest" />
-      </Suspense>
-    </div>
+    <ProductListing
+      title="New Arrivals"
+      crumbLabel="New In"
+      description={`Everything added in the last ${NEW_ARRIVAL_MONTHS} months, newest first. Narrow by price and product options, or sort to find what you need faster.`}
+      defaultSort="newest"
+      newWithinMonths={NEW_ARRIVAL_MONTHS}
+      searchParams={params}
+    />
   );
 }

@@ -65,9 +65,7 @@ export const sectionHref = (slug: string): string => `/${slug}`;
  * while the routes do not (/men/t-shirts).
  */
 export const childSegment = (childSlug: string, parentSlug: string): string =>
-  childSlug.startsWith(`${parentSlug}-`)
-    ? childSlug.slice(parentSlug.length + 1)
-    : childSlug;
+  childSlug.startsWith(`${parentSlug}-`) ? childSlug.slice(parentSlug.length + 1) : childSlug;
 
 const childHref = (child: CategoryRecord, parent: CategoryRecord): string =>
   `${sectionHref(parent.slug)}/${childSegment(child.slug, parent.slug)}`;
@@ -89,10 +87,7 @@ const toColumns = (links: NavLink[]): NavGroup[] => {
     return [];
   }
 
-  const perColumn = Math.max(
-    LINKS_PER_COLUMN,
-    Math.ceil(links.length / MAX_COLUMNS),
-  );
+  const perColumn = Math.max(LINKS_PER_COLUMN, Math.ceil(links.length / MAX_COLUMNS));
 
   const columns: NavGroup[] = [];
 
@@ -131,29 +126,56 @@ const FALLBACK_GRADIENTS = [
   "from-[#8A4C5C] to-[#3A1E26]",
   "from-[#3F6E4C] to-[#17301C]",
   "from-[#7A5A2E] to-[#2E2113]",
+  "from-[#42708A] to-[#152B3A]",
+  "from-[#7A3F6E] to-[#2B1730]",
+  "from-[#8A6440] to-[#3A2A1B]",
+  "from-[#4F7A73] to-[#1A302D]",
 ];
 
-/* Stable per slug, so a department keeps its colour between renders. */
-const gradientFor = (slug: string): string => {
+/*
+ * Stable per slug, so a department keeps its colour between
+ * renders - and so a category tile with no banner picks up the
+ * same palette its panel in the mega menu already uses.
+ */
+export const gradientFor = (slug: string): string => {
   const known = SECTION_GRADIENTS[slug];
 
   if (known) {
     return known;
   }
 
-  const hash = Array.from(slug).reduce(
-    (total, character) => total + character.charCodeAt(0),
-    0,
+  /*
+   * A plain sum of character codes collides on anagrams, which
+   * sibling slugs very nearly are: "women-tops" and
+   * "women-pants" summed to the same number and so drew the
+   * same card. That went unseen while only the mega menu read
+   * this - it shows one card at a time - but the category grids
+   * put siblings side by side, where a repeat reads as a bug.
+   *
+   * djb2 mixes in each character's position, and the final
+   * avalanche spreads the result across all 32 bits, so the low
+   * bits the modulo actually uses are not decided by a handful
+   * of characters. Sibling slugs, which differ only in their
+   * last word, land far apart.
+   */
+  let hash = Array.from(slug).reduce(
+    (total, character) => (total * 33 + character.charCodeAt(0)) >>> 0,
+    5381
   );
 
-  return FALLBACK_GRADIENTS[hash % FALLBACK_GRADIENTS.length];
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 2246822507) >>> 0;
+  hash ^= hash >>> 13;
+  hash = Math.imul(hash, 3266489909) >>> 0;
+  hash ^= hash >>> 16;
+
+  return FALLBACK_GRADIENTS[(hash >>> 0) % FALLBACK_GRADIENTS.length];
 };
 
 const featureFor = (category: CategoryRecord): NavFeature => ({
   eyebrow: "Explore",
   title: category.name,
-  description:
-    category.description ?? `Browse everything in ${category.name}.`,
+  description: category.description ?? `Browse everything in ${category.name}.`,
   href: sectionHref(category.slug),
   cta: `Shop all ${category.name}`,
   gradient: gradientFor(category.slug),
@@ -174,18 +196,18 @@ const newInCategory: NavCategory = { name: "New In", href: "/new-arrivals" };
  * the discounted view of each one.
  */
 const saleCategory = (departments: CategoryRecord[]): NavCategory => ({
-  name: "Grand Festive Sale",
+  name: "Sale",
   href: "/sale",
   accent: true,
   groups: toColumns(
     departments.map((department) => ({
       name: department.name,
       href: `/sale/${department.slug}`,
-    })),
+    }))
   ),
   feature: {
     eyebrow: "Ends soon",
-    title: "Grand Festive Sale",
+    title: "Sale",
     description: "Reduced lines across every department, while stocks last.",
     href: "/sale",
     cta: "Shop all offers",
@@ -200,9 +222,7 @@ const saleCategory = (departments: CategoryRecord[]): NavCategory => ({
  * them; their children become the panel underneath. A department with no
  * children is a plain link with no panel, exactly like New In.
  */
-export function buildNavCategories(
-  categories: CategoryRecord[],
-): NavCategory[] {
+export function buildNavCategories(categories: CategoryRecord[]): NavCategory[] {
   const departments = categories.filter((category) => !category.parent_id);
 
   const childrenByParent = new Map<string, CategoryRecord[]>();
@@ -228,16 +248,14 @@ export function buildNavCategories(
       children.map((child) => ({
         name: child.name,
         href: childHref(child, department),
-      })),
+      }))
     );
 
     return {
       name: department.name,
       href: sectionHref(department.slug),
       /* No children means no panel to open. */
-      ...(groups.length > 0
-        ? { groups, feature: featureFor(department) }
-        : {}),
+      ...(groups.length > 0 ? { groups, feature: featureFor(department) } : {}),
     };
   });
 

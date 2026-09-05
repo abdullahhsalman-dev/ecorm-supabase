@@ -11,11 +11,10 @@
 
 import { Button } from "@/src/app/components/ui/button";
 import { cn } from "@/src/app/lib/utils";
-import { PackageOpen, Plus, Upload } from "lucide-react";
-import { useState } from "react";
+import { PackageOpen, Plus, Trash2, Upload } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   ConfirmDialog,
-  DataPanel,
   FILTER_BAR_CLASS,
   FilterSelect,
   LOW_STOCK_THRESHOLD,
@@ -24,20 +23,12 @@ import {
   RefreshButton,
   SearchInput,
 } from "../components/admin-ui";
+import { DataTable } from "../components/data-table";
+import { productColumns } from "./columns";
 import { ProductImportSheet } from "./import-sheet";
 import { ProductFormSheet } from "./product-form-sheet";
-import { ProductRow } from "./product-row";
 import type { Product, StockFilter } from "./types";
 import { useProducts } from "./use-products";
-
-const PRODUCT_COLUMNS = [
-  { key: "product", label: "Product" },
-  { key: "category", label: "Category" },
-  { key: "price", label: "Price" },
-  { key: "stock", label: "Stock" },
-  { key: "featured", label: "Featured" },
-  { key: "actions", label: "Actions", align: "right" as const },
-];
 
 const STOCK_OPTIONS = [
   { value: "in", label: `In Stock (${LOW_STOCK_THRESHOLD}+)` },
@@ -57,6 +48,11 @@ export default function AdminProductsPage() {
     requestDelete,
     confirmDelete,
     cancelDelete,
+    pendingBulkDelete,
+    bulkDeleting,
+    requestBulkDelete,
+    confirmBulkDelete,
+    cancelBulkDelete,
     searchQuery,
     setSearchQuery,
     categoryFilter,
@@ -73,6 +69,16 @@ export default function AdminProductsPage() {
     setEditingProduct(product);
     setIsFormOpen(true);
   };
+
+  const columns = useMemo(
+    () =>
+      productColumns({
+        deletingId,
+        onEdit: openForm,
+        onDelete: requestDelete,
+      }),
+    [deletingId, requestDelete]
+  );
 
   const handleFormOpenChange = (open: boolean): void => {
     setIsFormOpen(open);
@@ -133,24 +139,39 @@ export default function AdminProductsPage() {
         />
       </div>
 
-      <DataPanel
+      <DataTable
         loading={loading}
         rows={filteredProducts}
         totalRows={products.length}
-        columns={PRODUCT_COLUMNS}
+        columns={columns}
+        getRowId={(product) => product.id}
         emptyIcon={PackageOpen}
         emptyTitle="No products yet."
         emptyDescription="Create your first product to start selling."
         filteredTitle="No products match your filters."
         filteredDescription="Try changing your filters or create a new product."
-        renderRow={(product) => (
-          <ProductRow
-            key={product.id}
-            product={product}
-            deleting={deletingId === product.id}
-            onEdit={openForm}
-            onDelete={requestDelete}
-          />
+        renderSelectionActions={(selected, clearSelection) => (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={bulkDeleting}
+              onClick={() => requestBulkDelete(selected)}
+              className="h-7 gap-1.5 border-red-200 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete selected
+            </Button>
+
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="text-xs underline underline-offset-2 hover:text-neutral-700"
+            >
+              Clear
+            </button>
+          </>
         )}
       />
 
@@ -167,6 +188,21 @@ export default function AdminProductsPage() {
         confirmingLabel="Deleting..."
         confirming={deletingId !== null}
         onConfirm={confirmDelete}
+      />
+
+      <ConfirmDialog
+        open={pendingBulkDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelBulkDelete();
+          }
+        }}
+        title={`Delete ${pendingBulkDelete?.length ?? 0} products`}
+        description={`${pendingBulkDelete?.length ?? 0} selected products will be permanently deleted, along with their images. This cannot be undone.`}
+        confirmLabel="Delete selected"
+        confirmingLabel="Deleting..."
+        confirming={bulkDeleting}
+        onConfirm={confirmBulkDelete}
       />
 
       <ProductImportSheet

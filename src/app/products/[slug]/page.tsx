@@ -36,8 +36,7 @@ export async function generateMetadata({ params }: { params: Params }) {
 
     return {
       title: `${product.name} | Lamees`,
-      description:
-        product.description || "View product details and purchase options.",
+      description: product.description || "View product details and purchase options.",
     };
   } catch {
     return {
@@ -62,13 +61,10 @@ export default async function ProductPage({ params }: { params: Params }) {
   }
 
   return (
-    <div className="px-4 py-8 md:py-12">
+    <div className="mx-auto w-full max-w-7xl px-4 py-6 md:py-8">
       <ProductDetails product={product} />
 
-      <RelatedProducts
-        currentProductId={product.id}
-        categoryId={product.category_id}
-      />
+      <RelatedProducts currentProductId={product.id} categoryId={product.category_id} />
     </div>
   );
 }

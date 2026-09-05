@@ -5,21 +5,30 @@
  * useProductList
  * ---------------------------------------------------------
  *
- * The featured strip, the related rail and the category grid
- * each held their own copy of "query products, map the rows,
- * swallow the error, clear the spinner". They now describe
- * what they want and let this hook run it.
+ * The featured strip, the picks band, the related rail and
+ * every product grid describe the slice of the catalogue they
+ * want; this runs it.
+ *
+ * It is backed by TanStack Query, so identical slices asked
+ * for by two components cost one request, and returning to a
+ * page renders from cache rather than querying again. The
+ * signature is unchanged from the hand-rolled version it
+ * replaced, so the call sites did not have to move.
  */
 
 import {
+  fetchStorefrontProductPage,
   fetchStorefrontProducts,
   type ProductQuery,
   type StorefrontProduct,
 } from "@/src/app/lib/products";
-import { useAsyncData } from "@/src/app/lib/use-async-data";
-import { useCallback } from "react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 
 const NO_PRODUCTS: StorefrontProduct[] = [];
+
+/* Every product query hangs off this, so one call drops them all. */
+export const PRODUCTS_KEY = "products";
 
 interface UseProductListOptions extends ProductQuery {
   /* False keeps the hook idle, e.g. a rail with no category. */
@@ -28,34 +37,153 @@ interface UseProductListOptions extends ProductQuery {
   label?: string;
 }
 
+/*
+ * Two callers describing the same slice must produce the same
+ * key, or they get two cache entries and two requests. Object
+ * literals do not guarantee key order, so the filters are
+ * sorted before they become part of the key, and undefined
+ * values are dropped - `{ sale: undefined }` is the same query
+ * as `{}`.
+ */
+function normaliseQuery(query: ProductQuery): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(query)
+      .filter(([, value]) => value !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+  );
+}
+
 export function useProductList({
   enabled = true,
   label = "products",
   ...query
 }: UseProductListOptions = {}) {
+  const queryClient = useQueryClient();
+
   /*
-   * Serialising the filters keeps the fetcher stable across
-   * renders that pass a fresh but equal options object.
+   * Serialised once and parsed back, so a fresh-but-equal
+   * options object each render still yields one stable value
+   * to key the cache and the callback off.
    */
-  const queryKey = JSON.stringify(query);
+  const filterKey = JSON.stringify(normaliseQuery(query));
 
-  const fetcher = useCallback(
-    () => fetchStorefrontProducts(JSON.parse(queryKey) as ProductQuery),
-    [queryKey],
-  );
+  const filters = useMemo(() => JSON.parse(filterKey) as ProductQuery, [filterKey]);
 
-  const onError = useCallback(
-    (error: unknown) => {
-      console.error(`Error fetching ${label}:`, error);
-    },
-    [label],
-  );
-
-  const { data, loading, error, reload } = useAsyncData(fetcher, {
-    fallback: NO_PRODUCTS,
+  const {
+    data = NO_PRODUCTS,
+    isPending,
+    isFetching,
+    error,
+  } = useQuery({
+    queryKey: [PRODUCTS_KEY, filters],
+    queryFn: () => fetchStorefrontProducts(filters),
     enabled,
-    onError,
   });
 
+  /*
+   * A disabled query never resolves, so `isPending` stays true
+   * for it forever; the call sites read `loading` as "a request
+   * is out", which for an idle hook is false.
+   */
+  const loading = enabled && (isPending || (isFetching && data === NO_PRODUCTS));
+
+  if (error) {
+    console.error(`Error fetching ${label}:`, error);
+  }
+
+  const reload = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY, filters] });
+  }, [queryClient, filters]);
+
   return { products: data, loading, error, reload };
+}
+
+/*
+ * Called after an admin create, edit or delete: every cached
+ * product slice is dropped, so the storefront and the admin
+ * table both refill from the table rather than showing a row
+ * that no longer exists.
+ */
+export function useInvalidateProducts() {
+  const queryClient = useQueryClient();
+
+  return useCallback(
+    () => queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] }),
+    [queryClient]
+  );
+}
+
+/*
+ * ---------------------------------------------------------
+ * useProductPages
+ * ---------------------------------------------------------
+ *
+ * The listing pages used to ask for 24 products and stop: no
+ * offset, no page links, no "load more". Anything past the
+ * 24th row simply could not be reached, and changing the sort
+ * only changed which 24 you were stuck with.
+ *
+ * This pages through the same query. Each page is a range
+ * request, so the database does the skipping; the pages are
+ * flattened into one list for the grid to render.
+ */
+const PAGE_SIZE = 24;
+
+export function useProductPages({
+  enabled = true,
+  label = "products",
+  pageSize = PAGE_SIZE,
+  ...query
+}: UseProductListOptions & { pageSize?: number } = {}) {
+  const filterKey = JSON.stringify(normaliseQuery(query));
+
+  const filters = useMemo(() => JSON.parse(filterKey) as ProductQuery, [filterKey]);
+
+  const result = useInfiniteQuery({
+    queryKey: [PRODUCTS_KEY, "paged", pageSize, filters],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      fetchStorefrontProductPage(
+        { ...filters, cardsOnly: true, limit: pageSize, offset: pageParam },
+        /* The total is the same for every page; ask once. */
+        pageParam === 0
+      ),
+    /*
+     * A short page means the end of the list. Counting rows
+     * rather than trusting the total keeps this right even when
+     * the sale filter drops a row after the query ran.
+     */
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.products.length < pageSize) {
+        return undefined;
+      }
+
+      return allPages.reduce((sum, page) => sum + page.products.length, 0);
+    },
+    enabled,
+  });
+
+  const products = useMemo(
+    () => result.data?.pages.flatMap((page) => page.products) ?? NO_PRODUCTS,
+    [result.data]
+  );
+
+  if (result.error) {
+    console.error(`Error fetching ${label}:`, result.error);
+  }
+
+  return {
+    products,
+    /* Matching rows in the database, not rows loaded so far. */
+    total: result.data?.pages[0]?.total ?? null,
+    loading: enabled && result.isPending,
+    loadingMore: result.isFetchingNextPage,
+    hasMore: result.hasNextPage,
+    loadMore: result.fetchNextPage,
+    error: result.error,
+    /* Void-returning, to match the single-page hook's reload. */
+    reload: () => {
+      void result.refetch();
+    },
+  };
 }
