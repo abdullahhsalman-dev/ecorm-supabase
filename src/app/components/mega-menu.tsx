@@ -119,7 +119,7 @@ export function MegaMenu() {
                 className={cn(
                   "group relative block whitespace-nowrap py-3.5 text-[12.5px] font-semibold uppercase tracking-[0.08em] transition-colors xl:text-[13px]",
                   category.accent
-                    ? "text-[#FF3D6E]"
+                    ? "text-brand-strong"
                     : isOpen || isCurrent(category.href)
                       ? "text-neutral-900"
                       : "text-neutral-700 hover:text-neutral-900"
@@ -178,7 +178,7 @@ function MegaMenuPanel({ category, onMouseEnter, onMouseLeave, onNavigate }: Meg
       className="absolute inset-x-0 top-full z-40 border-t border-neutral-100 bg-white shadow-[0_28px_60px_-32px_rgba(0,0,0,0.45)] duration-200 ease-out animate-in fade-in-0 slide-in-from-top-1"
     >
       {/* Hairline in the brand pink so the panel reads as part of the header. */}
-      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FF3D6E]/60 to-transparent" />
+      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand/60 to-transparent" />
 
       <div className="mx-auto max-w-7xl px-4 py-9">
         <div className="grid grid-cols-12 gap-10">
@@ -213,7 +213,7 @@ function MegaMenuPanel({ category, onMouseEnter, onMouseLeave, onNavigate }: Meg
                           {link.name}
                         </span>
                         {link.badge && (
-                          <span className="rounded-full bg-[#FF3D6E]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#FF3D6E]">
+                          <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-strong">
                             {link.badge}
                           </span>
                         )}

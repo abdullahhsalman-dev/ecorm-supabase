@@ -692,7 +692,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="mt-6 w-full" disabled={isSubmitting}>
+              <Button type="submit" variant="brand" className="mt-6 w-full" disabled={isSubmitting}>
                 {isSubmitting ? "Processing..." : "Place Order"}
               </Button>
 

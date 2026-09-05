@@ -10,12 +10,7 @@
  */
 
 import { Button } from "@/src/app/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/src/app/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/src/app/components/ui/card";
 import type { CategoryRecord } from "@/src/app/lib/categories";
 import { ChevronRight, Edit2, FolderTree, Plus, Trash2 } from "lucide-react";
 
@@ -42,11 +37,9 @@ export function CategoryCard({
       <div>
         <CardHeader className="flex flex-row items-center justify-between border-b border-neutral-100 bg-neutral-50/50 pb-3">
           <div className="flex items-center gap-2">
-            <FolderTree className="h-[18px] w-[18px] text-[#FF3D6E]" />
+            <FolderTree className="h-[18px] w-[18px] text-brand-strong" />
 
-            <CardTitle className="text-sm font-bold text-neutral-800">
-              {category.name}
-            </CardTitle>
+            <CardTitle className="text-sm font-bold text-neutral-800">{category.name}</CardTitle>
           </div>
 
           <div className="flex gap-0.5">
@@ -84,9 +77,7 @@ export function CategoryCard({
             </span>
 
             {category.description && (
-              <p className="mt-2 line-clamp-2 text-xs text-neutral-500">
-                {category.description}
-              </p>
+              <p className="mt-2 line-clamp-2 text-xs text-neutral-500">{category.description}</p>
             )}
           </div>
 
@@ -96,9 +87,7 @@ export function CategoryCard({
             </span>
 
             {subcategories.length === 0 ? (
-              <p className="mt-1.5 text-xs italic text-neutral-400">
-                No subcategories linked
-              </p>
+              <p className="mt-1.5 text-xs italic text-neutral-400">No subcategories linked</p>
             ) : (
               <div className="mt-2 space-y-1.5">
                 {subcategories.map((sub) => (
@@ -157,7 +146,7 @@ export function CategoryCard({
           type="button"
           variant="ghost"
           onClick={() => onAddSubcategory(category.id)}
-          className="h-7 w-full gap-1 text-xs font-bold text-neutral-500 hover:bg-neutral-50 hover:text-[#FF3D6E]"
+          className="h-7 w-full gap-1 text-xs font-bold text-neutral-500 hover:bg-neutral-50 hover:text-brand-strong"
         >
           <Plus className="h-3 w-3" />
           Add Subcategory

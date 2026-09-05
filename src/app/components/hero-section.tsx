@@ -23,7 +23,7 @@ export function HeroSection() {
       {/* Soft light bloom behind the copy */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-32 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#FF3D6E]/20 blur-3xl"
+        className="pointer-events-none absolute -left-32 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-brand/20 blur-3xl"
       />
 
       <Container className="relative">
@@ -31,7 +31,7 @@ export function HeroSection() {
           {/* Copy */}
           <div className="max-w-xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 backdrop-blur">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FF3D6E]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
               New season, now live
             </span>
 

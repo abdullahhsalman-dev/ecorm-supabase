@@ -179,7 +179,7 @@ export function OrderDetailSheet({ open, onOpenChange, order, onSaved }: OrderDe
       wide
       title={
         <>
-          <ClipboardList className="h-5 w-5 text-[#FF3D6E]" />
+          <ClipboardList className="h-5 w-5 text-brand-strong" />
           Manage Order {order ? formatOrderId(order.id) : ""}
         </>
       }

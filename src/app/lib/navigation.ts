@@ -211,7 +211,7 @@ const saleCategory = (departments: CategoryRecord[]): NavCategory => ({
     description: "Reduced lines across every department, while stocks last.",
     href: "/sale",
     cta: "Shop all offers",
-    gradient: "from-[#FF3D6E] to-[#7A1533]",
+    gradient: "from-brand to-[#7C2D12]",
   },
 });
 

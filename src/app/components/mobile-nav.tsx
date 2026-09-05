@@ -99,7 +99,7 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
                   )}
                 >
                   <div className="min-h-0">
-                    <div className="space-y-5 border-l-2 border-[#FF3D6E]/30 py-1 pb-5 pl-4">
+                    <div className="space-y-5 border-l-2 border-brand/30 py-1 pb-5 pl-4">
                       {category.groups?.map((group, groupIndex) => (
                         <div key={groupIndex}>
                           {group.title && (
@@ -117,7 +117,7 @@ export default function MobileNav({ onNavigate }: MobileNavProps) {
                               >
                                 {link.name}
                                 {link.badge && (
-                                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#FF3D6E]">
+                                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-strong">
                                     {link.badge}
                                   </span>
                                 )}

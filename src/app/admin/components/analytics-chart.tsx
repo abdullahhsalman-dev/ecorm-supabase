@@ -48,18 +48,15 @@ export function AnalyticsChart({
         : paddingX + (index * (width - 2 * paddingX)) / (data.length - 1);
 
     /* SVG origin is top-left, so the Y axis is inverted. */
-    const y =
-      height - paddingY - (point.value * (height - 2 * paddingY)) / range;
+    const y = height - paddingY - (point.value * (height - 2 * paddingY)) / range;
 
     return { x, y, label: point.label, value: point.value };
   });
 
   const linePath = points.reduce(
     (path, point, index) =>
-      index === 0
-        ? `M ${point.x} ${point.y}`
-        : `${path} L ${point.x} ${point.y}`,
-    "",
+      index === 0 ? `M ${point.x} ${point.y}` : `${path} L ${point.x} ${point.y}`,
+    ""
   );
 
   const areaPath =
@@ -87,7 +84,7 @@ export function AnalyticsChart({
             <span className="text-xs font-semibold text-neutral-400">
               {points[hoveredIndex].label}:
             </span>{" "}
-            <span className="text-sm font-bold text-[#FF3D6E]">
+            <span className="text-sm font-bold text-brand-strong">
               {formatCurrency(points[hoveredIndex].value)}
             </span>
           </div>
@@ -108,8 +105,8 @@ export function AnalyticsChart({
           >
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FF3D6E" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#FF3D6E" stopOpacity="0" />
+                <stop offset="0%" stopColor="#F97316" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
               </linearGradient>
 
               <filter id="chartShadow" x="-5%" y="-5%" width="110%" height="110%">
@@ -117,7 +114,7 @@ export function AnalyticsChart({
                   dx="0"
                   dy="4"
                   stdDeviation="4"
-                  floodColor="#FF3D6E"
+                  floodColor="#F97316"
                   floodOpacity="0.15"
                 />
               </filter>
@@ -160,7 +157,7 @@ export function AnalyticsChart({
               <path
                 d={linePath}
                 fill="none"
-                stroke="#FF3D6E"
+                stroke="#F97316"
                 strokeWidth={3}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -186,8 +183,8 @@ export function AnalyticsChart({
                   cx={point.x}
                   cy={point.y}
                   r={hoveredIndex === index ? 6 : 4}
-                  fill={hoveredIndex === index ? "#FF3D6E" : "#FFFFFF"}
-                  stroke="#FF3D6E"
+                  fill={hoveredIndex === index ? "#F97316" : "#FFFFFF"}
+                  stroke="#F97316"
                   strokeWidth={hoveredIndex === index ? 3 : 2}
                   className="pointer-events-none transition-all duration-150"
                 />

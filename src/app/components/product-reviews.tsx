@@ -436,7 +436,7 @@ export function ProductReviews({
                       )}
 
                       {review.admin_response && (
-                        <div className="mt-4 rounded-xl border-l-2 border-[#FF3D6E] bg-muted/40 p-3">
+                        <div className="mt-4 rounded-xl border-l-2 border-brand bg-muted/40 p-3">
                           <p className="text-xs font-semibold">
                             Response from Lamees
                             {review.admin_response_at && (

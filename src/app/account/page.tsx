@@ -23,6 +23,10 @@ const getErrorMessage = (error: unknown): string =>
 export default function AccountPage() {
   const router = useRouter();
   const { user, signOut, signIn, updatePassword } = useAuth();
+
+  /* Read once: the compiler infers `user` from `user?.email` inside a
+     callback, which widens the dependency past what we actually read. */
+  const userEmail = user?.email ?? null;
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -52,15 +56,13 @@ export default function AccountPage() {
    * was passed at signup, so reading it made an edited name reappear as the
    * old one on the next visit.
    */
-  const email = user?.email;
-
   const loadProfile = useCallback(async (): Promise<UserProfile | null> => {
-    if (!email) {
+    if (!userEmail) {
       return null;
     }
 
-    return fetchUserProfileByEmail(email);
-  }, [email]);
+    return fetchUserProfileByEmail(userEmail);
+  }, [userEmail]);
 
   const onProfileError = useCallback((error: unknown) => {
     console.error("Error loading profile:", error);
@@ -68,14 +70,14 @@ export default function AccountPage() {
 
   const { data: profile } = useAsyncData(loadProfile, {
     fallback: null as UserProfile | null,
-    enabled: Boolean(email),
+    enabled: Boolean(userEmail),
     onError: onProfileError,
   });
 
   /* The profile is the default; edits win once there are any. */
   const formData = edits ?? {
     fullName: profile?.full_name ?? "",
-    email: profile?.email ?? email ?? "",
+    email: profile?.email ?? userEmail ?? "",
     phone: profile?.phone ?? "",
   };
 
@@ -129,7 +131,7 @@ export default function AccountPage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user?.email) {
+    if (!userEmail) {
       return;
     }
 
@@ -150,7 +152,7 @@ export default function AccountPage() {
        * unlocked browser could do it. Re-signing in with the current password
        * is what makes the "Current Password" field mean something.
        */
-      const { error: reauthError } = await signIn(user.email, passwordForm.currentPassword);
+      const { error: reauthError } = await signIn(userEmail, passwordForm.currentPassword);
 
       if (reauthError) {
         toast({

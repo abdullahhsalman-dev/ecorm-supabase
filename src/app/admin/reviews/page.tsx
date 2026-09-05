@@ -290,7 +290,7 @@ export default function AdminReviewsPage() {
               onClick={() => setStatusFilter(option.value)}
               className={
                 statusFilter === option.value
-                  ? "rounded-md bg-[#FF3D6E] px-3 py-1.5 text-sm font-medium text-white"
+                  ? "rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-brand-foreground"
                   : "rounded-md px-3 py-1.5 text-sm font-medium text-neutral-500 hover:bg-neutral-50"
               }
             >
@@ -341,7 +341,7 @@ export default function AdminReviewsPage() {
                     {review.product ? (
                       <Link
                         href={`/products/${review.product.slug}`}
-                        className="text-sm font-semibold text-neutral-900 hover:text-[#FF3D6E]"
+                        className="text-sm font-semibold text-neutral-900 hover:text-brand-strong"
                       >
                         {review.product.name}
                       </Link>
@@ -392,7 +392,7 @@ export default function AdminReviewsPage() {
                   )}
 
                   {review.admin_response && (
-                    <div className="mt-3 rounded-lg border-l-2 border-[#FF3D6E] bg-neutral-50 p-3">
+                    <div className="mt-3 rounded-lg border-l-2 border-brand bg-neutral-50 p-3">
                       <p className="text-xs font-semibold text-neutral-900">
                         Your reply
                         {review.admin_response_at && (
@@ -510,7 +510,7 @@ export default function AdminReviewsPage() {
                 <Button
                   type="submit"
                   disabled={savingReply}
-                  className="bg-[#FF3D6E] text-white hover:bg-[#E0345F]"
+                  className="bg-brand text-brand-foreground hover:bg-brand-strong"
                 >
                   {savingReply ? "Saving…" : "Save reply"}
                 </Button>
